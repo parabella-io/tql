@@ -1,0 +1,29 @@
+{
+  "extends": "@tql/ts-config/tsconfig.client.json",
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "eslint.config.js",
+    "prettier.config.js",
+    "vite.config.js"
+  ],
+  "compilerOptions": {
+    "jsx": "preserve",
+    "types": ["vite/client", "react", "react-dom"],
+    "allowImportingTsExtensions": true,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "preserveSymlinks": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@features/*": ["./src/features/*"],
+      "@api/*": ["src/api/*"],
+      "@components/*": ["src/shared/components/*"],
+      "@contexts/*": ["src/shared/contexts/*"],
+      "@hooks/*": ["src/shared/hooks/*"],
+      "@lib/*": ["src/shared/lib/*"]
+    }
+  }
+}

@@ -1,0 +1,39 @@
+import z from 'zod';
+
+import { schema } from '../../schema';
+
+export const moveTicket = schema.mutation('moveTicket', {
+  input: z.object({
+    id: z.string(),
+    oldTicketListId: z.string(),
+    newTicketListId: z.string(),
+  }),
+
+  changed: {
+    ticket: {
+      updates: true,
+    },
+  },
+
+  allow: async ({ context, input }) => {
+    const ticket = await context.ticketsService.getById(context.user, {
+      id: input.id,
+    });
+
+    return context.user.workspaceIds.includes(ticket.workspaceId);
+  },
+
+  resolve: async ({ context, input }) => {
+    const ticket = await context.ticketsService.moveList(context.user, {
+      id: input.id,
+      oldTicketListId: input.oldTicketListId,
+      newTicketListId: input.newTicketListId,
+    });
+
+    return {
+      ticket: {
+        updates: [ticket],
+      },
+    };
+  },
+});

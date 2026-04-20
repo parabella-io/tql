@@ -1,0 +1,19 @@
+{
+  "name": "@tql",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "db:push": "turbo db:push && turbo db:generate",
+    "build:package": "turbo build:package",
+    "dev": "turbo dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.15.0",
+  "dependencies": {
+    "better-sqlite3": "^12.5.0",
+    "turbo": "^2.9.6"
+  }
+}

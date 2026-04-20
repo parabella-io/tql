@@ -1,0 +1,13 @@
+{
+  "name": "@tql/ts-config",
+  "version": "1.0.0",
+  "description": "",
+  "files": [
+    "tsconfig.client.json",
+    "tsconfig.server.json"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.15.0"
+}

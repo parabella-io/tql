@@ -1,0 +1,9 @@
+{
+  "extends": "@tql/ts-config/tsconfig.server.json",
+  "include": ["src", "test"],
+  "exclude": ["node_modules", "dist"],
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist"
+  }
+}

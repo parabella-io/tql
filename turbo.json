@@ -1,0 +1,24 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "envMode": "loose",
+  "tasks": {
+    "build:package": {
+      "persistent": false,
+      "cache": true,
+      "dependsOn": ["^build:package"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "persistent": true,
+      "cache": false
+    },
+    "db:push": {
+      "persistent": false,
+      "cache": false
+    },
+    "db:generate": {
+      "persistent": false,
+      "cache": false
+    }
+  }
+}
