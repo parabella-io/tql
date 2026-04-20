@@ -17,6 +17,27 @@ export type ApplyMutationResponseMap<MutationResponseMap, Q> = {
 };
 
 /**
+ * A single pending mutation effect returned alongside a batch of results. The
+ * resolver never invokes these itself - it is the server's responsibility to
+ * decide *when* and *how* they run (e.g. after the HTTP response is flushed,
+ * via the configured {@link EffectQueue}).
+ */
+export type PendingMutationEffect = {
+  mutationName: string;
+  run(): Promise<void>;
+};
+
+/**
+ * Return shape for {@link MutationResolver.handle}. Pending effects are
+ * surfaced as data so a caller (typically the `Server`) can enqueue them
+ * against its own queue once the transport layer signals "response sent".
+ */
+export type MutationHandleResult<S extends ClientSchema, Q extends Partial<S['MutationInputMap']>> = {
+  results: ApplyMutationResponseMap<S['MutationResponseMap'], Q>;
+  effects: PendingMutationEffect[];
+};
+
+/**
  * MutationResolver is constructed against a {@link Schema} plus the codegen-emitted
  * {@link ClientSchema} aggregate (which carries `MutationInputMap`,
  * `MutationResponseMap` and `SchemaEntities`). Runtime behaviour is unchanged —
@@ -54,7 +75,7 @@ export class MutationResolver<S extends ClientSchema> {
   public async handle<const Q extends Partial<S['MutationInputMap']>>(options: {
     context: any;
     mutation: Q;
-  }): Promise<ApplyMutationResponseMap<S['MutationResponseMap'], Q>> {
+  }): Promise<MutationHandleResult<S, Q>> {
     const { context, mutation: mutationInput } = options;
 
     const results = {} as Record<
@@ -65,8 +86,10 @@ export class MutationResolver<S extends ClientSchema> {
       }
     >;
 
+    const effects: PendingMutationEffect[] = [];
+
     if (Object.keys(mutationInput as Record<string, unknown>).length === 0) {
-      return results as any;
+      return { results: results as any, effects };
     }
 
     for (const mutationName of Object.keys(mutationInput as Record<string, unknown>)) {
@@ -122,13 +145,12 @@ export class MutationResolver<S extends ClientSchema> {
             changes: {},
             error: null,
           };
+
+          this.collectEffect(effects, mutation, mutationName, context, input.data, {});
           continue;
         }
 
-        const payload = (parsedResult.data ?? {}) as Record<
-          string,
-          { inserts?: any[]; updates?: any[]; upserts?: any[]; deletes?: any[] }
-        >;
+        const payload = (parsedResult.data ?? {}) as Record<string, { inserts?: any[]; updates?: any[]; upserts?: any[]; deletes?: any[] }>;
         const changes: Record<string, { inserts?: any[]; updates?: any[]; upserts?: any[]; deletes?: any[] }> = {};
 
         for (const modelName of Object.keys(changed)) {
@@ -161,6 +183,8 @@ export class MutationResolver<S extends ClientSchema> {
           changes,
           error: null,
         };
+
+        this.collectEffect(effects, mutation, mutationName, context, input.data, changes);
       } catch (error: unknown) {
         if (error instanceof TQLServerError) {
           results[mutationName] = {
@@ -176,7 +200,29 @@ export class MutationResolver<S extends ClientSchema> {
       }
     }
 
-    return results as any;
+    return { results: results as any, effects };
+  }
+
+  private collectEffect(
+    sink: PendingMutationEffect[],
+    mutation: Mutation<any, any, any, any>,
+    mutationName: string,
+    context: unknown,
+    input: unknown,
+    changes: Record<string, { inserts?: any[]; updates?: any[]; upserts?: any[]; deletes?: any[] }>,
+  ): void {
+    const resolveEffects = mutation.getResolveEffects();
+
+    if (!resolveEffects) {
+      return;
+    }
+
+    sink.push({
+      mutationName,
+      run: async () => {
+        await resolveEffects({ context, input, changes } as any);
+      },
+    });
   }
 }
 

@@ -3,7 +3,7 @@ import { schema } from '../test-schema/schema.js';
 import { z } from 'zod';
 
 const typeCheck = async () => {
-  const result = await mutationResolver.handle({
+  const { results: result } = await mutationResolver.handle({
     context: {} as any,
     mutation: {
       createProfileNoChanges: {

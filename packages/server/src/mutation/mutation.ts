@@ -60,6 +60,11 @@ export type MutationOptions<
     input: z.infer<Input>;
     context: SchemaContext;
   }) => Promise<StrictMutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, NoInfer<Changed>>> | void>;
+  resolveEffects?: (options: {
+    input: z.infer<Input>;
+    context: SchemaContext;
+    changes: MutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, NoInfer<Changed>>>;
+  }) => Promise<void> | void;
 };
 
 export class Mutation<
@@ -80,12 +85,15 @@ export class Mutation<
 
   private readonly resolve: MutationOptions<SchemaContext, SchemaEntities, Input, Changed>['resolve'];
 
+  private readonly resolveEffects?: MutationOptions<SchemaContext, SchemaEntities, Input, Changed>['resolveEffects'];
+
   constructor(mutationName: string, options: MutationOptions<SchemaContext, SchemaEntities, Input, Changed>) {
     this.mutationName = mutationName;
     this.input = options.input;
     this.changed = options.changed;
     this.allow = options.allow;
     this.resolve = options.resolve;
+    this.resolveEffects = options.resolveEffects;
   }
 
   getMutationName(): string {
@@ -109,5 +117,15 @@ export class Mutation<
     context: SchemaContext;
   }) => Promise<StrictMutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, Changed>> | void> {
     return this.resolve;
+  }
+
+  getResolveEffects():
+    | ((options: {
+        input: z.infer<Input>;
+        context: SchemaContext;
+        changes: MutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, Changed>>;
+      }) => Promise<void> | void)
+    | undefined {
+    return this.resolveEffects;
   }
 }

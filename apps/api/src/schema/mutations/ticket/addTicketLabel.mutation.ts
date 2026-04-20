@@ -32,4 +32,6 @@ export const addTicketLabel = schema.mutation('addTicketLabel', {
       },
     };
   },
+
+  resolveEffects: async ({ context, changes, input }) => {},
 });

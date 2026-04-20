@@ -38,7 +38,7 @@ describe('MutationResolver - Success', () => {
       zip: '12345',
     };
 
-    const result = await mutationResolver.handle({
+    const { results: result } = await mutationResolver.handle({
       context,
       mutation: {
         createProfile: {
@@ -100,7 +100,7 @@ describe('MutationResolver - Success', () => {
       zip: '12345',
     };
 
-    const result = await mutationResolver.handle({
+    const { results: result } = await mutationResolver.handle({
       context,
       mutation: {
         createProfile: {
@@ -173,7 +173,7 @@ describe('MutationResolver - Success', () => {
       zip: '12345',
     };
 
-    const result = await mutationResolver.handle({
+    const { results: result } = await mutationResolver.handle({
       context,
       mutation: {
         createProfileNoChanges: {
@@ -225,7 +225,7 @@ describe('MutationResolver - Errors', () => {
       zip: '12345',
     };
 
-    const result = await mutationResolver.handle({
+    const { results: result } = await mutationResolver.handle({
       context,
       mutation: {
         createProfileUnauthorized: {
@@ -254,7 +254,7 @@ describe('MutationResolver - Errors', () => {
       zip: '12345',
     };
 
-    const result = await mutationResolver.handle({
+    const { results: result } = await mutationResolver.handle({
       context,
       mutation: {
         createProfile: {
@@ -281,7 +281,7 @@ describe('MutationResolver - Errors', () => {
       zip: '12345',
     };
 
-    const result = await mutationResolver.handle({
+    const { results: result } = await mutationResolver.handle({
       context,
       mutation: {
         createProfileMalformedResponse: {
@@ -309,7 +309,7 @@ describe('MutationResolver - Errors', () => {
       zip: '12345',
     };
 
-    const result = await mutationResolver.handle({
+    const { results: result } = await mutationResolver.handle({
       context,
       mutation: {
         invalidMutation: {
@@ -328,7 +328,7 @@ describe('MutationResolver - Errors', () => {
   });
 
   test(`should invoke with no mutations and return a MutationNotSpecified error`, async () => {
-    const result = await mutationResolver.handle({
+    const { results: result } = await mutationResolver.handle({
       context,
       mutation: {} as any,
     });
