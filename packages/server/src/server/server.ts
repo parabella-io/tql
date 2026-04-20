@@ -62,7 +62,7 @@ export class Server<S extends ClientSchema> {
   public readonly queryResolver: QueryResolver<S>;
   public readonly mutationResolver: MutationResolver<S>;
 
-  private readonly contextFactory: (options: { request: unknown }) => Promise<any>;
+  private readonly contextFactory: (options: { request: any }) => Promise<any>;
 
   private readonly effectQueue: EffectQueue;
 
@@ -96,12 +96,12 @@ export class Server<S extends ClientSchema> {
     });
   }
 
-  public async createContext(options: { request: unknown }): Promise<any> {
+  public async createContext(options: { request: any }): Promise<any> {
     return this.contextFactory(options);
   }
 
   public async handleQuery<const Q extends Partial<S['QueryInputMap']>>(options: {
-    request: unknown;
+    request: any;
     query: Q;
   }): Promise<ApplyQueryResponseMap<S['QueryResponseMap'], Q>> {
     const context = await this.createContext({ request: options.request });
@@ -119,7 +119,7 @@ export class Server<S extends ClientSchema> {
    * in {@link Server.attachHttp}, after the HTTP response has been flushed.
    */
   public async handleMutation<const Q extends Partial<S['MutationInputMap']>>(options: {
-    request: unknown;
+    request: any;
     mutation: Q;
   }): Promise<MutationHandleResult<S, Q>> {
     const context = await this.createContext({ request: options.request });
@@ -141,7 +141,7 @@ export class Server<S extends ClientSchema> {
     }
   }
 
-  public attachHttp(adapter: HttpAdapter<unknown>): this {
+  public attachHttp(adapter: HttpAdapter<any>): this {
     adapter.post('/query', async (request) => {
       return this.handleQuery({
         request,
