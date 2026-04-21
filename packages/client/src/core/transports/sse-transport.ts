@@ -22,12 +22,12 @@ export type EventSourceFactory = (url: string) => EventSourceLike;
 
 export type SseTransportOptions = {
   /**
-   * URL of the SSE `GET /events` endpoint. Each `subscribe(...)` call
+   * URL of the SSE `GET /subscription` endpoint. Each `subscribe(...)` call
    * opens its own `EventSource` against this URL with `?name=...` and
    * `?args=<JSON>` query params, so a single stream carries exactly
    * one subscription.
    */
-  eventsUrl: string;
+  url: string;
 
   /**
    * Factory that opens the SSE stream. Defaults to
@@ -44,6 +44,17 @@ export type SseTransportOptions = {
    * cross-origin. Defaults to `true`.
    */
   withCredentials?: boolean;
+
+  /**
+   * Extra headers merged onto every SSE subscription. Lazy so auth
+   * tokens can be read fresh per `subscribe()`. The browser
+   * `EventSource` constructor can't set real HTTP headers, so the
+   * resolved map is URL-encoded into a `?headers=<JSON>` query param;
+   * the server merges it onto the upgrade request headers before
+   * building `context` / `connection`, matching
+   * `HttpTransport.headers` / `WsTransport.headers`.
+   */
+  headers?: () => Record<string, string> | Promise<Record<string, string>>;
 };
 
 /**
@@ -82,7 +93,23 @@ export class SseTransport implements SubscriptionTransport {
   }
 
   public subscribe(options: { name: string; args: unknown; listener: SubscriptionListener }): Promise<SubscribeHandle> {
-    const url = this.buildUrl(options.name, options.args);
+    // Preserve the synchronous open path when no `headers` callback is
+    // configured so consumers (and tests) that expect the
+    // `EventSource` to exist the moment `subscribe()` returns keep
+    // working. Only take the async path when we need to resolve
+    // headers first.
+    if (!this.options.headers) {
+      return this.openStream(options, {});
+    }
+
+    return Promise.resolve(this.options.headers()).then((headers) => this.openStream(options, headers));
+  }
+
+  private openStream(
+    options: { name: string; args: unknown; listener: SubscriptionListener },
+    headers: Record<string, string>,
+  ): Promise<SubscribeHandle> {
+    const url = this.buildUrl(options.name, options.args, headers);
 
     const factory = this.resolveFactory();
 
@@ -176,20 +203,24 @@ export class SseTransport implements SubscriptionTransport {
     });
   }
 
-  private buildUrl(name: string, args: unknown): string {
-    // `eventsUrl` may be absolute (`https://api.example.com/events`)
-    // or relative (`/events`). `new URL` rejects relative URLs without
-    // a base, so we fall back to manual query-string assembly in that
-    // case. `EventSource` itself accepts both.
-    const query = `name=${encodeURIComponent(name)}&args=${encodeURIComponent(JSON.stringify(args ?? {}))}`;
+  private buildUrl(name: string, args: unknown, headers: Record<string, string>): string {
+    // `url` may be absolute (`https://api.example.com`) or relative
+    // (`/api`). `new URL` rejects relative URLs without a base, so we
+    // fall back to manual query-string assembly in that case.
+    // `EventSource` itself accepts both.
+    const hasHeaders = Object.keys(headers).length > 0;
+    const encodedHeaders = hasHeaders ? encodeURIComponent(JSON.stringify(headers)) : '';
+    let query = `name=${encodeURIComponent(name)}&args=${encodeURIComponent(JSON.stringify(args ?? {}))}`;
+    if (hasHeaders) query += `&headers=${encodedHeaders}`;
 
     try {
-      const url = new URL(this.options.eventsUrl);
+      const url = new URL(this.options.url + '/subscription');
       url.searchParams.set('name', name);
       url.searchParams.set('args', JSON.stringify(args ?? {}));
+      if (hasHeaders) url.searchParams.set('headers', JSON.stringify(headers));
       return url.toString();
     } catch {
-      const base = this.options.eventsUrl;
+      const base = this.options.url + '/subscription';
       const separator = base.includes('?') ? '&' : '?';
       return `${base}${separator}${query}`;
     }

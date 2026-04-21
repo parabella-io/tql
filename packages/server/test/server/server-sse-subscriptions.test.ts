@@ -216,13 +216,13 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     return server;
   };
 
-  test('GET /events?name&args registers exactly one subscription and emits subscription:ready', async () => {
+  test('GET /subscription?name&args registers exactly one subscription and emits subscription:ready', async () => {
     const srv = newServer();
     const transport = createFakeHttpTransport();
     srv.attachHttp(transport.adapter);
 
     const stream = await transport.openSse(
-      '/events',
+      '/subscription',
       { user: { id: 'u1', workspaceIds: ['w1'] } },
       { name: 'ticketSubscription', args: { ticketId: 't1' } },
     );
@@ -241,7 +241,7 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     srv.attachHttp(transport.adapter);
 
     const stream = await transport.openSse(
-      '/events',
+      '/subscription',
       { user: { id: 'u1', workspaceIds: ['w1'] } },
       { name: 'ticketSubscription', args: { ticketId: 't1' } },
     );
@@ -278,11 +278,7 @@ describe('Server.attachHttp — SSE subscriptions', () => {
 
     // openSse normally forces `name`, so bypass it here by writing
     // `name: ''` (treated as missing by the server).
-    const stream = await transport.openSse(
-      '/events',
-      { user: { id: 'u1', workspaceIds: ['w1'] } },
-      { name: '', args: {} },
-    );
+    const stream = await transport.openSse('/subscription', { user: { id: 'u1', workspaceIds: ['w1'] } }, { name: '', args: {} });
 
     const error = firstOfType(stream.frames, 'subscription:error');
     expect(error).toBeTruthy();
@@ -295,7 +291,7 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     const transport = createFakeHttpTransport();
     srv.attachHttp(transport.adapter);
 
-    const stream = await transport.invokeSse('/events', {
+    const stream = await transport.invokeSse('/subscription', {
       user: { id: 'u1', workspaceIds: ['w1'] },
       query: { name: 'ticketSubscription', args: '{not-json' },
     });
@@ -312,7 +308,7 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     srv.attachHttp(transport.adapter);
 
     const stream = await transport.openSse(
-      '/events',
+      '/subscription',
       { user: { id: 'u1', workspaceIds: ['w1'] } },
       { name: 'ticketSubscription', args: { ticketId: 't1' } },
     );
@@ -330,7 +326,7 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     srv.attachHttp(transport.adapter);
 
     const stream = await transport.openSse(
-      '/events',
+      '/subscription',
       { user: { id: 'u1', workspaceIds: ['w1'] } },
       { name: 'ticketSubscription', args: { ticketId: 't1' } },
     );
@@ -355,12 +351,12 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     srv.attachHttp(transport.adapter);
 
     const watcher = await transport.openSse(
-      '/events',
+      '/subscription',
       { user: { id: 'u1', workspaceIds: ['w1'] } },
       { name: 'ticketSubscription', args: { ticketId: 't1' } },
     );
     const bystander = await transport.openSse(
-      '/events',
+      '/subscription',
       { user: { id: 'u2', workspaceIds: ['w2'] } },
       { name: 'ticketSubscription', args: { ticketId: 't1' } },
     );
@@ -385,5 +381,108 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     // ticket was inserted into w1, so the subscription's `filter`
     // rejects it.
     expect(bystanderUpdate).toBeUndefined();
+  });
+
+  test('?headers merges onto the request passed to createContext / createConnection', async () => {
+    const schema = buildSchema();
+    const transport = createFakeHttpTransport();
+
+    const contextRequests: any[] = [];
+    const connectionRequests: any[] = [];
+
+    const srv = new Server<any, Connection>({
+      schema,
+      generateSchema: { enabled: false },
+      subscriptions: { sseKeepAliveMs: 0 },
+      createContext: async ({ request }) => {
+        contextRequests.push(request);
+        return { userId: 'u1' };
+      },
+      createConnection: ({ request }) => {
+        connectionRequests.push(request);
+        return { workspaceIds: ['w1'] };
+      },
+    });
+    server = srv;
+    srv.attachHttp(transport.adapter);
+
+    const request = {
+      user: { id: 'u1', workspaceIds: ['w1'] },
+      headers: { 'x-base': 'from-upgrade' },
+    } as unknown as FakeRequest;
+
+    const headers = { authorization: 'Bearer token', 'x-extra': 'hi' };
+
+    const stream = await transport.invokeSse('/subscription', {
+      ...request,
+      query: {
+        name: 'ticketSubscription',
+        args: JSON.stringify({ ticketId: 't1' }),
+        headers: JSON.stringify(headers),
+      },
+    });
+
+    expect(firstOfType(stream.frames, 'subscription:ready')).toBeTruthy();
+
+    expect(contextRequests).toHaveLength(1);
+    expect(contextRequests[0].headers).toEqual({
+      'x-base': 'from-upgrade',
+      authorization: 'Bearer token',
+      'x-extra': 'hi',
+    });
+
+    expect(connectionRequests).toHaveLength(1);
+    expect(connectionRequests[0].headers).toEqual(contextRequests[0].headers);
+  });
+
+  test('?headers that is not valid JSON emits subscription:error and closes the stream', async () => {
+    const srv = newServer();
+    const transport = createFakeHttpTransport();
+    srv.attachHttp(transport.adapter);
+
+    const stream = await transport.invokeSse('/subscription', {
+      user: { id: 'u1', workspaceIds: ['w1'] },
+      query: {
+        name: 'ticketSubscription',
+        args: JSON.stringify({ ticketId: 't1' }),
+        headers: '{not-json',
+      },
+    });
+
+    expect(firstOfType(stream.frames, 'subscription:error')).toBeTruthy();
+    expect(stream.closed).toBe(true);
+    expect(srv.subscriptionResolver.getRegistry().size()).toBe(0);
+  });
+
+  test('?headers with non-string values is rejected before createContext runs', async () => {
+    const schema = buildSchema();
+    const transport = createFakeHttpTransport();
+
+    let createContextCalls = 0;
+    const srv = new Server<any, Connection>({
+      schema,
+      generateSchema: { enabled: false },
+      subscriptions: { sseKeepAliveMs: 0 },
+      createContext: async () => {
+        createContextCalls++;
+        return { userId: 'u1' };
+      },
+      createConnection: () => ({ workspaceIds: ['w1'] }),
+    });
+    server = srv;
+    srv.attachHttp(transport.adapter);
+
+    const stream = await transport.invokeSse('/subscription', {
+      user: { id: 'u1', workspaceIds: ['w1'] },
+      query: {
+        name: 'ticketSubscription',
+        args: JSON.stringify({ ticketId: 't1' }),
+        headers: JSON.stringify({ bad: 42 }),
+      },
+    });
+
+    expect(firstOfType(stream.frames, 'subscription:error')).toBeTruthy();
+    expect(stream.closed).toBe(true);
+    expect(createContextCalls).toBe(0);
   });
 });

@@ -40,7 +40,7 @@ const createStubTransport = () => {
  *  is exercised end-to-end. */
 const buildClientWithTransport = (stub: ReturnType<typeof createStubTransport>) => {
   const sseTransport = new SseTransport({
-    eventsUrl: '/events',
+    eventsUrl: '/subscription',
     eventSource: () => ({
       readyState: 0,
       close() {},
@@ -198,8 +198,15 @@ describe('Client auto connect / disconnect lifecycle', () => {
 
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     expect(webSocketFactory).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(sent[0]!)).toEqual({ type: 'connection:init', headers: {} });
 
-    const envelope = JSON.parse(sent[0]!);
+    for (const listener of listeners.message) {
+      listener({ data: JSON.stringify({ type: 'connection:ack' }) });
+    }
+
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+
+    const envelope = JSON.parse(sent[1]!);
     for (const listener of listeners.message) {
       listener({ data: JSON.stringify({ id: envelope.id, type: 'query:result', payload: { tickets: { data: [], error: null, metadata: {} } } }) });
     }
@@ -222,7 +229,7 @@ describe('Client auto connect / disconnect lifecycle', () => {
             http: new HttpTransport({ url: '/api', fetch: vi.fn() }),
             ws: new WsTransport({ url: 'ws://test', webSocket: createFakeWs }),
             sse: new SseTransport({
-              eventsUrl: '/events',
+              eventsUrl: '/subscription',
               eventSource: () => ({
                 readyState: 0,
                 close() {},

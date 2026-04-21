@@ -44,16 +44,155 @@ const createFakeSocket = () => {
   };
 };
 
+/**
+ * Drives the handshake forward: flush the pending `getHeaders()`
+ * promise, wait for `connection:init` to show up on the wire, emit
+ * `connection:ack`, and clear the `sent` buffer so subsequent
+ * assertions can look at `sent[0]` like they did before the handshake
+ * existed.
+ */
+const handshake = async (fake: ReturnType<typeof createFakeSocket>): Promise<void> => {
+  fake.open();
+  for (let attempt = 0; attempt < 10 && fake.sent.length === 0; attempt++) {
+    await Promise.resolve();
+  }
+  fake.emit(JSON.stringify({ type: 'connection:ack' }));
+  await Promise.resolve();
+  fake.sent.length = 0;
+};
+
 describe('WsTransport', () => {
-  it('connect() resolves when the socket opens', async () => {
+  it('connect() resolves after the server acks connection:init', async () => {
     const fake = createFakeSocket();
     const transport = new WsTransport({ url: 'ws://test', webSocket: () => fake.socket });
 
     const connectPromise = transport.connect();
     fake.open();
+    for (let attempt = 0; attempt < 10 && fake.sent.length === 0; attempt++) {
+      await Promise.resolve();
+    }
+
+    expect(fake.sent).toHaveLength(1);
+    const init = JSON.parse(fake.sent[0]!);
+    expect(init).toEqual({ type: 'connection:init', headers: {} });
+
+    expect(transport.isConnected()).toBe(false);
+
+    fake.emit(JSON.stringify({ type: 'connection:ack' }));
 
     await expect(connectPromise).resolves.toBeUndefined();
     expect(transport.isConnected()).toBe(true);
+  });
+
+  it('connect() forwards sync and async headers in connection:init', async () => {
+    const syncFake = createFakeSocket();
+    const syncTransport = new WsTransport({
+      url: 'ws://test',
+      webSocket: () => syncFake.socket,
+      headers: () => ({ authorization: 'Bearer sync-token' }),
+    });
+
+    const syncConnect = syncTransport.connect();
+    syncFake.open();
+    for (let attempt = 0; attempt < 10 && syncFake.sent.length === 0; attempt++) {
+      await Promise.resolve();
+    }
+
+    expect(JSON.parse(syncFake.sent[0]!)).toEqual({
+      type: 'connection:init',
+      headers: { authorization: 'Bearer sync-token' },
+    });
+
+    syncFake.emit(JSON.stringify({ type: 'connection:ack' }));
+    await syncConnect;
+
+    const asyncFake = createFakeSocket();
+    const asyncTransport = new WsTransport({
+      url: 'ws://test',
+      webSocket: () => asyncFake.socket,
+      headers: async () => ({ authorization: 'Bearer async-token' }),
+    });
+
+    const asyncConnect = asyncTransport.connect();
+    asyncFake.open();
+    for (let attempt = 0; attempt < 10 && asyncFake.sent.length === 0; attempt++) {
+      await Promise.resolve();
+    }
+
+    expect(JSON.parse(asyncFake.sent[0]!)).toEqual({
+      type: 'connection:init',
+      headers: { authorization: 'Bearer async-token' },
+    });
+
+    asyncFake.emit(JSON.stringify({ type: 'connection:ack' }));
+    await asyncConnect;
+  });
+
+  it('connect() rejects and closes the socket when the server sends connection:error during the handshake', async () => {
+    const fake = createFakeSocket();
+    const transport = new WsTransport({ url: 'ws://test', webSocket: () => fake.socket });
+
+    const connectPromise = transport.connect();
+    fake.open();
+    for (let attempt = 0; attempt < 10 && fake.sent.length === 0; attempt++) {
+      await Promise.resolve();
+    }
+
+    fake.emit(JSON.stringify({ type: 'connection:error', error: { message: 'nope' } }));
+
+    await expect(connectPromise).rejects.toMatchObject({ message: 'nope' });
+    expect(fake.socket.readyState).toBe(3);
+    expect(transport.isConnected()).toBe(false);
+  });
+
+  it('connect() rejects when the socket closes before connection:ack', async () => {
+    const fake = createFakeSocket();
+    const transport = new WsTransport({ url: 'ws://test', webSocket: () => fake.socket });
+
+    const connectPromise = transport.connect();
+    fake.open();
+    for (let attempt = 0; attempt < 10 && fake.sent.length === 0; attempt++) {
+      await Promise.resolve();
+    }
+
+    fake.close();
+
+    await expect(connectPromise).rejects.toBeInstanceOf(Error);
+    expect(transport.isConnected()).toBe(false);
+  });
+
+  it('forwards withCredentials into the factory, defaulting to true', async () => {
+    const seen: Array<{ withCredentials: boolean }> = [];
+    const fake = createFakeSocket();
+    const transport = new WsTransport({
+      url: 'ws://test',
+      webSocket: (_url, options) => {
+        seen.push(options);
+        return fake.socket;
+      },
+    });
+
+    const connectPromise = transport.connect();
+    await handshake(fake);
+    await connectPromise;
+
+    expect(seen).toEqual([{ withCredentials: true }]);
+
+    const explicit = createFakeSocket();
+    const explicitTransport = new WsTransport({
+      url: 'ws://test',
+      withCredentials: false,
+      webSocket: (_url, options) => {
+        seen.push(options);
+        return explicit.socket;
+      },
+    });
+
+    const explicitConnect = explicitTransport.connect();
+    await handshake(explicit);
+    await explicitConnect;
+
+    expect(seen[1]).toEqual({ withCredentials: false });
   });
 
   it('query() sends a query envelope and resolves with the matching query:result payload', async () => {
@@ -61,12 +200,11 @@ describe('WsTransport', () => {
     const transport = new WsTransport({ url: 'ws://test', webSocket: () => fake.socket });
 
     const connectPromise = transport.connect();
-    fake.open();
+    await handshake(fake);
     await connectPromise;
 
     const queryPromise = transport.query({ tickets: { query: {}, select: true } });
 
-    // The first message sent must include the envelope with a correlation id.
     expect(fake.sent).toHaveLength(1);
     const envelope = JSON.parse(fake.sent[0]!);
     expect(envelope).toMatchObject({ type: 'query', payload: { tickets: { query: {}, select: true } } });
@@ -89,7 +227,7 @@ describe('WsTransport', () => {
     const transport = new WsTransport({ url: 'ws://test', webSocket: () => fake.socket });
 
     const connectPromise = transport.connect();
-    fake.open();
+    await handshake(fake);
     await connectPromise;
 
     const queryPromise = transport.query({ tickets: { query: {}, select: true } });
@@ -105,7 +243,7 @@ describe('WsTransport', () => {
     const transport = new WsTransport({ url: 'ws://test', webSocket: () => fake.socket });
 
     const connectPromise = transport.connect();
-    fake.open();
+    await handshake(fake);
     await connectPromise;
 
     const onBatch = vi.fn();
@@ -140,7 +278,7 @@ describe('WsTransport', () => {
     const fake = createFakeSocket();
     const transport = new WsTransport({ url: 'ws://test', webSocket: () => fake.socket });
     const connectPromise = transport.connect();
-    fake.open();
+    await handshake(fake);
     await connectPromise;
 
     const onBatch = vi.fn();
@@ -168,7 +306,7 @@ describe('WsTransport', () => {
     const fake = createFakeSocket();
     const transport = new WsTransport({ url: 'ws://test', webSocket: () => fake.socket });
     const connectPromise = transport.connect();
-    fake.open();
+    await handshake(fake);
     await connectPromise;
 
     const queryPromise = transport.query({ tickets: { query: {}, select: true } });

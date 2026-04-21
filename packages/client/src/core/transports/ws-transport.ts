@@ -22,15 +22,39 @@ export type WebSocketLike = {
   addEventListener(event: 'message', listener: (event: { data: unknown }) => void): void;
 };
 
-export type WebSocketFactory = (url: string) => WebSocketLike;
+export type WebSocketFactory = (url: string, options: { withCredentials: boolean }) => WebSocketLike;
 
 export type WsTransportOptions = {
   url: string;
   /**
    * Factory that constructs a `WebSocket`-like instance. Defaults to
-   * `new globalThis.WebSocket(url)` when available.
+   * `new globalThis.WebSocket(url)` when available. Receives the
+   * resolved `withCredentials` flag so Node factories (e.g. the `ws`
+   * package) can forward credentials / upgrade headers; the default
+   * browser factory ignores it because the `WebSocket` constructor
+   * doesn't expose a credentials option.
    */
   webSocket?: WebSocketFactory;
+
+  /**
+   * Extra headers forwarded to the server in the initial
+   * `connection:init` handshake frame. Lazy so auth tokens can be read
+   * fresh per connection. The server merges these onto the upgrade
+   * request headers before building `context` / `connection`, giving
+   * parity with `HttpTransport.headers`.
+   */
+  headers?: () => Record<string, string> | Promise<Record<string, string>>;
+
+  /**
+   * Whether the WebSocket should be opened with credentials (cookies /
+   * `Authorization`) forwarded cross-origin. Defaults to `true` to
+   * match `HttpTransport` / `SseTransport`. The browser `WebSocket`
+   * constructor has no corresponding option, so this is best-effort —
+   * cookies flow automatically for same-origin sockets, and a
+   * user-supplied `webSocket` factory can honor the flag for custom
+   * behaviour.
+   */
+  withCredentials?: boolean;
 };
 
 type PendingRequest = {
@@ -45,15 +69,30 @@ const READY_STATE_OPEN = 1;
  * {@link SubscriptionTransport}. Matches the wire envelope declared
  * inside `Server.attachWebSocket` (`query` / `mutation` / `subscribe` /
  * `unsubscribe` with a correlation `id`).
+ *
+ * `connect()` performs a `connection:init` / `connection:ack`
+ * handshake before resolving, so any `headers` returned by the options
+ * callback reach the server in time to build `context` / `connection`.
  */
 export class WsTransport implements SubscriptionTransport {
   private readonly url: string;
 
   private readonly webSocketFactory: WebSocketFactory;
 
+  private readonly getHeaders: () => Record<string, string> | Promise<Record<string, string>>;
+
+  private readonly withCredentials: boolean;
+
   private socket: WebSocketLike | null = null;
 
   private connecting: Promise<void> | null = null;
+
+  /**
+   * Flips to `true` once the server has sent `connection:ack`. All
+   * request senders (`query` / `mutation` / `subscribe`) gate on this
+   * so traffic never races ahead of the handshake.
+   */
+  private ready = false;
 
   private pending = new Map<string, PendingRequest>();
 
@@ -61,8 +100,18 @@ export class WsTransport implements SubscriptionTransport {
 
   private nextMessageId = 0;
 
+  /**
+   * Set while `connect()` is awaiting `connection:ack`. Resolving
+   * flips `ready` to `true`; rejecting tears the socket down.
+   */
+  private handshake: { resolve: () => void; reject: (error: unknown) => void } | null = null;
+
   constructor(options: WsTransportOptions) {
     this.url = options.url;
+
+    this.withCredentials = options.withCredentials ?? true;
+
+    this.getHeaders = options.headers ?? (() => ({}));
 
     this.webSocketFactory =
       options.webSocket ??
@@ -76,7 +125,7 @@ export class WsTransport implements SubscriptionTransport {
   }
 
   public isConnected(): boolean {
-    return this.socket !== null && this.socket.readyState === READY_STATE_OPEN;
+    return this.ready && this.socket !== null && this.socket.readyState === READY_STATE_OPEN;
   }
 
   public connect(): Promise<void> {
@@ -84,24 +133,61 @@ export class WsTransport implements SubscriptionTransport {
 
     if (this.connecting) return this.connecting;
 
-    const socket = this.webSocketFactory(this.url);
+    const socket = this.webSocketFactory(this.url, { withCredentials: this.withCredentials });
 
     this.socket = socket;
+    this.ready = false;
 
     this.connecting = new Promise<void>((resolve, reject) => {
-      const onOpen = () => {
+      const finishHandshake = (error?: unknown) => {
+        this.handshake = null;
         this.connecting = null;
+
+        if (error) {
+          if (this.socket === socket) {
+            this.socket = null;
+          }
+
+          try {
+            socket.close();
+          } catch {
+            // Teardown is best-effort.
+          }
+
+          reject(error);
+          return;
+        }
+
+        this.ready = true;
         resolve();
       };
 
-      const onError = () => {
-        this.connecting = null;
-        // Only reject during connect; after connect is resolved the close
-        // listener handles teardown.
-        if (this.socket === socket && socket.readyState !== READY_STATE_OPEN) {
-          this.socket = null;
+      this.handshake = {
+        resolve: () => finishHandshake(),
+        reject: (error) => finishHandshake(error),
+      };
 
-          reject(new Error('WebSocket connection failed'));
+      const onOpen = async () => {
+        let headers: Record<string, string>;
+        try {
+          headers = await this.getHeaders();
+        } catch (error) {
+          this.handshake?.reject(error);
+          return;
+        }
+
+        if (this.socket !== socket) return;
+
+        try {
+          socket.send(JSON.stringify({ type: 'connection:init', headers }));
+        } catch (error) {
+          this.handshake?.reject(error);
+        }
+      };
+
+      const onError = () => {
+        if (this.socket === socket && socket.readyState !== READY_STATE_OPEN) {
+          this.handshake?.reject(new Error('WebSocket connection failed'));
         }
       };
 
@@ -120,6 +206,7 @@ export class WsTransport implements SubscriptionTransport {
 
     this.socket = null;
     this.connecting = null;
+    this.ready = false;
 
     try {
       socket.close();
@@ -222,6 +309,17 @@ export class WsTransport implements SubscriptionTransport {
 
     const type = parsed.type;
 
+    if (type === 'connection:ack') {
+      this.handshake?.resolve();
+      return;
+    }
+
+    if (type === 'connection:error') {
+      const error = (parsed.error as { message?: string } | undefined) ?? { message: 'connection refused' };
+      this.handshake?.reject(error);
+      return;
+    }
+
     if (type === 'subscription:batch') {
       this.dispatchBatch(parsed as unknown as SubscriberBatchMessage);
       return;
@@ -270,6 +368,13 @@ export class WsTransport implements SubscriptionTransport {
   private handleClose(): void {
     this.socket = null;
     this.connecting = null;
+    this.ready = false;
+
+    if (this.handshake) {
+      const handshake = this.handshake;
+      this.handshake = null;
+      handshake.reject(new ClientNotConnectedError('WebSocket closed before connection:ack.'));
+    }
 
     this.rejectAllPending(new ClientNotConnectedError('WebSocket closed.'));
     this.listenersBySubscriptionId.clear();

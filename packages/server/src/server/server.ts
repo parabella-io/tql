@@ -55,7 +55,7 @@ export type SubscriptionsConfig = {
   backbone?: Backbone;
   /**
    * Interval in milliseconds between SSE keep-alive comment frames
-   * written to every open `/events` stream. Defaults to 15000ms. Set
+   * written to every open `/subscription` stream. Defaults to 15000ms. Set
    * to `0` (or a negative number) to disable keep-alives.
    */
   sseKeepAliveMs?: number;
@@ -112,8 +112,8 @@ export class Server<S extends ClientSchema, Connection = unknown> {
   private readonly sseKeepAliveMs: number;
 
   /**
-   * Open SSE `/events` streams this server still owns. Each stream is
-   * bound to exactly one subscription (`GET /events?name=...&args=...`);
+   * Open SSE `/subscription` streams this server still owns. Each stream is
+   * bound to exactly one subscription (`GET /subscription?name=...&args=...`);
    * the set is used by {@link dispose} to tear streams down on shutdown.
    */
   private readonly sseStreams: Set<SseStream> = new Set();
@@ -278,7 +278,7 @@ export class Server<S extends ClientSchema, Connection = unknown> {
       return results;
     });
 
-    adapter.sse('/events', async (request, stream) => {
+    adapter.sse('/subscription', async (request, stream) => {
       await this.handleSseEvents(request, stream, adapter.getQuery(request));
     });
 
@@ -286,7 +286,7 @@ export class Server<S extends ClientSchema, Connection = unknown> {
   }
 
   /**
-   * SSE handler backing `GET /events?name=...&args=...`. Each stream
+   * SSE handler backing `GET /subscription?name=...&args=...`. Each stream
    * is bound to exactly one subscription: we parse `name` + `args`
    * from the query string, build per-request `context` /
    * `connection`, register with the subscription resolver, and tear
@@ -299,11 +299,7 @@ export class Server<S extends ClientSchema, Connection = unknown> {
    *   - data frames:  `subscription:batch { rows, matches }`
    *   - keep-alive:   `:ka\n\n` comment frames
    */
-  private async handleSseEvents(
-    request: any,
-    stream: SseStream,
-    query: Record<string, string | string[] | undefined>,
-  ): Promise<void> {
+  private async handleSseEvents(request: any, stream: SseStream, query: Record<string, string | string[] | undefined>): Promise<void> {
     this.sseStreams.add(stream);
 
     const write = (message: Record<string, unknown> | SubscriberMessage) => {
@@ -336,12 +332,47 @@ export class Server<S extends ClientSchema, Connection = unknown> {
       return;
     }
 
+    let mergedRequest: unknown = request;
+
+    const headersParam = firstQueryValue(query.headers);
+
+    if (headersParam !== undefined && headersParam !== '') {
+      let rawHeaders: unknown;
+      try {
+        rawHeaders = JSON.parse(headersParam);
+      } catch (error) {
+        fail(
+          new TQLServerError(TQLServerErrorType.SubscriptionError, {
+            reason: 'events.headers must be a JSON-encoded object of string values',
+            error,
+          }),
+        );
+        return;
+      }
+
+      const parsed = parseInitHeaders(rawHeaders);
+
+      if (!parsed.ok) {
+        fail(parsed.error);
+        return;
+      }
+
+      const baseRequest = (request ?? {}) as Record<string, unknown>;
+
+      const baseHeaders = (baseRequest.headers as Record<string, unknown> | undefined) ?? {};
+
+      mergedRequest = {
+        ...baseRequest,
+        headers: { ...baseHeaders, ...parsed.value },
+      };
+    }
+
     let context: any;
     let connectionData: any;
 
     try {
-      context = await this.contextFactory({ request });
-      connectionData = this.connectionFactory ? await this.connectionFactory({ request }) : undefined;
+      context = await this.contextFactory({ request: mergedRequest });
+      connectionData = this.connectionFactory ? await this.connectionFactory({ request: mergedRequest }) : undefined;
     } catch (error) {
       fail(new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'createContext or createConnection threw', error }));
       return;
@@ -401,26 +432,14 @@ export class Server<S extends ClientSchema, Connection = unknown> {
     adapter.onConnection(async (wsConnection) => {
       let context: any;
       let connectionData: any;
-
-      try {
-        context = await this.contextFactory({ request: wsConnection.request });
-
-        connectionData = await (this.connectionFactory
-          ? this.connectionFactory({ request: wsConnection.request })
-          : Promise.resolve(undefined));
-      } catch (error) {
-        sendRaw(wsConnection, {
-          type: 'connection:error',
-          error: formatError(
-            new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'createContext or createConnection threw', error }),
-          ),
-        });
-
-        wsConnection.close(1011, 'context initialisation failed');
-        return;
-      }
+      let ready = false;
 
       const activeSubscriptionIds = new Set<string>();
+
+      const failHandshake = (error: TQLServerError): void => {
+        sendRaw(wsConnection, { type: 'connection:error', error: formatError(error) });
+        wsConnection.close(4401, 'connection:init required');
+      };
 
       wsConnection.onMessage(async (raw) => {
         const parsed = parseIncoming(raw);
@@ -432,6 +451,50 @@ export class Server<S extends ClientSchema, Connection = unknown> {
 
         const message = parsed.message;
 
+        if (message.type === 'connection:init') {
+          if (ready) {
+            failHandshake(
+              new TQLServerError(TQLServerErrorType.WebSocketMessageUnsupportedError, {
+                reason: 'connection:init may only be sent once per connection',
+              }),
+            );
+            return;
+          }
+
+          const baseRequest = (wsConnection.request ?? {}) as Record<string, unknown>;
+          const baseHeaders = (baseRequest.headers as Record<string, unknown> | undefined) ?? {};
+          const mergedRequest = {
+            ...baseRequest,
+            headers: { ...baseHeaders, ...message.headers },
+          };
+
+          try {
+            context = await this.contextFactory({ request: mergedRequest });
+
+            connectionData = await (this.connectionFactory
+              ? this.connectionFactory({ request: mergedRequest })
+              : Promise.resolve(undefined));
+          } catch (error) {
+            failHandshake(
+              new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'createContext or createConnection threw', error }),
+            );
+            return;
+          }
+
+          ready = true;
+          sendRaw(wsConnection, { type: 'connection:ack' });
+          return;
+        }
+
+        if (!ready) {
+          failHandshake(
+            new TQLServerError(TQLServerErrorType.WebSocketMessageUnsupportedError, {
+              reason: 'connection:init must be sent before any other frame',
+            }),
+          );
+          return;
+        }
+
         switch (message.type) {
           case 'query': {
             try {
@@ -439,6 +502,7 @@ export class Server<S extends ClientSchema, Connection = unknown> {
                 context,
                 query: message.payload as Partial<S['QueryInputMap']>,
               });
+
               sendRaw(wsConnection, { id: message.id, type: 'query:result', payload: results });
             } catch (error) {
               sendRaw(wsConnection, { id: message.id, type: 'query:error', error: formatUnknown(error) });
@@ -530,6 +594,7 @@ export class Server<S extends ClientSchema, Connection = unknown> {
 // ===========================================================================
 
 type IncomingWsMessage =
+  | { type: 'connection:init'; headers: Record<string, string> }
   | { id?: string; type: 'query'; payload: unknown }
   | { id?: string; type: 'mutation'; payload: unknown }
   | { id?: string; type: 'subscribe'; name: string; args: unknown }
@@ -551,6 +616,11 @@ const parseIncoming = (raw: string): { ok: true; message: IncomingWsMessage } | 
   const type = envelope.type;
 
   switch (type) {
+    case 'connection:init': {
+      const headers = parseInitHeaders(envelope.headers);
+      if (!headers.ok) return { ok: false, error: headers.error };
+      return { ok: true, message: { type: 'connection:init', headers: headers.value } };
+    }
     case 'query':
     case 'mutation':
       return { ok: true, message: { id: asString(envelope.id), type, payload: envelope.payload } };
@@ -585,6 +655,42 @@ const asString = (value: unknown): string | undefined => {
   return typeof value === 'string' ? value : undefined;
 };
 
+/**
+ * `connection:init.headers` is an optional plain object of
+ * string-to-string pairs. Anything else (arrays, non-string values) is
+ * rejected so downstream `createContext` / `createConnection` can
+ * trust the shape.
+ */
+const parseInitHeaders = (raw: unknown): { ok: true; value: Record<string, string> } | { ok: false; error: TQLServerError } => {
+  if (raw === undefined || raw === null) return { ok: true, value: {} };
+
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    return {
+      ok: false,
+      error: new TQLServerError(TQLServerErrorType.WebSocketMessageMalformedError, {
+        reason: 'connection:init.headers must be an object of string values',
+      }),
+    };
+  }
+
+  const entries = Object.entries(raw as Record<string, unknown>);
+  const headers: Record<string, string> = {};
+
+  for (const [key, value] of entries) {
+    if (typeof value !== 'string') {
+      return {
+        ok: false,
+        error: new TQLServerError(TQLServerErrorType.WebSocketMessageMalformedError, {
+          reason: `connection:init.headers["${key}"] must be a string`,
+        }),
+      };
+    }
+    headers[key] = value;
+  }
+
+  return { ok: true, value: headers };
+};
+
 const formatError = (error: TQLServerError): FormattedTQLServerError => {
   return error.getFormattedError();
 };
@@ -616,7 +722,7 @@ const firstQueryValue = (value: string | string[] | undefined): string | undefin
 };
 
 /**
- * `/events?args=...` carries a JSON-encoded args object. Missing /
+ * `/subscription?args=...` carries a JSON-encoded args object. Missing /
  * empty is treated as `{}` — subscriptions with empty `args` schemas
  * shouldn't have to URL-encode `{}` themselves.
  */

@@ -4,16 +4,22 @@ import type { ClientSchema } from '@tql/api'
 
 const port = 3001
 
+const wsPort = 3002
+
 export const tql = new Client<ClientSchema>({
   transports: {
     http: {
       url: `http://localhost:${port}`,
+      withCredentials: true,
     },
     sse: {
-      eventsUrl: `http://localhost:${port}/events`,
-      subscribeUrl: `http://localhost:${port}/subscribe`,
-      unsubscribeUrl: `http://localhost:${port}/unsubscribe`,
+      url: `http://localhost:${port}`,
+      withCredentials: true,
+    },
+    ws: {
+      url: `ws://localhost:${wsPort}`,
+      withCredentials: true,
     },
   },
-  subscriptionTransport: 'sse',
+  subscriptionTransport: 'ws',
 })

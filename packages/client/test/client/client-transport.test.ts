@@ -96,11 +96,16 @@ describe('Client transport selection', () => {
 
     const executePromise = query.execute({});
 
-    // The fake socket auto-opens on the next microtask, so the client's
-    // lazy `connect()` resolves and the frame gets flushed through.
+    // The fake socket auto-opens on the next microtask; the transport
+    // then sends `connection:init` and waits for `connection:ack`.
     await vi.waitFor(() => expect(fake.sent).toHaveLength(1));
+    expect(JSON.parse(fake.sent[0]!)).toEqual({ type: 'connection:init', headers: {} });
 
-    const envelope = JSON.parse(fake.sent[0]!);
+    fake.emit(JSON.stringify({ type: 'connection:ack' }));
+
+    await vi.waitFor(() => expect(fake.sent).toHaveLength(2));
+
+    const envelope = JSON.parse(fake.sent[1]!);
     expect(envelope.type).toBe('query');
 
     fake.emit(

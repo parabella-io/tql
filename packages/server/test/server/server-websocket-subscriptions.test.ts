@@ -29,6 +29,7 @@ type FakeWsConnection = {
   connection: WebSocketConnection;
   sent: string[];
   deliver(data: string): Promise<void>;
+  handshake(headers?: Record<string, string>): Promise<void>;
   close(): void;
 };
 
@@ -75,14 +76,19 @@ const createFakeWsAdapter = (): FakeWsAdapter => {
 
       for (const handler of handlers) handler(connection);
 
+      const deliver = async (data: string) => {
+        for (const listener of messageListeners) listener(data);
+        // Yield the microtask queue so async handlers settle before the
+        // test asserts on `sent`.
+        await new Promise((resolve) => setImmediate(resolve));
+      };
+
       return {
         connection,
         sent,
-        async deliver(data) {
-          for (const listener of messageListeners) listener(data);
-          // Yield the microtask queue so async handlers settle before the
-          // test asserts on `sent`.
-          await new Promise((resolve) => setImmediate(resolve));
+        deliver,
+        async handshake(headers = {}) {
+          await deliver(JSON.stringify({ type: 'connection:init', headers }));
         },
         close() {
           for (const listener of closeListeners) listener();
@@ -170,8 +176,8 @@ describe('Server.attachWebSocket', () => {
 
     const watcher = adapter.connect({ user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true } });
     const bystander = adapter.connect({ user: { id: 'u2', workspaceIds: ['w2'], canSubscribe: true } });
-    // Let attachWebSocket's async context init settle.
-    await new Promise((resolve) => setImmediate(resolve));
+    await watcher.handshake();
+    await bystander.handshake();
 
     await watcher.deliver(JSON.stringify({ id: 'sub-1', type: 'subscribe', name: 'ticketSubscription', args: { ticketId: 't1' } }));
     await bystander.deliver(JSON.stringify({ id: 'sub-2', type: 'subscribe', name: 'ticketSubscription', args: { ticketId: 't1' } }));
@@ -230,7 +236,7 @@ describe('Server.attachWebSocket', () => {
     server.attachWebSocket(adapter.adapter);
 
     const unauth = adapter.connect({ user: { id: 'u3', workspaceIds: ['w1'], canSubscribe: false } });
-    await new Promise((resolve) => setImmediate(resolve));
+    await unauth.handshake();
 
     await unauth.deliver(JSON.stringify({ id: 'sub-3', type: 'subscribe', name: 'ticketSubscription', args: { ticketId: 't1' } }));
 
@@ -258,7 +264,7 @@ describe('Server.attachWebSocket', () => {
     server.attachWebSocket(adapter.adapter);
 
     const watcher = adapter.connect({ user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true } });
-    await new Promise((resolve) => setImmediate(resolve));
+    await watcher.handshake();
 
     await watcher.deliver(JSON.stringify({ id: 'sub-1', type: 'subscribe', name: 'ticketSubscription', args: { ticketId: 't1' } }));
     const ack = findMessage(watcher.sent, (m) => m.type === 'subscribe:ack');
@@ -303,7 +309,7 @@ describe('Server.attachWebSocket', () => {
     server.attachWebSocket(adapter.adapter);
 
     const watcher = adapter.connect({ user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true } });
-    await new Promise((resolve) => setImmediate(resolve));
+    await watcher.handshake();
 
     await watcher.deliver(JSON.stringify({ id: 'sub-1', type: 'subscribe', name: 'ticketSubscription', args: { ticketId: 't1' } }));
     expect(server.subscriptionResolver.getRegistry().size()).toBe(1);
@@ -333,7 +339,8 @@ describe('Server.attachWebSocket', () => {
     server.attachWebSocket(adapter.adapter);
 
     const conn = adapter.connect({ user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true } });
-    await new Promise((resolve) => setImmediate(resolve));
+    await conn.handshake();
+    conn.sent.length = 0;
 
     await conn.deliver('not json');
 
@@ -361,7 +368,7 @@ describe('Server.attachWebSocket', () => {
       srv.attachWebSocket(adapter.adapter);
 
       const conn = adapter.connect({ user: { id: 'u1', workspaceIds: [], canSubscribe: false } });
-      await new Promise((resolve) => setImmediate(resolve));
+      await conn.handshake();
 
       await conn.deliver(JSON.stringify({ id: 'q-1', type: 'query', payload: {} }));
 
@@ -373,5 +380,157 @@ describe('Server.attachWebSocket', () => {
 
     // Silence the "unused" warning on vi; the spec relies on the mock only for parity.
     void vi;
+  });
+
+  test('connection:init sends connection:ack and calls createContext exactly once', async () => {
+    const schema = buildSchema();
+    const adapter = createFakeWsAdapter();
+
+    const createContextSpy = vi.fn(async ({ request }: { request: any }) => {
+      const r = request as FakeConnectionRequest;
+      return { userId: r.user.id, canSubscribe: r.user.canSubscribe };
+    });
+
+    server = new Server<any, Connection>({
+      schema,
+      generateSchema: { enabled: false },
+      createContext: createContextSpy,
+      createConnection: ({ request }) => {
+        const r = request as FakeConnectionRequest;
+        return { workspaceIds: r.user.workspaceIds };
+      },
+    });
+
+    server.attachWebSocket(adapter.adapter);
+
+    const conn = adapter.connect({ user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true } });
+
+    expect(createContextSpy).not.toHaveBeenCalled();
+
+    await conn.handshake();
+
+    expect(createContextSpy).toHaveBeenCalledTimes(1);
+
+    const ack = findMessage(conn.sent, (m) => m.type === 'connection:ack');
+    expect(ack).toBeTruthy();
+
+    const ackCount = conn.sent.filter((raw) => JSON.parse(raw).type === 'connection:ack').length;
+    expect(ackCount).toBe(1);
+  });
+
+  test('connection:init headers are merged onto the upgrade request before createContext runs', async () => {
+    const schema = buildSchema();
+    const adapter = createFakeWsAdapter();
+
+    const createContextSpy = vi.fn(async ({ request }: { request: any }) => {
+      return { userId: 'u1', canSubscribe: true, headers: request.headers };
+    });
+
+    const createConnectionSpy = vi.fn(({ request }: { request: any }) => {
+      return { workspaceIds: ['w1'], headers: request.headers };
+    });
+
+    server = new Server<any, Connection>({
+      schema,
+      generateSchema: { enabled: false },
+      createContext: createContextSpy,
+      createConnection: createConnectionSpy,
+    });
+
+    server.attachWebSocket(adapter.adapter);
+
+    const request = {
+      headers: { 'x-base': 'from-upgrade' },
+      user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true },
+    };
+
+    const conn = adapter.connect(request as unknown as FakeConnectionRequest);
+
+    await conn.handshake({ authorization: 'Bearer token-from-init', 'x-extra': 'hello' });
+
+    expect(createContextSpy).toHaveBeenCalledTimes(1);
+    const forwardedHeaders = createContextSpy.mock.calls[0]![0].request.headers;
+    expect(forwardedHeaders).toEqual({
+      'x-base': 'from-upgrade',
+      authorization: 'Bearer token-from-init',
+      'x-extra': 'hello',
+    });
+
+    const forwardedConnHeaders = createConnectionSpy.mock.calls[0]![0].request.headers;
+    expect(forwardedConnHeaders).toEqual(forwardedHeaders);
+  });
+
+  test('frames received before connection:init are rejected with connection:error and close the socket', async () => {
+    const schema = buildSchema();
+    const adapter = createFakeWsAdapter();
+
+    const closeListeners: Array<() => void> = [];
+
+    server = new Server<any, Connection>({
+      schema,
+      generateSchema: { enabled: false },
+      createContext: async () => ({ userId: 'u1', canSubscribe: true }),
+      createConnection: () => ({ workspaceIds: ['w1'] }),
+    });
+
+    server.attachWebSocket(adapter.adapter);
+
+    const conn = adapter.connect({ user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true } });
+    conn.connection.onClose(() => closeListeners.push(() => {}));
+
+    await conn.deliver(JSON.stringify({ id: 'q-1', type: 'query', payload: {} }));
+
+    const error = findMessage(conn.sent, (m) => m.type === 'connection:error');
+    expect(error).toBeTruthy();
+    expect(closeListeners.length).toBeGreaterThan(0);
+  });
+
+  test('a second connection:init is rejected with connection:error', async () => {
+    const schema = buildSchema();
+    const adapter = createFakeWsAdapter();
+
+    server = new Server<any, Connection>({
+      schema,
+      generateSchema: { enabled: false },
+      createContext: async () => ({ userId: 'u1', canSubscribe: true }),
+      createConnection: () => ({ workspaceIds: ['w1'] }),
+    });
+
+    server.attachWebSocket(adapter.adapter);
+
+    const conn = adapter.connect({ user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true } });
+
+    await conn.handshake();
+    const firstAck = findMessage(conn.sent, (m) => m.type === 'connection:ack');
+    expect(firstAck).toBeTruthy();
+
+    conn.sent.length = 0;
+
+    await conn.handshake({ authorization: 'Bearer nope' });
+
+    const error = findMessage(conn.sent, (m) => m.type === 'connection:error');
+    expect(error).toBeTruthy();
+    expect(findMessage(conn.sent, (m) => m.type === 'connection:ack')).toBeUndefined();
+  });
+
+  test('connection:init with non-string header values is rejected', async () => {
+    const schema = buildSchema();
+    const adapter = createFakeWsAdapter();
+
+    server = new Server<any, Connection>({
+      schema,
+      generateSchema: { enabled: false },
+      createContext: async () => ({ userId: 'u1', canSubscribe: true }),
+      createConnection: () => ({ workspaceIds: ['w1'] }),
+    });
+
+    server.attachWebSocket(adapter.adapter);
+
+    const conn = adapter.connect({ user: { id: 'u1', workspaceIds: ['w1'], canSubscribe: true } });
+
+    await conn.deliver(JSON.stringify({ type: 'connection:init', headers: { bad: 42 } }));
+
+    const message = parseLastMessage(conn.sent);
+    expect(message.type).toBe('error');
   });
 });

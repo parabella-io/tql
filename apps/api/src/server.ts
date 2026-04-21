@@ -4,10 +4,17 @@ import { db } from './database-client';
 import { schema, SchemaContext, UserContext } from './schema/index';
 import { auth } from './auth';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { InMemoryBackbone, InMemoryEffectQueue, Server as TQLServer, createFastifyHttpAdapter } from '@tql/server';
+import {
+  InMemoryBackbone,
+  InMemoryEffectQueue,
+  Server as TQLServer,
+  createFastifyHttpAdapter,
+  createWsWebSocketAdapter,
+} from '@tql/server';
 import { storageService } from './services';
 import z from 'zod';
 import type { ClientSchema } from '../generated/schema';
+import { WebSocketServer } from 'ws';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -71,37 +78,6 @@ async function authRoutes(server: FastifyInstance) {
 }
 
 async function protectedRoutes(server: FastifyInstance) {
-  server.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
-    const session = await auth.api.getSession({
-      headers: request.headers as HeadersInit,
-    });
-
-    if (!session) {
-      return reply.status(401).send({ error: 'Invalid Session' });
-    }
-
-    const workspaces = await db.workspace.findMany({
-      where: {
-        members: {
-          some: {
-            userId: session.user.id,
-          },
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const workspaceIds = workspaces.map((workspace) => workspace.id);
-
-    request.user = {
-      id: session.user.id,
-      email: session.user.email,
-      workspaceIds: workspaceIds,
-    };
-  });
-
   server.post('/storage/put-presigned-url', async (request, reply) => {
     const body = z
       .object({
@@ -139,8 +115,37 @@ async function protectedRoutes(server: FastifyInstance) {
   });
 
   const createContext = async ({ request }: { request: any }): Promise<SchemaContext> => {
+    const session = await auth.api.getSession({
+      headers: request.headers as HeadersInit,
+    });
+
+    if (!session) {
+      throw new Error('Invalid Session');
+    }
+
+    const workspaces = await db.workspace.findMany({
+      where: {
+        members: {
+          some: {
+            userId: session.user.id,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const workspaceIds = workspaces.map((workspace) => workspace.id);
+
+    const user = {
+      id: session.user.id,
+      email: session.user.email,
+      workspaceIds: workspaceIds,
+    };
+
     return {
-      user: request.user,
+      user,
     };
   };
 
@@ -168,4 +173,8 @@ async function protectedRoutes(server: FastifyInstance) {
   });
 
   tqlServer.attachHttp(createFastifyHttpAdapter(server));
+
+  const wsServer = new WebSocketServer({ port: 3002 });
+
+  tqlServer.attachWebSocket(createWsWebSocketAdapter(wsServer));
 }

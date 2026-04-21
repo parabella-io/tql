@@ -42,7 +42,7 @@ describe('SseTransport', () => {
     const fakes: FakeEventSource[] = [];
 
     const transport = new SseTransport({
-      eventsUrl: 'http://localhost:3000/events',
+      eventsUrl: 'http://localhost:3000/subscription',
       eventSource: (url) => {
         const fake = createFakeEventSource(url);
         fakes.push(fake);
@@ -58,7 +58,7 @@ describe('SseTransport', () => {
 
     expect(fakes).toHaveLength(1);
     const url = new URL(fakes[0]!.source.url);
-    expect(url.pathname).toBe('/events');
+    expect(url.pathname).toBe('/subscription');
     expect(url.searchParams.get('name')).toBe('ticketSubscription');
     expect(JSON.parse(url.searchParams.get('args') ?? '{}')).toEqual({ ticketId: 't1' });
 
@@ -71,7 +71,7 @@ describe('SseTransport', () => {
   it('delivers subscription:batch frames to the subscribe()-scoped listener', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/events',
+      eventsUrl: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -101,7 +101,7 @@ describe('SseTransport', () => {
   it('handle.unsubscribe() closes the EventSource', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/events',
+      eventsUrl: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -125,7 +125,7 @@ describe('SseTransport', () => {
   it('subscribe() rejects when the server emits subscription:error before ready', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/events',
+      eventsUrl: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -147,7 +147,7 @@ describe('SseTransport', () => {
   it('subscribe() rejects when the EventSource errors before ready', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/events',
+      eventsUrl: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -168,7 +168,7 @@ describe('SseTransport', () => {
   it('subscription:error after ready is surfaced via listener.onError', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/events',
+      eventsUrl: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -192,8 +192,8 @@ describe('SseTransport', () => {
 
   it('connect() and disconnect() are no-ops (transport is always "connected")', async () => {
     const transport = new SseTransport({
-      eventsUrl: '/events',
-      eventSource: () => createFakeEventSource('/events').source,
+      eventsUrl: '/subscription',
+      eventSource: () => createFakeEventSource('/subscription').source,
     });
 
     expect(transport.isConnected()).toBe(true);
@@ -206,7 +206,7 @@ describe('SseTransport', () => {
     const fakes: FakeEventSource[] = [];
 
     const transport = new SseTransport({
-      eventsUrl: '/events',
+      eventsUrl: '/subscription',
       eventSource: (url) => {
         const fake = createFakeEventSource(url);
         fakes.push(fake);
@@ -224,5 +224,104 @@ describe('SseTransport', () => {
     const [h1, h2] = await Promise.all([p1, p2]);
     expect(h1.subscriptionId).toBe('sub-1');
     expect(h2.subscriptionId).toBe('sub-2');
+  });
+
+  it('subscribe() encodes resolved headers into a ?headers query param', async () => {
+    let fake: FakeEventSource | undefined;
+    const transport = new SseTransport({
+      url: 'http://localhost:3000',
+      headers: () => ({ authorization: 'Bearer sync-token', 'x-extra': 'hi' }),
+      eventSource: (url) => {
+        fake = createFakeEventSource(url);
+        return fake.source;
+      },
+    });
+
+    const pending = transport.subscribe({
+      name: 'ticketSubscription',
+      args: { ticketId: 't1' },
+      listener: { onBatch: vi.fn() },
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fake).toBeDefined();
+    const url = new URL(fake!.source.url);
+    expect(url.pathname).toBe('/subscription');
+    expect(url.searchParams.get('name')).toBe('ticketSubscription');
+    expect(JSON.parse(url.searchParams.get('args') ?? '{}')).toEqual({ ticketId: 't1' });
+    expect(JSON.parse(url.searchParams.get('headers') ?? '{}')).toEqual({
+      authorization: 'Bearer sync-token',
+      'x-extra': 'hi',
+    });
+
+    fake!.emit({ type: 'subscription:ready', subscriptionId: 'sub-1' });
+    await pending;
+  });
+
+  it('subscribe() awaits async header resolution before opening the EventSource', async () => {
+    let fake: FakeEventSource | undefined;
+    let resolveHeaders!: (value: Record<string, string>) => void;
+    const headersPromise = new Promise<Record<string, string>>((resolve) => {
+      resolveHeaders = resolve;
+    });
+
+    const transport = new SseTransport({
+      url: 'http://localhost:3000',
+      headers: () => headersPromise,
+      eventSource: (url) => {
+        fake = createFakeEventSource(url);
+        return fake.source;
+      },
+    });
+
+    const pending = transport.subscribe({
+      name: 'ticketSubscription',
+      args: { ticketId: 't1' },
+      listener: { onBatch: vi.fn() },
+    });
+
+    await Promise.resolve();
+    expect(fake).toBeUndefined();
+
+    resolveHeaders({ authorization: 'Bearer async-token' });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fake).toBeDefined();
+    const url = new URL(fake!.source.url);
+    expect(JSON.parse(url.searchParams.get('headers') ?? '{}')).toEqual({ authorization: 'Bearer async-token' });
+
+    fake!.emit({ type: 'subscription:ready', subscriptionId: 'sub-1' });
+    await pending;
+  });
+
+  it('omits the ?headers query param when the headers callback returns an empty map', async () => {
+    let fake: FakeEventSource | undefined;
+    const transport = new SseTransport({
+      url: 'http://localhost:3000',
+      headers: () => ({}),
+      eventSource: (url) => {
+        fake = createFakeEventSource(url);
+        return fake.source;
+      },
+    });
+
+    const pending = transport.subscribe({
+      name: 'ticketSubscription',
+      args: { ticketId: 't1' },
+      listener: { onBatch: vi.fn() },
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const url = new URL(fake!.source.url);
+    expect(url.searchParams.has('headers')).toBe(false);
+
+    fake!.emit({ type: 'subscription:ready', subscriptionId: 'sub-1' });
+    await pending;
   });
 });
