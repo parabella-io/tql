@@ -41,14 +41,11 @@ const createStubTransport = () => {
 const buildClientWithTransport = (stub: ReturnType<typeof createStubTransport>) => {
   const sseTransport = new SseTransport({
     eventsUrl: '/events',
-    subscribeUrl: '/subscribe',
-    unsubscribeUrl: '/unsubscribe',
     eventSource: () => ({
       readyState: 0,
       close() {},
       addEventListener() {},
     }),
-    fetch: vi.fn(),
   });
 
   (sseTransport as any).connect = stub.transport.connect.bind(stub.transport);
@@ -226,14 +223,11 @@ describe('Client auto connect / disconnect lifecycle', () => {
             ws: new WsTransport({ url: 'ws://test', webSocket: createFakeWs }),
             sse: new SseTransport({
               eventsUrl: '/events',
-              subscribeUrl: '/subscribe',
-              unsubscribeUrl: '/unsubscribe',
               eventSource: () => ({
                 readyState: 0,
                 close() {},
                 addEventListener() {},
               }),
-              fetch: vi.fn(),
             }),
           },
         }),

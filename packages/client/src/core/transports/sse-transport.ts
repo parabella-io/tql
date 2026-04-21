@@ -1,6 +1,4 @@
-import { HttpFetch, HttpFetchResponse } from './http-transport';
 import {
-  ClientNotConnectedError,
   SubscribeHandle,
   SubscriberBatchMessage,
   SubscriptionListener,
@@ -23,120 +21,101 @@ export type EventSourceLike = {
 export type EventSourceFactory = (url: string) => EventSourceLike;
 
 export type SseTransportOptions = {
-  /** URL of the long-lived `GET /events` SSE stream. */
+  /**
+   * URL of the SSE `GET /events` endpoint. Each `subscribe(...)` call
+   * opens its own `EventSource` against this URL with `?name=...` and
+   * `?args=<JSON>` query params, so a single stream carries exactly
+   * one subscription.
+   */
   eventsUrl: string;
-  /** URL of the `POST /subscribe` RPC endpoint. */
-  subscribeUrl: string;
-  /** URL of the `POST /unsubscribe` RPC endpoint. */
-  unsubscribeUrl: string;
 
   /**
    * Factory that opens the SSE stream. Defaults to
    * `new EventSource(url, { withCredentials })`. When overriding, the
-   * factory is responsible for honoring `withCredentials` itself.
+   * factory is responsible for honoring `withCredentials` itself (and
+   * for any custom request headers, which the native `EventSource`
+   * does not support).
    */
   eventSource?: EventSourceFactory;
 
   /**
    * Whether the SSE stream should be opened with
    * `withCredentials: true` so cookies / `Authorization` are forwarded
-   * cross-origin, matching the `/subscribe` + `/unsubscribe` POSTs
-   * which already use `credentials: 'include'`. Defaults to `true`.
+   * cross-origin. Defaults to `true`.
    */
   withCredentials?: boolean;
-
-  /** HTTP transport used for the POST RPCs. */
-  fetch?: HttpFetch;
-
-  /** Extra headers merged onto every `/subscribe` + `/unsubscribe` call. */
-  headers?: () => Record<string, string> | Promise<Record<string, string>>;
-};
-
-const defaultFetch: HttpFetch = async ({ url, method, headers, body, credentials }) => {
-  if (typeof globalThis.fetch !== 'function') {
-    throw new Error('SseTransport: no global `fetch` available. Pass `fetch` explicitly.');
-  }
-
-  const response = await globalThis.fetch(url, { method, headers, body, credentials: credentials ?? 'include' });
-
-  return {
-    status: response.status,
-    json: () => response.json(),
-  };
 };
 
 /**
- * SSE subscription transport. Opens a single long-lived `EventSource`
- * on `eventsUrl`, captures `connectionId` from the
- * `connection:ready` frame, then delegates subscribe/unsubscribe to
- * plain POST RPCs.
+ * SSE subscription transport. Each call to `subscribe(...)` opens a
+ * dedicated `EventSource` to `eventsUrl?name=...&args=...`. The server
+ * resolves the subscription on-connect and writes a
+ * `subscription:ready` frame (which resolves the returned handle),
+ * followed by `subscription:batch` frames for that subscription only.
+ * Closing the `EventSource` (via `handle.unsubscribe()`) is what tears
+ * the subscription down on the server — there are no `/subscribe` or
+ * `/unsubscribe` POSTs.
+ *
+ * `connect()` / `disconnect()` are intentional no-ops: there is no
+ * shared long-lived stream to manage.
  */
 export class SseTransport implements SubscriptionTransport {
   private readonly options: SseTransportOptions;
 
-  private readonly fetchImpl: HttpFetch;
-
-  private readonly getHeaders: () => Record<string, string> | Promise<Record<string, string>>;
-
-  private readonly credentials: 'include' | 'omit';
-
-  private eventSource: EventSourceLike | null = null;
-
-  private connectionId: string | null = null;
-
-  private connecting: Promise<void> | null = null;
-
-  private listenersBySubscriptionId = new Map<string, SubscriptionListener>();
+  private readonly withCredentials: boolean;
 
   constructor(options: SseTransportOptions) {
     this.options = options;
-    this.fetchImpl = options.fetch ?? defaultFetch;
-    this.getHeaders = options.headers ?? (() => ({}));
-    this.credentials = (options.withCredentials ?? true) ? 'include' : 'omit';
+    this.withCredentials = options.withCredentials ?? true;
   }
 
   public isConnected(): boolean {
-    return this.eventSource !== null && this.connectionId !== null;
+    return true;
   }
 
   public connect(): Promise<void> {
-    if (this.isConnected()) return Promise.resolve();
+    return Promise.resolve();
+  }
 
-    if (this.connecting) return this.connecting;
+  public async disconnect(): Promise<void> {
+    // No shared connection state to tear down.
+  }
 
-    const withCredentials = this.credentials === 'include';
+  public subscribe(options: { name: string; args: unknown; listener: SubscriptionListener }): Promise<SubscribeHandle> {
+    const url = this.buildUrl(options.name, options.args);
 
-    const factory =
-      this.options.eventSource ??
-      ((url: string) => {
-        const ctor = (globalThis as any).EventSource;
+    const factory = this.resolveFactory();
 
-        if (typeof ctor !== 'function') {
-          throw new Error('SseTransport: no global `EventSource` available. Pass `eventSource` explicitly.');
-        }
+    const source = factory(url);
 
-        return new ctor(url, { withCredentials }) as EventSourceLike;
-      });
-
-    const source = factory(this.options.eventsUrl);
-
-    this.eventSource = source;
-
-    this.connecting = new Promise<void>((resolve, reject) => {
+    return new Promise<SubscribeHandle>((resolve, reject) => {
       let settled = false;
+      let subscriptionId: string | null = null;
 
-      const settleResolve = () => {
+      const settleResolve = (id: string) => {
         if (settled) return;
         settled = true;
-        this.connecting = null;
-        resolve();
+        subscriptionId = id;
+        resolve({
+          subscriptionId: id,
+          unsubscribe: async () => {
+            try {
+              source.close();
+            } catch {
+              // Teardown is best-effort.
+            }
+          },
+        });
       };
 
       const settleReject = (error: unknown) => {
         if (settled) return;
         settled = true;
-        this.connecting = null;
-        this.eventSource = null;
+        try {
+          source.close();
+        } catch {
+          // Teardown is best-effort.
+        }
         reject(error);
       };
 
@@ -145,7 +124,12 @@ export class SseTransport implements SubscriptionTransport {
           settleReject(new Error('SSE connection failed'));
           return;
         }
-        this.handleStreamError(event);
+        // After a successful subscribe the browser `EventSource`
+        // emits `error` on transient network blips. We leave
+        // reconnection to the native implementation and surface
+        // unrecoverable errors via the listener's `subscription:error`
+        // path instead.
+        void event;
       });
 
       source.addEventListener('message', (event) => {
@@ -159,135 +143,71 @@ export class SseTransport implements SubscriptionTransport {
 
         if (!parsed || typeof parsed !== 'object') return;
 
-        if (parsed.type === 'connection:ready' && typeof parsed.connectionId === 'string') {
-          this.connectionId = parsed.connectionId;
-          settleResolve();
-          return;
-        }
-
-        if (parsed.type === 'connection:error') {
-          settleReject(parsed.error ?? new Error('connection:error'));
+        if (parsed.type === 'subscription:ready') {
+          const id = typeof parsed.subscriptionId === 'string' ? parsed.subscriptionId : null;
+          if (!id) {
+            settleReject(new Error('Invalid subscription:ready frame: missing subscriptionId'));
+            return;
+          }
+          settleResolve(id);
           return;
         }
 
         if (parsed.type === 'subscription:batch') {
-          this.dispatchBatch(parsed as unknown as SubscriberBatchMessage);
+          if (!settled) return;
+          options.listener.onBatch(parsed as unknown as SubscriberBatchMessage);
           return;
         }
 
         if (parsed.type === 'subscription:error') {
-          const id = typeof parsed.id === 'string' ? parsed.id : undefined;
-          const listener = id ? this.listenersBySubscriptionId.get(id) : undefined;
-          listener?.onError?.((parsed.error as { message: string }) ?? { message: 'subscription error' });
+          const error = (parsed.error as { message: string } | undefined) ?? { message: 'subscription error' };
+          if (!settled) {
+            settleReject(error);
+            return;
+          }
+          options.listener.onError?.(error);
+          // A terminal error is usually followed by the server closing
+          // the stream; `unsubscribe()` is safe to call again if the
+          // consumer hasn't torn the handle down yet.
+          void subscriptionId;
           return;
         }
       });
     });
-
-    return this.connecting;
   }
 
-  public async disconnect(): Promise<void> {
-    const source = this.eventSource;
-
-    if (!source) return;
-
-    this.eventSource = null;
-    this.connectionId = null;
-    this.connecting = null;
+  private buildUrl(name: string, args: unknown): string {
+    // `eventsUrl` may be absolute (`https://api.example.com/events`)
+    // or relative (`/events`). `new URL` rejects relative URLs without
+    // a base, so we fall back to manual query-string assembly in that
+    // case. `EventSource` itself accepts both.
+    const query = `name=${encodeURIComponent(name)}&args=${encodeURIComponent(JSON.stringify(args ?? {}))}`;
 
     try {
-      source.close();
+      const url = new URL(this.options.eventsUrl);
+      url.searchParams.set('name', name);
+      url.searchParams.set('args', JSON.stringify(args ?? {}));
+      return url.toString();
     } catch {
-      // Teardown is best-effort.
+      const base = this.options.eventsUrl;
+      const separator = base.includes('?') ? '&' : '?';
+      return `${base}${separator}${query}`;
     }
-
-    this.listenersBySubscriptionId.clear();
   }
 
-  public async subscribe(options: { name: string; args: unknown; listener: SubscriptionListener }): Promise<SubscribeHandle> {
-    if (!this.isConnected() || !this.connectionId) {
-      throw new ClientNotConnectedError();
-    }
+  private resolveFactory(): EventSourceFactory {
+    if (this.options.eventSource) return this.options.eventSource;
 
-    const connectionId = this.connectionId;
+    const withCredentials = this.withCredentials;
 
-    const body = {
-      connectionId,
-      name: options.name,
-      args: options.args,
+    return (url: string) => {
+      const ctor = (globalThis as any).EventSource;
+
+      if (typeof ctor !== 'function') {
+        throw new Error('SseTransport: no global `EventSource` available. Pass `eventSource` explicitly.');
+      }
+
+      return new ctor(url, { withCredentials }) as EventSourceLike;
     };
-
-    const response = await this.post(this.options.subscribeUrl, body);
-
-    if (response && typeof response === 'object' && 'error' in response) {
-      throw (response as { error: unknown }).error;
-    }
-
-    const subscriptionId = (response as { subscriptionId?: string }).subscriptionId;
-
-    if (!subscriptionId) {
-      throw new Error('Invalid /subscribe response: missing subscriptionId');
-    }
-
-    this.listenersBySubscriptionId.set(subscriptionId, options.listener);
-
-    return {
-      subscriptionId,
-      unsubscribe: async () => {
-        this.listenersBySubscriptionId.delete(subscriptionId);
-
-        if (!this.isConnected() || !this.connectionId) return;
-
-        try {
-          await this.post(this.options.unsubscribeUrl, {
-            connectionId: this.connectionId,
-            subscriptionId,
-          });
-        } catch {
-          // Best-effort.
-        }
-      },
-    };
-  }
-
-  private async post(url: string, body: Record<string, unknown>): Promise<unknown> {
-    const extraHeaders = await this.getHeaders();
-
-    const response: HttpFetchResponse = await this.fetchImpl({
-      url,
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...extraHeaders },
-      body: JSON.stringify(body),
-      credentials: this.credentials,
-    });
-
-    if (response.status < 200 || response.status >= 300) {
-      throw Object.assign(new Error(`HTTP ${response.status}`), { status: response.status });
-    }
-
-    return response.json();
-  }
-
-  private dispatchBatch(batch: SubscriberBatchMessage): void {
-    for (const match of batch.matches) {
-      const listener = this.listenersBySubscriptionId.get(match.id);
-
-      if (!listener) continue;
-
-      listener.onBatch({
-        type: 'subscription:batch',
-        rows: batch.rows,
-        matches: [match],
-      });
-    }
-  }
-
-  private handleStreamError(_event: unknown): void {
-    // After a successful connect, the browser `EventSource` emits
-    // `error` on transient network blips. We leave reconnection to the
-    // native implementation and only report unrecoverable errors via
-    // subscriber listeners; there's nothing transport-wide to surface
-    // here today.
   }
 }

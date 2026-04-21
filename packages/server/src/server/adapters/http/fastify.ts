@@ -34,7 +34,7 @@ export type FastifyLikeInstance<FastifyRequest extends { body: unknown }> = {
   get(path: string, handler: (request: FastifyRequest, reply: FastifyLikeReply) => Promise<unknown> | unknown): unknown;
 };
 
-export const createFastifyHttpAdapter = <FastifyRequest extends { body: unknown } & FastifyLikeRequest>(
+export const createFastifyHttpAdapter = <FastifyRequest extends { body: unknown; query: unknown } & FastifyLikeRequest>(
   server: FastifyLikeInstance<FastifyRequest>,
 ): HttpAdapter<FastifyRequest> => {
   return {
@@ -104,11 +104,14 @@ export const createFastifyHttpAdapter = <FastifyRequest extends { body: unknown 
         reply.raw.flushHeaders?.();
 
         const closeListeners: Array<() => void> = [];
+
         let closed = false;
 
         const runCloseListeners = () => {
           if (closed) return;
+
           closed = true;
+
           for (const listener of closeListeners) {
             try {
               listener();
@@ -119,12 +122,15 @@ export const createFastifyHttpAdapter = <FastifyRequest extends { body: unknown 
         };
 
         request.raw.on('close', runCloseListeners);
+
         reply.raw.on('close', runCloseListeners);
+
         reply.raw.on('finish', runCloseListeners);
 
         const stream: SseStream = {
           write(data) {
             if (closed) return;
+
             try {
               reply.raw.write(data);
             } catch {
@@ -135,11 +141,13 @@ export const createFastifyHttpAdapter = <FastifyRequest extends { body: unknown 
           },
           close() {
             if (closed) return;
+
             try {
               reply.raw.end();
             } catch {
               // Ignore double-close from adapters that race finish/close.
             }
+
             runCloseListeners();
           },
           onClose(listener) {
@@ -158,6 +166,10 @@ export const createFastifyHttpAdapter = <FastifyRequest extends { body: unknown 
 
     getBody(request) {
       return request.body;
+    },
+
+    getQuery(request) {
+      return (request.query ?? {}) as Record<string, string | string[] | undefined>;
     },
   };
 };

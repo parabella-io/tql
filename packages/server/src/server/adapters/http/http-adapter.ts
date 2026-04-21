@@ -57,5 +57,13 @@ export interface HttpAdapter<HttpRequest> {
    *     server closes the connection.
    */
   sse(path: string, handler: SseHandler<HttpRequest>): void;
+
   getBody(request: HttpRequest): unknown;
+  /**
+   * Returns the parsed query string for `request`. Keys with a single
+   * value are returned as strings; repeated keys surface as string
+   * arrays. Missing keys are `undefined`. Adapters are responsible for
+   * URL-decoding before returning.
+   */
+  getQuery(request: HttpRequest): Record<string, string | string[] | undefined>;
 }

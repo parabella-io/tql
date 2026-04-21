@@ -35,6 +35,7 @@ export const createWsWebSocketAdapter = (server: WsLikeServer): WebSocketAdapter
         const id = randomUUID();
 
         const messageHandlers: Array<(data: string) => void> = [];
+
         const closeHandlers: Array<() => void> = [];
 
         const connection: WebSocketConnection = {
@@ -64,6 +65,7 @@ export const createWsWebSocketAdapter = (server: WsLikeServer): WebSocketAdapter
 
         socket.on('message', (raw: unknown) => {
           const data = coerceToString(raw);
+
           if (data === null) return;
 
           for (const listener of messageHandlers) {
@@ -97,15 +99,21 @@ export const createWsWebSocketAdapter = (server: WsLikeServer): WebSocketAdapter
 
 const coerceToString = (raw: unknown): string | null => {
   if (typeof raw === 'string') return raw;
+
   if (raw instanceof Uint8Array) return new TextDecoder('utf-8').decode(raw);
+
   if (Array.isArray(raw)) {
     // `ws` passes `Buffer[]` for fragmented frames when binary=true.
     const parts = raw.filter((part): part is Uint8Array => part instanceof Uint8Array);
+
     if (parts.length === 0) return null;
+
     return parts.map((part) => new TextDecoder('utf-8').decode(part)).join('');
   }
+
   if (raw && typeof (raw as { toString?: () => string }).toString === 'function') {
     return String(raw);
   }
+
   return null;
 };

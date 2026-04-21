@@ -22,6 +22,7 @@ type Connection = {
 
 type FakeRequest = {
   body?: unknown;
+  query?: Record<string, string | string[] | undefined>;
   user: { id: string; workspaceIds: string[] };
 };
 
@@ -33,10 +34,22 @@ type OpenedSseStream = {
   close(): void;
 };
 
+type SseOpenOptions = {
+  name: string;
+  args: unknown;
+};
+
 type FakeHttpTransport = {
   adapter: HttpAdapter<FakeRequest>;
   invokePost(path: string, request: FakeRequest): Promise<{ response: unknown; flushResponse(): Promise<void> }>;
-  openSse(path: string, request: FakeRequest): Promise<OpenedSseStream>;
+  openSse(path: string, request: FakeRequest, options: SseOpenOptions): Promise<OpenedSseStream>;
+  /**
+   * Directly invoke a registered SSE handler with a fully-controlled
+   * request (e.g. to simulate a malformed query string). Returns the
+   * opened stream harness after yielding once so any synchronous
+   * handler work lands in `frames`.
+   */
+  invokeSse(path: string, request: FakeRequest): Promise<OpenedSseStream>;
 };
 
 const createFakeHttpTransport = (): FakeHttpTransport => {
@@ -52,6 +65,9 @@ const createFakeHttpTransport = (): FakeHttpTransport => {
     },
     getBody(request) {
       return request.body;
+    },
+    getQuery(request) {
+      return request.query ?? {};
     },
   };
 
@@ -83,7 +99,18 @@ const createFakeHttpTransport = (): FakeHttpTransport => {
         },
       };
     },
-    async openSse(path, request) {
+    async openSse(path, request, options) {
+      const withQuery: FakeRequest = {
+        ...request,
+        query: {
+          ...(request.query ?? {}),
+          name: options.name,
+          args: JSON.stringify(options.args ?? {}),
+        },
+      };
+      return this.invokeSse(path, withQuery);
+    },
+    async invokeSse(path, request) {
       const handler = sseRoutes.get(path);
       if (!handler) throw new Error(`no SSE handler for ${path}`);
 
@@ -113,8 +140,6 @@ const createFakeHttpTransport = (): FakeHttpTransport => {
       };
 
       await handler(request, opened.stream);
-      // Yield so any synchronous post-ready work settles before the caller
-      // asserts.
       await new Promise((resolve) => setImmediate(resolve));
 
       return opened;
@@ -191,38 +216,38 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     return server;
   };
 
-  test('GET /events emits connection:ready with a connectionId', async () => {
+  test('GET /events?name&args registers exactly one subscription and emits subscription:ready', async () => {
     const srv = newServer();
     const transport = createFakeHttpTransport();
     srv.attachHttp(transport.adapter);
 
-    const stream = await transport.openSse('/events', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-    });
+    const stream = await transport.openSse(
+      '/events',
+      { user: { id: 'u1', workspaceIds: ['w1'] } },
+      { name: 'ticketSubscription', args: { ticketId: 't1' } },
+    );
 
-    const ready = firstOfType(stream.frames, 'connection:ready');
+    const ready = firstOfType(stream.frames, 'subscription:ready');
     expect(ready).toBeTruthy();
-    expect(typeof ready.connectionId).toBe('string');
-    expect(ready.connectionId.length).toBeGreaterThan(0);
+    expect(typeof ready.subscriptionId).toBe('string');
+    expect(ready.subscriptionId.length).toBeGreaterThan(0);
+
+    expect(srv.subscriptionResolver.getRegistry().size()).toBe(1);
   });
 
-  test('POST /subscribe followed by a mutation delivers subscription:batch on the SSE stream', async () => {
+  test('a mutation delivers subscription:batch on the stream that subscribed', async () => {
     const srv = newServer();
     const transport = createFakeHttpTransport();
     srv.attachHttp(transport.adapter);
 
-    const stream = await transport.openSse('/events', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-    });
+    const stream = await transport.openSse(
+      '/events',
+      { user: { id: 'u1', workspaceIds: ['w1'] } },
+      { name: 'ticketSubscription', args: { ticketId: 't1' } },
+    );
 
-    const ready = firstOfType(stream.frames, 'connection:ready');
-
-    const subscribeResult = await transport.invokePost('/subscribe', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-      body: { connectionId: ready.connectionId, name: 'ticketSubscription', args: { ticketId: 't1' } },
-    });
-
-    expect(subscribeResult.response).toMatchObject({ subscriptionId: expect.any(String) });
+    const ready = firstOfType(stream.frames, 'subscription:ready');
+    expect(ready).toBeTruthy();
 
     const beforeCount = stream.frames.length;
 
@@ -242,58 +267,76 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     expect(update.rows.ticket.inserts.t1).toMatchObject({ id: 't1', title: 'hello', workspaceId: 'w1' });
     expect(update.matches).toHaveLength(1);
     expect(update.matches[0].name).toBe('ticketSubscription');
+    expect(update.matches[0].id).toBe(ready.subscriptionId);
     expect(update.matches[0].changes.ticket.inserts).toEqual(['t1']);
   });
 
-  test('POST /subscribe with unknown connectionId returns an error envelope', async () => {
+  test('missing ?name emits subscription:error and closes the stream', async () => {
     const srv = newServer();
     const transport = createFakeHttpTransport();
     srv.attachHttp(transport.adapter);
 
-    const result = await transport.invokePost('/subscribe', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-      body: { connectionId: 'does-not-exist', name: 'ticketSubscription', args: { ticketId: 't1' } },
-    });
+    // openSse normally forces `name`, so bypass it here by writing
+    // `name: ''` (treated as missing by the server).
+    const stream = await transport.openSse(
+      '/events',
+      { user: { id: 'u1', workspaceIds: ['w1'] } },
+      { name: '', args: {} },
+    );
 
-    expect(result.response).toMatchObject({ error: { type: expect.any(String) } });
+    const error = firstOfType(stream.frames, 'subscription:error');
+    expect(error).toBeTruthy();
+    expect(stream.closed).toBe(true);
+    expect(srv.subscriptionResolver.getRegistry().size()).toBe(0);
   });
 
-  test('POST /subscribe with malformed body returns an error envelope', async () => {
+  test('malformed ?args (non-JSON) emits subscription:error and closes the stream', async () => {
     const srv = newServer();
     const transport = createFakeHttpTransport();
     srv.attachHttp(transport.adapter);
 
-    const result = await transport.invokePost('/subscribe', {
+    const stream = await transport.invokeSse('/events', {
       user: { id: 'u1', workspaceIds: ['w1'] },
-      body: { name: 'ticketSubscription' },
+      query: { name: 'ticketSubscription', args: '{not-json' },
     });
 
-    expect(result.response).toMatchObject({ error: { type: expect.any(String) } });
+    const error = firstOfType(stream.frames, 'subscription:error');
+    expect(error).toBeTruthy();
+    expect(stream.closed).toBe(true);
+    expect(srv.subscriptionResolver.getRegistry().size()).toBe(0);
   });
 
-  test('POST /unsubscribe stops further subscription:batch frames', async () => {
+  test('closing the SSE stream tears down its subscription', async () => {
     const srv = newServer();
     const transport = createFakeHttpTransport();
     srv.attachHttp(transport.adapter);
 
-    const stream = await transport.openSse('/events', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-    });
-    const ready = firstOfType(stream.frames, 'connection:ready');
+    const stream = await transport.openSse(
+      '/events',
+      { user: { id: 'u1', workspaceIds: ['w1'] } },
+      { name: 'ticketSubscription', args: { ticketId: 't1' } },
+    );
 
-    const subscribeResult = await transport.invokePost('/subscribe', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-      body: { connectionId: ready.connectionId, name: 'ticketSubscription', args: { ticketId: 't1' } },
-    });
-    const subscriptionId = (subscribeResult.response as any).subscriptionId as string;
+    expect(srv.subscriptionResolver.getRegistry().size()).toBe(1);
 
-    const unsub = await transport.invokePost('/unsubscribe', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-      body: { connectionId: ready.connectionId, subscriptionId },
-    });
-    expect(unsub.response).toMatchObject({ removed: true });
+    stream.close();
 
-    const beforeCount = stream.frames.length;
+    expect(srv.subscriptionResolver.getRegistry().size()).toBe(0);
+  });
+
+  test('after stream close no further batches are delivered', async () => {
+    const srv = newServer();
+    const transport = createFakeHttpTransport();
+    srv.attachHttp(transport.adapter);
+
+    const stream = await transport.openSse(
+      '/events',
+      { user: { id: 'u1', workspaceIds: ['w1'] } },
+      { name: 'ticketSubscription', args: { ticketId: 't1' } },
+    );
+
+    const frameCountBeforeClose = stream.frames.length;
+    stream.close();
 
     const mutation = await transport.invokePost('/mutation', {
       user: { id: 'u1', workspaceIds: ['w1'] },
@@ -303,56 +346,24 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     await srv.drainEffects();
     await new Promise((resolve) => setImmediate(resolve));
 
-    const newFrames = stream.frames.slice(beforeCount);
-    expect(firstOfType(newFrames, 'subscription:batch')).toBeUndefined();
+    expect(stream.frames.length).toBe(frameCountBeforeClose);
   });
 
-  test('closing the SSE stream tears down every subscription on that connection', async () => {
+  test('subscribers on different streams receive independent updates', async () => {
     const srv = newServer();
     const transport = createFakeHttpTransport();
     srv.attachHttp(transport.adapter);
 
-    const stream = await transport.openSse('/events', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-    });
-    const ready = firstOfType(stream.frames, 'connection:ready');
-
-    await transport.invokePost('/subscribe', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-      body: { connectionId: ready.connectionId, name: 'ticketSubscription', args: { ticketId: 't1' } },
-    });
-    await transport.invokePost('/subscribe', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-      body: { connectionId: ready.connectionId, name: 'ticketSubscription', args: { ticketId: 't2' } },
-    });
-
-    expect(srv.subscriptionResolver.getRegistry().size()).toBe(2);
-
-    stream.close();
-
-    expect(srv.subscriptionResolver.getRegistry().size()).toBe(0);
-  });
-
-  test('subscribers on different connections receive independent updates', async () => {
-    const srv = newServer();
-    const transport = createFakeHttpTransport();
-    srv.attachHttp(transport.adapter);
-
-    const watcher = await transport.openSse('/events', { user: { id: 'u1', workspaceIds: ['w1'] } });
-    const bystander = await transport.openSse('/events', { user: { id: 'u2', workspaceIds: ['w2'] } });
-
-    const watcherReady = firstOfType(watcher.frames, 'connection:ready');
-    const bystanderReady = firstOfType(bystander.frames, 'connection:ready');
-
-    await transport.invokePost('/subscribe', {
-      user: { id: 'u1', workspaceIds: ['w1'] },
-      body: { connectionId: watcherReady.connectionId, name: 'ticketSubscription', args: { ticketId: 't1' } },
-    });
-
-    await transport.invokePost('/subscribe', {
-      user: { id: 'u2', workspaceIds: ['w2'] },
-      body: { connectionId: bystanderReady.connectionId, name: 'ticketSubscription', args: { ticketId: 't1' } },
-    });
+    const watcher = await transport.openSse(
+      '/events',
+      { user: { id: 'u1', workspaceIds: ['w1'] } },
+      { name: 'ticketSubscription', args: { ticketId: 't1' } },
+    );
+    const bystander = await transport.openSse(
+      '/events',
+      { user: { id: 'u2', workspaceIds: ['w2'] } },
+      { name: 'ticketSubscription', args: { ticketId: 't1' } },
+    );
 
     const watcherBefore = watcher.frames.length;
     const bystanderBefore = bystander.frames.length;
@@ -370,6 +381,9 @@ describe('Server.attachHttp — SSE subscriptions', () => {
     const bystanderUpdate = firstOfType(bystander.frames.slice(bystanderBefore), 'subscription:batch');
 
     expect(watcherUpdate).toBeTruthy();
+    // The bystander's connection is scoped to workspace w2 but the
+    // ticket was inserted into w1, so the subscription's `filter`
+    // rejects it.
     expect(bystanderUpdate).toBeUndefined();
   });
 });

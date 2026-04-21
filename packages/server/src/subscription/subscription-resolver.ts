@@ -1,11 +1,8 @@
 import { randomUUID } from 'node:crypto';
-
 import type { z } from 'zod';
-
 import type { Schema } from '../schema.js';
 import { TQLServerError, TQLServerErrorType } from '../errors.js';
 import type { BackboneMessage, EmittedChanges } from '../backbone/backbone.js';
-
 import type { Subscription } from './subscription.js';
 import {
   SubscriptionRegistry,
@@ -228,11 +225,7 @@ export class SubscriptionResolver {
       const filter = subscription.getFilter();
 
       for (const [key, keyedChanges] of changesByKey) {
-        console.log('key', key);
-
         const candidates = this.registry.lookup(subscriptionName, key);
-
-        console.log('candidates', candidates);
 
         if (candidates.length === 0) continue;
 
@@ -293,6 +286,7 @@ const appendMatch = (
 
   if (!draft) {
     draft = { send: candidate.send, rows: {}, matches: [] };
+
     drafts.set(candidate.connectionId, draft);
   }
 

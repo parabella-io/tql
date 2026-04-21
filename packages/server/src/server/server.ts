@@ -112,13 +112,11 @@ export class Server<S extends ClientSchema, Connection = unknown> {
   private readonly sseKeepAliveMs: number;
 
   /**
-   * In-process map of SSE "logical connections" established via the
-   * HTTP adapter's `/events` endpoint. Keyed by the connectionId
-   * embedded in the `connection:ready` frame so sibling POST
-   * `/subscribe` and POST `/unsubscribe` calls can resolve the
-   * originating stream. Only relevant when {@link attachHttp} is used.
+   * Open SSE `/events` streams this server still owns. Each stream is
+   * bound to exactly one subscription (`GET /events?name=...&args=...`);
+   * the set is used by {@link dispose} to tear streams down on shutdown.
    */
-  private readonly sseConnections: Map<string, SseConnectionEntry<Connection>> = new Map();
+  private readonly sseStreams: Set<SseStream> = new Set();
 
   constructor(options: ServerOptions<Connection>) {
     this.effectQueue = Server.createEffectQueue(options.effects);
@@ -177,15 +175,15 @@ export class Server<S extends ClientSchema, Connection = unknown> {
   public dispose(): void {
     this.backboneUnsubscribe();
 
-    for (const entry of Array.from(this.sseConnections.values())) {
+    for (const stream of Array.from(this.sseStreams)) {
       try {
-        entry.close();
+        stream.close();
       } catch {
         // Close errors during shutdown are informational only.
       }
     }
 
-    this.sseConnections.clear();
+    this.sseStreams.clear();
   }
 
   private static createEffectQueue(config: EffectsConfig | undefined): EffectQueue {
@@ -281,29 +279,62 @@ export class Server<S extends ClientSchema, Connection = unknown> {
     });
 
     adapter.sse('/events', async (request, stream) => {
-      await this.handleSseEvents(request, stream);
-    });
-
-    adapter.post('/subscribe', async (request) => {
-      return this.handleSseSubscribe(adapter.getBody(request));
-    });
-
-    adapter.post('/unsubscribe', async (request) => {
-      return this.handleSseUnsubscribe(adapter.getBody(request));
+      await this.handleSseEvents(request, stream, adapter.getQuery(request));
     });
 
     return this;
   }
 
   /**
-   * SSE handler backing `GET /events`. Creates a logical connection
-   * (one `createContext` + `createConnection` pair per stream), emits
-   * a `connection:ready` frame with the generated `connectionId`, and
-   * wires a keep-alive interval plus close-time teardown so stale
-   * subscriptions don't outlive the stream.
+   * SSE handler backing `GET /events?name=...&args=...`. Each stream
+   * is bound to exactly one subscription: we parse `name` + `args`
+   * from the query string, build per-request `context` /
+   * `connection`, register with the subscription resolver, and tear
+   * the subscription down when the stream closes.
+   *
+   * Protocol (see `SseTransport` on the client):
+   *   - first frame:  `subscription:ready { subscriptionId }`
+   *   - terminal err: `subscription:error { error }` (also on startup
+   *                   failures, followed by `stream.close()`)
+   *   - data frames:  `subscription:batch { rows, matches }`
+   *   - keep-alive:   `:ka\n\n` comment frames
    */
-  private async handleSseEvents(request: any, stream: SseStream): Promise<void> {
-    const connectionId = randomUUID();
+  private async handleSseEvents(
+    request: any,
+    stream: SseStream,
+    query: Record<string, string | string[] | undefined>,
+  ): Promise<void> {
+    this.sseStreams.add(stream);
+
+    const write = (message: Record<string, unknown> | SubscriberMessage) => {
+      stream.write(formatSseFrame(message));
+    };
+
+    const fail = (error: TQLServerError): void => {
+      write({ type: 'subscription:error', error: formatError(error) });
+      stream.close();
+    };
+
+    const name = asString(firstQueryValue(query.name));
+
+    if (!name) {
+      fail(new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'events.name is required' }));
+      return;
+    }
+
+    let args: unknown;
+
+    try {
+      args = parseArgsQueryParam(firstQueryValue(query.args));
+    } catch (error) {
+      fail(
+        new TQLServerError(TQLServerErrorType.SubscriptionError, {
+          reason: 'events.args must be a JSON-encoded object',
+          error,
+        }),
+      );
+      return;
+    }
 
     let context: any;
     let connectionData: any;
@@ -312,33 +343,30 @@ export class Server<S extends ClientSchema, Connection = unknown> {
       context = await this.contextFactory({ request });
       connectionData = this.connectionFactory ? await this.connectionFactory({ request }) : undefined;
     } catch (error) {
-      stream.write(
-        formatSseFrame({
-          type: 'connection:error',
-          error: formatError(
-            new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'createContext or createConnection threw', error }),
-          ),
-        }),
-      );
-      stream.close();
+      fail(new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'createContext or createConnection threw', error }));
       return;
     }
 
-    const write = (message: Record<string, unknown> | SubscriberMessage) => {
-      stream.write(formatSseFrame(message));
-    };
+    // Each stream owns exactly one subscription, so the registry's
+    // `connectionId` can just be a per-stream uuid — nothing else ever
+    // looks it up.
+    const connectionId = randomUUID();
 
-    const entry: SseConnectionEntry<Connection> = {
+    const result = await this.subscriptionResolver.subscribe({
       connectionId,
+      subscriptionName: name,
+      args,
       context,
       connection: connectionData,
-      write,
-      close: () => stream.close(),
-    };
+      send: (message) => write(message),
+    });
 
-    this.sseConnections.set(connectionId, entry);
+    if (!result.ok) {
+      fail(result.error);
+      return;
+    }
 
-    write({ type: 'connection:ready', connectionId });
+    write({ type: 'subscription:ready', subscriptionId: result.id });
 
     let keepAlive: ReturnType<typeof setInterval> | undefined;
 
@@ -354,63 +382,9 @@ export class Server<S extends ClientSchema, Connection = unknown> {
 
     stream.onClose(() => {
       if (keepAlive !== undefined) clearInterval(keepAlive);
-      this.sseConnections.delete(connectionId);
-      this.subscriptionResolver.removeConnection(connectionId);
+      this.sseStreams.delete(stream);
+      result.unsubscribe();
     });
-  }
-
-  /**
-   * Shared body-parser for the `/subscribe` and `/unsubscribe`
-   * endpoints. These POSTs are idiomatic HTTP RPCs (plain JSON
-   * in/out), so the envelope shape here is deliberately simpler than
-   * the WS wire protocol.
-   */
-  private async handleSseSubscribe(body: unknown): Promise<{ subscriptionId: string } | { error: FormattedTQLServerError }> {
-    const parsed = parseSubscribeBody(body);
-
-    if (!parsed.ok) {
-      return { error: formatError(parsed.error) };
-    }
-
-    const entry = this.sseConnections.get(parsed.connectionId);
-
-    if (!entry) {
-      return {
-        error: formatError(
-          new TQLServerError(TQLServerErrorType.SubscriptionError, {
-            reason: 'unknown connectionId — open an SSE /events stream first',
-            connectionId: parsed.connectionId,
-          }),
-        ),
-      };
-    }
-
-    const result = await this.subscriptionResolver.subscribe({
-      connectionId: parsed.connectionId,
-      subscriptionName: parsed.name,
-      args: parsed.args,
-      context: entry.context,
-      connection: entry.connection,
-      send: (message) => entry.write(message),
-    });
-
-    if (!result.ok) {
-      return { error: formatError(result.error) };
-    }
-
-    return { subscriptionId: result.id };
-  }
-
-  private async handleSseUnsubscribe(body: unknown): Promise<{ removed: boolean } | { error: FormattedTQLServerError }> {
-    const parsed = parseUnsubscribeBody(body);
-
-    if (!parsed.ok) {
-      return { error: formatError(parsed.error) };
-    }
-
-    const removed = this.subscriptionResolver.unsubscribe(parsed.subscriptionId);
-
-    return { removed };
   }
 
   /**
@@ -632,76 +606,21 @@ const sendRaw = (connection: { send: (data: string) => void }, message: Record<s
 // SSE WIRE PROTOCOL
 // ===========================================================================
 
-/**
- * Per-stream state tracked by `Server` for every open SSE `/events`
- * connection. Keyed by `connectionId` so sibling `/subscribe` and
- * `/unsubscribe` POSTs can resolve the originating stream.
- */
-type SseConnectionEntry<Connection> = {
-  connectionId: string;
-  context: any;
-  connection: Connection | undefined;
-  write: (message: Record<string, unknown> | SubscriberMessage) => void;
-  close: () => void;
-};
-
 const formatSseFrame = (message: Record<string, unknown> | SubscriberMessage): string => {
   return `data: ${JSON.stringify(message)}\n\n`;
 };
 
-type ParsedSubscribe = { ok: true; connectionId: string; name: string; args: unknown } | { ok: false; error: TQLServerError };
-
-const parseSubscribeBody = (body: unknown): ParsedSubscribe => {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return {
-      ok: false,
-      error: new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'subscribe body must be an object' }),
-    };
-  }
-
-  const record = body as Record<string, unknown>;
-
-  const connectionId = asString(record.connectionId);
-
-  const name = asString(record.name);
-
-  if (!connectionId) {
-    return {
-      ok: false,
-      error: new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'subscribe.connectionId is required' }),
-    };
-  }
-
-  if (!name) {
-    return {
-      ok: false,
-      error: new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'subscribe.name is required' }),
-    };
-  }
-
-  return { ok: true, connectionId, name, args: record.args };
+const firstQueryValue = (value: string | string[] | undefined): string | undefined => {
+  if (Array.isArray(value)) return value[0];
+  return value;
 };
 
-type ParsedUnsubscribe = { ok: true; connectionId?: string; subscriptionId: string } | { ok: false; error: TQLServerError };
-
-const parseUnsubscribeBody = (body: unknown): ParsedUnsubscribe => {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return {
-      ok: false,
-      error: new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'unsubscribe body must be an object' }),
-    };
-  }
-
-  const record = body as Record<string, unknown>;
-
-  const subscriptionId = asString(record.subscriptionId);
-
-  if (!subscriptionId) {
-    return {
-      ok: false,
-      error: new TQLServerError(TQLServerErrorType.SubscriptionError, { reason: 'unsubscribe.subscriptionId is required' }),
-    };
-  }
-
-  return { ok: true, connectionId: asString(record.connectionId), subscriptionId };
+/**
+ * `/events?args=...` carries a JSON-encoded args object. Missing /
+ * empty is treated as `{}` — subscriptions with empty `args` schemas
+ * shouldn't have to URL-encode `{}` themselves.
+ */
+const parseArgsQueryParam = (raw: string | undefined): unknown => {
+  if (raw === undefined || raw === '') return {};
+  return JSON.parse(raw);
 };

@@ -45,8 +45,6 @@ describe('Client', () => {
         },
         sse: {
           eventsUrl: 'http://localhost:3000/events',
-          subscribeUrl: 'http://localhost:3000/subscribe',
-          unsubscribeUrl: 'http://localhost:3000/unsubscribe',
         },
       },
       subscriptionTransport: 'sse',
@@ -106,8 +104,6 @@ describe('Client', () => {
         },
         sse: {
           eventsUrl: 'http://localhost:3000/events',
-          subscribeUrl: 'http://localhost:3000/subscribe',
-          unsubscribeUrl: 'http://localhost:3000/unsubscribe',
         },
       },
       subscriptionTransport: 'sse',
