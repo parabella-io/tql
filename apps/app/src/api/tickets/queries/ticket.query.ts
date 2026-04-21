@@ -51,13 +51,10 @@ ticketQuery.updateOnChange('ticket', {
 ticketQuery.updateOnChange('ticketAttachment', {
   onInsert({ draft, change }) {
     if (!draft || draft.id !== change.ticketId) return
-
     draft.attachments.push(change)
   },
-  onUpdate() {},
   onDelete({ draft, change }) {
     if (!draft) return
-
     draft.attachments = draft.attachments.filter((att) => att.id !== change.id)
   },
 })

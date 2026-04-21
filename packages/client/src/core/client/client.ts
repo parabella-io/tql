@@ -224,6 +224,7 @@ export class Client<S extends ClientSchema> {
     options: MutationOptions<S, MutationName, MutationPayloadFor<S, MutationName>, MutationParams>,
   ) {
     const transport = options.transport ?? 'http';
+
     const handler = this.buildMutationHandler(transport);
 
     return new Mutation<S, MutationName, MutationPayloadFor<S, MutationName>, MutationParams>({
@@ -287,6 +288,8 @@ export class Client<S extends ClientSchema> {
   }
 
   private buildQueryHandler(transport: 'http' | 'ws'): ClientHandleQuery<S> {
+    console.log({ transport });
+
     if (transport === 'ws') {
       if (!this.wsTransport) {
         throw new Error("createQuery/`transport: 'ws'` requires `transports.ws` on the client.");
@@ -325,6 +328,7 @@ export class Client<S extends ClientSchema> {
 
     if (this.httpTransport) {
       const httpTransport = this.httpTransport;
+
       return ((payload: any) => httpTransport.mutation(payload)) as ClientHandleMutation<S>;
     }
 

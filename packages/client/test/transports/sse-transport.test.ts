@@ -42,7 +42,7 @@ describe('SseTransport', () => {
     const fakes: FakeEventSource[] = [];
 
     const transport = new SseTransport({
-      eventsUrl: 'http://localhost:3000/subscription',
+      url: 'http://localhost:3000',
       eventSource: (url) => {
         const fake = createFakeEventSource(url);
         fakes.push(fake);
@@ -71,7 +71,7 @@ describe('SseTransport', () => {
   it('delivers subscription:batch frames to the subscribe()-scoped listener', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/subscription',
+      url: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -101,7 +101,7 @@ describe('SseTransport', () => {
   it('handle.unsubscribe() closes the EventSource', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/subscription',
+      url: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -125,7 +125,7 @@ describe('SseTransport', () => {
   it('subscribe() rejects when the server emits subscription:error before ready', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/subscription',
+      url: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -147,7 +147,7 @@ describe('SseTransport', () => {
   it('subscribe() rejects when the EventSource errors before ready', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/subscription',
+      url: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -168,7 +168,7 @@ describe('SseTransport', () => {
   it('subscription:error after ready is surfaced via listener.onError', async () => {
     let fake: FakeEventSource | undefined;
     const transport = new SseTransport({
-      eventsUrl: '/subscription',
+      url: '/subscription',
       eventSource: (url) => {
         fake = createFakeEventSource(url);
         return fake.source;
@@ -192,7 +192,7 @@ describe('SseTransport', () => {
 
   it('connect() and disconnect() are no-ops (transport is always "connected")', async () => {
     const transport = new SseTransport({
-      eventsUrl: '/subscription',
+      url: '/subscription',
       eventSource: () => createFakeEventSource('/subscription').source,
     });
 
@@ -206,7 +206,7 @@ describe('SseTransport', () => {
     const fakes: FakeEventSource[] = [];
 
     const transport = new SseTransport({
-      eventsUrl: '/subscription',
+      url: '/subscription',
       eventSource: (url) => {
         const fake = createFakeEventSource(url);
         fakes.push(fake);

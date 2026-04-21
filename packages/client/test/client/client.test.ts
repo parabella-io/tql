@@ -44,7 +44,7 @@ describe('Client', () => {
           url: 'http://localhost:3000',
         },
         sse: {
-          eventsUrl: 'http://localhost:3000/subscription',
+          url: 'http://localhost:3000',
         },
       },
       subscriptionTransport: 'sse',
@@ -103,7 +103,7 @@ describe('Client', () => {
           url: 'http://localhost:3000',
         },
         sse: {
-          eventsUrl: 'http://localhost:3000/subscription',
+          url: 'http://localhost:3000',
         },
       },
       subscriptionTransport: 'sse',
