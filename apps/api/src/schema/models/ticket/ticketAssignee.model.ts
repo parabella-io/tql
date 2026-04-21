@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import { schema } from '../../schema';
 
+import { ticketAssigneeService } from '../../../services';
+
 export const ticketAssignee = schema.model('ticketAssignee', {
   schema: z.object({
     id: z.string(),
@@ -33,7 +35,7 @@ export const ticketAssignee = schema.model('ticketAssignee', {
         id: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.ticketAssigneeService.getById(context.user, {
+        return ticketAssigneeService.getById(context.user, {
           id: query.id,
         });
       },

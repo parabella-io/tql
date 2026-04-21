@@ -6,6 +6,7 @@ export {
   type ApplyMutationResponseMap,
   type MutationHandleResult,
   type PendingMutationEffect,
+  type CreateEmit,
 } from './mutation-resolver.js';
 
-export type { MutationChangedMap, MutationResolveResult, NormalizeMutationChangedMap } from './mutation.js';
+export type { EmitChangesPayload, EmitFn, MutationChangedMap, MutationResolveResult, NormalizeMutationChangedMap } from './mutation.js';

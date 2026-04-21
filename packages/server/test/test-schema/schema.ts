@@ -40,4 +40,9 @@ export type TestSchemaContext = {
   shouldAllow?: boolean;
 };
 
-export const schema = new Schema<TestSchemaContext, TestSchemaEntities>();
+export type TestSchemaConnection = {
+  connectionId: string;
+  tags: string[];
+};
+
+export const schema = new Schema<TestSchemaContext, TestSchemaEntities, TestSchemaConnection>();

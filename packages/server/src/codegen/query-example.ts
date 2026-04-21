@@ -8,7 +8,7 @@
  * walking the deep `FlattenedQueriesInput` / `HandleQueryResponse` chain.
  *
  * Layout per model:
- *   1. <Model>Entity                    full entity shape with `__model` brand
+ *   1. <Model>Entity                    full entity shape
  *   2. <Model>SelectMap / <Model>Select selectable scalar projection input
  *   3. <Model>IncludeMap                map of relation-name -> named IncludeNode
  *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
@@ -49,13 +49,13 @@ type GetNestedIncludeMap<NodeDef> = NodeDef extends { include?: infer M } ? NonN
  * Project an entity through a `select` shape. Mirrors the runtime
  * `selectFields` + `WithRootIdSelected` behaviour:
  *   - `true`           -> full entity
- *   - `{ a: true }`    -> `Pick<Entity, 'a' | 'id' | '__model'>`
+ *   - `{ a: true }`    -> `Pick<Entity, 'a' | 'id'>`
  *   - missing          -> full entity
  */
 type Selected<Entity, Sel> = [Sel] extends [true]
   ? Entity
   : Sel extends Record<string, any>
-    ? { [K in (Extract<keyof Sel, keyof Entity> | 'id' | '__model') & keyof Entity]: Entity[K] }
+    ? { [K in (Extract<keyof Sel, keyof Entity> | 'id') & keyof Entity]: Entity[K] }
     : Entity;
 
 /**
@@ -95,13 +95,11 @@ interface UserEntity {
   email: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'user';
 }
 
 interface WorkspaceEntity {
   id: string;
   name: string;
-  __model: 'workspace';
 }
 
 interface WorkspaceMemberEntity {
@@ -113,7 +111,6 @@ interface WorkspaceMemberEntity {
   isWorkspaceOwner: boolean;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceMember';
 }
 
 interface WorkspaceMemberInviteEntity {
@@ -122,7 +119,6 @@ interface WorkspaceMemberInviteEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceMemberInvite';
 }
 
 interface WorkspaceTicketLabelEntity {
@@ -131,7 +127,6 @@ interface WorkspaceTicketLabelEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceTicketLabel';
 }
 
 interface TicketEntity {
@@ -144,7 +139,6 @@ interface TicketEntity {
   reporterId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticket';
 }
 
 interface TicketListEntity {
@@ -153,7 +147,6 @@ interface TicketListEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketList';
 }
 
 interface TicketAssigneeEntity {
@@ -164,7 +157,6 @@ interface TicketAssigneeEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketAssignee';
 }
 
 interface TicketReporterEntity {
@@ -175,7 +167,6 @@ interface TicketReporterEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketReporter';
 }
 
 interface TicketAttachmentEntity {
@@ -187,7 +178,6 @@ interface TicketAttachmentEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketAttachment';
 }
 
 interface TicketCommentEntity {
@@ -197,7 +187,6 @@ interface TicketCommentEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketComment';
 }
 
 interface TicketLabelEntity {
@@ -208,47 +197,46 @@ interface TicketLabelEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketLabel';
 }
 
 // =============================================================================
 // PER-MODEL SELECT SHAPES
 // =============================================================================
 
-type UserSelectMap = { [K in Exclude<keyof UserEntity, '__model'>]?: true };
+type UserSelectMap = { [K in keyof UserEntity]?: true };
 type UserSelect = true | UserSelectMap;
 
-type WorkspaceSelectMap = { [K in Exclude<keyof WorkspaceEntity, '__model'>]?: true };
+type WorkspaceSelectMap = { [K in keyof WorkspaceEntity]?: true };
 type WorkspaceSelect = true | WorkspaceSelectMap;
 
-type WorkspaceMemberSelectMap = { [K in Exclude<keyof WorkspaceMemberEntity, '__model'>]?: true };
+type WorkspaceMemberSelectMap = { [K in keyof WorkspaceMemberEntity]?: true };
 type WorkspaceMemberSelect = true | WorkspaceMemberSelectMap;
 
-type WorkspaceMemberInviteSelectMap = { [K in Exclude<keyof WorkspaceMemberInviteEntity, '__model'>]?: true };
+type WorkspaceMemberInviteSelectMap = { [K in keyof WorkspaceMemberInviteEntity]?: true };
 type WorkspaceMemberInviteSelect = true | WorkspaceMemberInviteSelectMap;
 
-type WorkspaceTicketLabelSelectMap = { [K in Exclude<keyof WorkspaceTicketLabelEntity, '__model'>]?: true };
+type WorkspaceTicketLabelSelectMap = { [K in keyof WorkspaceTicketLabelEntity]?: true };
 type WorkspaceTicketLabelSelect = true | WorkspaceTicketLabelSelectMap;
 
-type TicketSelectMap = { [K in Exclude<keyof TicketEntity, '__model'>]?: true };
+type TicketSelectMap = { [K in keyof TicketEntity]?: true };
 type TicketSelect = true | TicketSelectMap;
 
-type TicketListSelectMap = { [K in Exclude<keyof TicketListEntity, '__model'>]?: true };
+type TicketListSelectMap = { [K in keyof TicketListEntity]?: true };
 type TicketListSelect = true | TicketListSelectMap;
 
-type TicketAssigneeSelectMap = { [K in Exclude<keyof TicketAssigneeEntity, '__model'>]?: true };
+type TicketAssigneeSelectMap = { [K in keyof TicketAssigneeEntity]?: true };
 type TicketAssigneeSelect = true | TicketAssigneeSelectMap;
 
-type TicketReporterSelectMap = { [K in Exclude<keyof TicketReporterEntity, '__model'>]?: true };
+type TicketReporterSelectMap = { [K in keyof TicketReporterEntity]?: true };
 type TicketReporterSelect = true | TicketReporterSelectMap;
 
-type TicketAttachmentSelectMap = { [K in Exclude<keyof TicketAttachmentEntity, '__model'>]?: true };
+type TicketAttachmentSelectMap = { [K in keyof TicketAttachmentEntity]?: true };
 type TicketAttachmentSelect = true | TicketAttachmentSelectMap;
 
-type TicketCommentSelectMap = { [K in Exclude<keyof TicketCommentEntity, '__model'>]?: true };
+type TicketCommentSelectMap = { [K in keyof TicketCommentEntity]?: true };
 type TicketCommentSelect = true | TicketCommentSelectMap;
 
-type TicketLabelSelectMap = { [K in Exclude<keyof TicketLabelEntity, '__model'>]?: true };
+type TicketLabelSelectMap = { [K in keyof TicketLabelEntity]?: true };
 type TicketLabelSelect = true | TicketLabelSelectMap;
 
 // =============================================================================

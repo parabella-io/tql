@@ -47,6 +47,25 @@ type StrictMutationResolveResult<SchemaEntities extends Record<string, any>, Cha
   [K in Exclude<keyof SchemaEntities & string, Extract<keyof Changed, keyof SchemaEntities & string>>]?: never;
 };
 
+type WithIdChange<Entity> = Partial<{
+  inserts: WithId<Entity>[];
+  updates: WithId<Entity>[];
+  upserts: WithId<Entity>[];
+  deletes: WithId<Entity>[];
+}>;
+
+/**
+ * Payload accepted by the `emit(...)` helper injected into a mutation's
+ * `resolveEffects`. Deliberately loose across entity keys so a single
+ * mutation can emit any combination of schema entities — per-subscription
+ * narrowing happens on the dispatch side.
+ */
+export type EmitChangesPayload<SchemaEntities extends Record<string, any>> = Partial<{
+  [K in keyof SchemaEntities & string]: WithIdChange<SchemaEntities[K]>;
+}>;
+
+export type EmitFn<SchemaEntities extends Record<string, any>> = (changes: EmitChangesPayload<SchemaEntities>) => void;
+
 export type MutationOptions<
   SchemaContext,
   SchemaEntities extends Record<string, any>,
@@ -64,6 +83,12 @@ export type MutationOptions<
     input: z.infer<Input>;
     context: SchemaContext;
     changes: MutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, NoInfer<Changed>>>;
+    /**
+     * Publish an entity-keyed changes payload to the subscription
+     * backbone. Accepts any combination of schema entities — dispatch
+     * narrows per-subscription via its declared `subscribeTo`.
+     */
+    emit: EmitFn<SchemaEntities>;
   }) => Promise<void> | void;
 };
 
@@ -124,6 +149,7 @@ export class Mutation<
         input: z.infer<Input>;
         context: SchemaContext;
         changes: MutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, Changed>>;
+        emit: EmitFn<SchemaEntities>;
       }) => Promise<void> | void)
     | undefined {
     return this.resolveEffects;

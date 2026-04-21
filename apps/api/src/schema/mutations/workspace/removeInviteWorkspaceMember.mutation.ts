@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { workspaceMemberInviteService } from '../../../services';
+
 export const removeInviteWorkspaceMember = schema.mutation('removeInviteWorkspaceMember', {
   input: z.object({
     workspaceId: z.string(),
@@ -19,7 +21,7 @@ export const removeInviteWorkspaceMember = schema.mutation('removeInviteWorkspac
   },
 
   resolve: async ({ context, input }) => {
-    const workspaceMemberInvite = await context.workspaceMemberInviteService.remove(context.user, {
+    const workspaceMemberInvite = await workspaceMemberInviteService.remove(context.user, {
       workspaceId: input.workspaceId,
       inviteId: input.inviteId,
     });

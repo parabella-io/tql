@@ -23,7 +23,6 @@ export const selectFields = <T>(data: T, select: Select): any => {
   select = {
     ...select,
     id: true,
-    __model: true,
   };
 
   // Array root

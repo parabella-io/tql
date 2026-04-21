@@ -1,5 +1,5 @@
-import { describe, beforeEach, it, expect, vi } from 'vitest';
-import { queryResolver, Profile, TestSchemaContext, Post, create, Comment } from '@tql/server/test-schema';
+import { describe, beforeEach, it, expect } from 'vitest';
+import { Profile, Post, create, Comment } from '@tql/server/test-schema';
 import type { ClientSchema } from '@tql/server/test-schema';
 import Database from 'better-sqlite3';
 import { Client } from '../../src/core/client/client';
@@ -8,8 +8,6 @@ type Schema = ClientSchema;
 
 describe('Client', () => {
   let database: Database.Database;
-
-  let context: TestSchemaContext;
 
   let profileEntities: Profile[] = [];
 
@@ -33,12 +31,6 @@ describe('Client', () => {
     console.log(postEntities);
 
     commentEntities = data.commentEntities;
-
-    context = {
-      userId: '1',
-      database: database,
-      isAuthenticated: true,
-    };
   });
 
   it('should be able to issue a profileById query directly with include', async () => {
@@ -47,13 +39,17 @@ describe('Client', () => {
     const comments = commentEntities.filter((c) => c.profileId === profile.id);
 
     const client = new Client<Schema>({
-      handleQuery: async (query) => {
-        return queryResolver.handle({
-          context,
-          query: query,
-        });
+      transports: {
+        http: {
+          url: 'http://localhost:3000',
+        },
+        sse: {
+          eventsUrl: 'http://localhost:3000/events',
+          subscribeUrl: 'http://localhost:3000/subscribe',
+          unsubscribeUrl: 'http://localhost:3000/unsubscribe',
+        },
       },
-      handleMutation: vi.fn(),
+      subscriptionTransport: 'sse',
     });
 
     const response = await client.query('profileById', {
@@ -101,23 +97,20 @@ describe('Client', () => {
       title: 'Post Title',
       content: 'Post Content',
       profileId: '1',
-      __model: 'post',
     };
 
     const client = new Client<Schema>({
-      handleQuery: vi.fn(),
-      handleMutation: async () => {
-        return {
-          createPost: {
-            changes: {
-              post: {
-                inserts: [createdPost],
-              },
-            },
-            error: null,
-          },
-        } as any;
+      transports: {
+        http: {
+          url: 'http://localhost:3000',
+        },
+        sse: {
+          eventsUrl: 'http://localhost:3000/events',
+          subscribeUrl: 'http://localhost:3000/subscribe',
+          unsubscribeUrl: 'http://localhost:3000/unsubscribe',
+        },
       },
+      subscriptionTransport: 'sse',
     });
 
     const changes = await client.mutation('createPost', input);

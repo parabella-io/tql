@@ -33,7 +33,7 @@ export type GetNestedIncludeMap<NodeDef> = NodeDef extends { include?: infer M }
 export type Selected<Entity, Sel> = [Sel] extends [true]
   ? Entity
   : [Sel] extends [Record<string, any>]
-    ? { [K in (Extract<keyof Sel, keyof Entity> | 'id' | '__model') & keyof Entity]: Entity[K] }
+    ? { [K in (Extract<keyof Sel, keyof Entity> | 'id') & keyof Entity]: Entity[K] }
     : Entity;
 
 export type IncludeProjection<UserInc, ParentMap> = [UserInc] extends [Record<string, any>]
@@ -55,16 +55,3 @@ export type ResolveIncludeNode<UserNode, NodeDef> =
         : never
       : never
     : never;
-
-/**
- * Strip the entity `__model` brand recursively so consumers don't see the
- * codegen-only marker on returned data.
- */
-export type Remove__Model<T> =
-  T extends Array<infer U>
-    ? Array<Remove__Model<U>>
-    : T extends object
-      ? T extends Function
-        ? T
-        : { [K in keyof T as K extends '__model' ? never : K]: Remove__Model<T[K]> }
-      : T;

@@ -247,9 +247,21 @@ exports.Prisma.TicketLabelScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.NotificationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  data: 'data',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
+};
+
+exports.Prisma.JsonNullValueInput = {
+  JsonNull: Prisma.JsonNull
 };
 
 exports.Prisma.QueryMode = {
@@ -260,6 +272,12 @@ exports.Prisma.QueryMode = {
 exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
+};
+
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
 };
 
 
@@ -276,7 +294,8 @@ exports.Prisma.ModelName = {
   Ticket: 'Ticket',
   TicketAttachment: 'TicketAttachment',
   TicketComment: 'TicketComment',
-  TicketLabel: 'TicketLabel'
+  TicketLabel: 'TicketLabel',
+  Notification: 'Notification'
 };
 
 /**

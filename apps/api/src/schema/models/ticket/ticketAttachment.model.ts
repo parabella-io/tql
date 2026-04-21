@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import { schema } from '../../schema';
 
+import { ticketAttachmentsService } from '../../../services';
+
 export const ticketAttachment = schema.model('ticketAttachment', {
   schema: z.object({
     id: z.string(),
@@ -35,7 +37,7 @@ export const ticketAttachment = schema.model('ticketAttachment', {
         id: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.ticketAttachmentsService.getById(context.user, {
+        return ticketAttachmentsService.getById(context.user, {
           id: query.id,
         });
       },
@@ -47,7 +49,7 @@ export const ticketAttachment = schema.model('ticketAttachment', {
         order: z.enum(['asc', 'desc']),
       }),
       resolve: async ({ context, query }) => {
-        return context.ticketAttachmentsService.queryByTicketId(context.user, query);
+        return ticketAttachmentsService.queryByTicketId(context.user, query);
       },
     }),
   }),

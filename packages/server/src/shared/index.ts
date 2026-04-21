@@ -30,7 +30,6 @@ export type {
   Selected,
   IncludeProjection,
   ResolveIncludeNode,
-  Remove__Model,
 } from './projection.js';
 
 export type {

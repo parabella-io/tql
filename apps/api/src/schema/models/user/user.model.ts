@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import { schema } from '../../schema';
 
+import { userService } from '../../../services';
+
 export const user = schema.model('user', {
   schema: z.object({
     id: z.string(),
@@ -29,7 +31,7 @@ export const user = schema.model('user', {
         id: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.userService.getById(query.id);
+        return userService.getById(query.id);
       },
     }),
   }),

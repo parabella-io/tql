@@ -91,8 +91,6 @@ const typeCheck = async () => {
   const _selectedProfileName: string | undefined = selected.profileById.data?.name;
   const _selectedProfileCity: string | undefined = selected.profileById.data?.address.city;
   const _selectedHobbyName: string | undefined = selected.profileById.data?.hobbies[0]?.name;
-  const _selectedProfileModel: 'profile' | undefined = selected.profileById.data?.__model;
-
   const full = await queryResolver.handle({
     context: {} as any,
     query: {

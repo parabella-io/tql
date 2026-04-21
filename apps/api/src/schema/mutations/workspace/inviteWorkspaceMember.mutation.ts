@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { workspaceMemberInviteService } from '../../../services';
+
 export const inviteWorkspaceMember = schema.mutation('inviteWorkspaceMember', {
   input: z.object({
     workspaceId: z.string(),
@@ -19,7 +21,7 @@ export const inviteWorkspaceMember = schema.mutation('inviteWorkspaceMember', {
   },
 
   resolve: async ({ context, input }) => {
-    const workspaceMemberInvite = await context.workspaceMemberInviteService.invite(context.user, {
+    const workspaceMemberInvite = await workspaceMemberInviteService.invite(context.user, {
       workspaceId: input.workspaceId,
       email: input.email,
     });

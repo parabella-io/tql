@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { workspaceTicketLabelService } from '../../../services';
+
 export const deleteWorkspaceTicketLabel = schema.mutation('deleteWorkspaceTicketLabel', {
   input: z.object({
     workspaceId: z.string(),
@@ -19,7 +21,7 @@ export const deleteWorkspaceTicketLabel = schema.mutation('deleteWorkspaceTicket
   },
 
   resolve: async ({ context, input }) => {
-    const workspaceTicketLabel = await context.workspaceTicketLabelService.delete(context.user, {
+    const workspaceTicketLabel = await workspaceTicketLabelService.delete(context.user, {
       workspaceId: input.workspaceId,
       id: input.id,
     });

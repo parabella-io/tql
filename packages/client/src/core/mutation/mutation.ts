@@ -3,7 +3,8 @@ import { FormattedTQLServerError } from '@tql/server';
 import { ClientSchema, QueryUpdateHooksMap } from '../query/query.types';
 import { ClientHandleMutation } from '../client/client';
 import { createOptimisticUpdate } from '../query/query-optimistic-update';
-import { createMutationHashKey, QueryState, QueryStore } from '../query/query-store';
+import { createMutationHashKey, QueryStore } from '../query/query-store';
+import { applyChangesToQueryStore } from '../shared/apply-changes-to-query-store';
 import { MutationState, MutationStore } from './mutation.store';
 import {
   DeleteHookParams,
@@ -350,119 +351,10 @@ export class Mutation<
       }
     >,
   ) {
-    const registeredQueryStates = this.queryStore.getState().state;
-
-    const results: Record<string, any> = {};
-
-    const handleChanges = (changeModelName: string, changeType: 'insert' | 'update' | 'upsert' | 'delete', changes: any[]) => {
-      const queryUpdateHooks = this.queryUpdateHooks[changeModelName];
-
-      if (!queryUpdateHooks) {
-        return;
-      }
-
-      for (const queryName in queryUpdateHooks) {
-        const { hooks } = queryUpdateHooks[queryName]!;
-
-        const queryStates = Object.values(registeredQueryStates).filter((query: QueryState) => query.queryName === queryName);
-
-        for (const change of changes) {
-          for (const { data, queryHashKey, params } of queryStates) {
-            const insertHook = hooks.onInsert;
-            const updateHook = hooks.onUpdate;
-            const upsertHook = hooks.onUpsert;
-            const deleteHook = hooks.onDelete;
-
-            const draftData = results[queryHashKey] ?? data;
-
-            results[queryHashKey] = produce(draftData, (draft) => {
-              if (changeType === 'insert' && insertHook) {
-                const newData = insertHook({
-                  draft: draft as never,
-                  change,
-                  params: params,
-                });
-
-                if (newData !== undefined) {
-                  draft = newData;
-                }
-              }
-
-              if (changeType === 'update' && updateHook !== undefined) {
-                const newData = updateHook({
-                  draft: draft as never,
-                  change,
-                  params,
-                });
-
-                if (newData !== undefined) {
-                  draft = newData;
-                }
-              }
-
-              if (changeType === 'delete' && deleteHook !== undefined) {
-                const newData = deleteHook({
-                  draft: draft as never,
-                  change,
-                  params,
-                });
-
-                if (newData !== undefined) {
-                  draft = newData;
-                }
-              }
-
-              if (changeType === 'upsert' && upsertHook !== undefined) {
-                const newData = upsertHook({
-                  draft: draft as never,
-                  change,
-                  params,
-                });
-
-                if (newData !== undefined) {
-                  draft = newData;
-                }
-              }
-
-              return draft;
-            });
-          }
-        }
-      }
-    };
-
-    for (const modelName of Object.keys(changes)) {
-      const modelChanges = changes[modelName];
-
-      if (modelChanges?.inserts) {
-        handleChanges(modelName, 'insert', modelChanges.inserts);
-      }
-
-      if (modelChanges?.updates) {
-        handleChanges(modelName, 'update', modelChanges.updates);
-      }
-
-      if (modelChanges?.upserts) {
-        handleChanges(modelName, 'upsert', modelChanges.upserts);
-      }
-
-      if (modelChanges?.deletes) {
-        handleChanges(modelName, 'delete', modelChanges.deletes);
-      }
-    }
-
-    const existingState = this.queryStore.getState().state;
-
-    const nextState = produce(existingState, (draftState) => {
-      for (const hashKey in results) {
-        if (draftState[hashKey]) {
-          draftState[hashKey].data = results[hashKey];
-        }
-      }
-    });
-
-    this.queryStore.setState({
-      state: nextState,
+    applyChangesToQueryStore({
+      queryStore: this.queryStore,
+      queryUpdateHooks: this.queryUpdateHooks,
+      changes,
     });
   }
 

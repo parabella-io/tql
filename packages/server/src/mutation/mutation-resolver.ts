@@ -1,11 +1,25 @@
-import { Mutation } from './mutation.js';
+import { Mutation, type EmitFn } from './mutation.js';
 import { Schema } from '../schema.js';
 import { FormattedTQLServerError, TQLServerError, TQLServerErrorType } from '../errors.js';
 import type { ClientSchema } from '../client-schema.js';
 import { z } from 'zod';
 
+/**
+ * Factory invoked once per mutation execution. Returns the `emit`
+ * function injected into that mutation's `resolveEffects`. Supplied by
+ * the `Server` when the subscription backbone is configured; defaults
+ * to a no-op otherwise so `emit(...)` calls become safe fire-and-forget
+ * operations even without subscriptions.
+ */
+export type CreateEmit = (meta: { mutationName: string; context: unknown }) => EmitFn<any>;
+
 export type MutationResolverOptions = {
-  schema: Schema<any, any>;
+  schema: Schema<any, any, any>;
+  /**
+   * When provided, injected as the `emit` argument on every mutation's
+   * `resolveEffects`. Omit to get a no-op emit (default).
+   */
+  createEmit?: CreateEmit;
 };
 
 /**
@@ -62,10 +76,13 @@ export class MutationResolver<S extends ClientSchema> {
 
   private readonly mutations: Record<string, Mutation<any, any, any, any>> = {};
 
+  private readonly createEmit: CreateEmit;
+
   constructor(options: MutationResolverOptions) {
     for (const mutationName of Object.keys(options.schema.mutations)) {
       this.mutations[mutationName] = options.schema.mutations[mutationName] as Mutation<any, any, any, any>;
     }
+    this.createEmit = options.createEmit ?? (() => () => {});
   }
 
   public getMutations(): Record<string, Mutation<any, any, any, any>> {
@@ -147,6 +164,7 @@ export class MutationResolver<S extends ClientSchema> {
           };
 
           this.collectEffect(effects, mutation, mutationName, context, input.data, {});
+
           continue;
         }
 
@@ -217,10 +235,12 @@ export class MutationResolver<S extends ClientSchema> {
       return;
     }
 
+    const emit = this.createEmit({ mutationName, context });
+
     sink.push({
       mutationName,
       run: async () => {
-        await resolveEffects({ context, input, changes } as any);
+        await resolveEffects({ context, input, changes, emit } as any);
       },
     });
   }

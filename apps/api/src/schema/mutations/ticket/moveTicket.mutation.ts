@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { ticketsService } from '../../../services';
+
 export const moveTicket = schema.mutation('moveTicket', {
   input: z.object({
     id: z.string(),
@@ -16,7 +18,7 @@ export const moveTicket = schema.mutation('moveTicket', {
   },
 
   allow: async ({ context, input }) => {
-    const ticket = await context.ticketsService.getById(context.user, {
+    const ticket = await ticketsService.getById(context.user, {
       id: input.id,
     });
 
@@ -24,7 +26,7 @@ export const moveTicket = schema.mutation('moveTicket', {
   },
 
   resolve: async ({ context, input }) => {
-    const ticket = await context.ticketsService.moveList(context.user, {
+    const ticket = await ticketsService.moveList(context.user, {
       id: input.id,
       oldTicketListId: input.oldTicketListId,
       newTicketListId: input.newTicketListId,

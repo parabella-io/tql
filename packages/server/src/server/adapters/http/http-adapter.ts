@@ -17,12 +17,45 @@ export type HttpHandlerHooks = {
   afterResponse(callback: () => void | Promise<void>): void;
 };
 
-export type HttpHandler<HttpRequest, Response = unknown> = (
-  request: HttpRequest,
-  hooks: HttpHandlerHooks,
-) => Promise<Response> | Response;
+export type HttpHandler<HttpRequest, Response = unknown> = (request: HttpRequest, hooks: HttpHandlerHooks) => Promise<Response> | Response;
+
+/**
+ * Per-stream surface exposed to an {@link SseHandler}. Adapter
+ * implementations are responsible for setting the `text/event-stream`
+ * response headers and for translating socket-level lifecycle (client
+ * disconnect, keep-alive, flush semantics) into these three hooks.
+ */
+export interface SseStream {
+  /**
+   * Write a raw SSE frame. Callers pass complete frames including the
+   * trailing `\n\n` terminator so comment keep-alive frames (e.g.
+   * `":ka\n\n"`) can be sent alongside `data:` frames.
+   */
+  write(data: string): void;
+  /** Close the SSE stream. Idempotent. */
+  close(): void;
+  /** Register a callback invoked once when the stream closes (from any side). */
+  onClose(listener: () => void): void;
+}
+
+/**
+ * Handler signature for SSE routes. Adapters guarantee that headers are
+ * flushed before the handler runs, so the handler can write frames
+ * synchronously on the first tick.
+ */
+export type SseHandler<HttpRequest> = (request: HttpRequest, stream: SseStream) => Promise<void> | void;
 
 export interface HttpAdapter<HttpRequest> {
   post(path: string, handler: HttpHandler<HttpRequest>): void;
+  /**
+   * Register an SSE route at `path`. The adapter MUST:
+   *   - reply with `Content-Type: text/event-stream`, `Cache-Control:
+   *     no-cache, no-transform`, `Connection: keep-alive`, and
+   *     `X-Accel-Buffering: no`;
+   *   - flush headers before invoking `handler`;
+   *   - invoke every `onClose` listener exactly once when the client or
+   *     server closes the connection.
+   */
+  sse(path: string, handler: SseHandler<HttpRequest>): void;
   getBody(request: HttpRequest): unknown;
 }

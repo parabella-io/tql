@@ -1,18 +1,4 @@
 import { Schema, type SchemaEntity } from '@tql/server';
-import { PrismaClient } from '../database';
-import { WorkspaceService } from '../services/workspace/workspace.service';
-import { TicketsService } from '../services/ticket/tickets.service';
-import { TicketAttachmentsService } from '../services/ticket/ticketAttachments.service';
-import { TicketLabelsService } from '../services/ticket/ticketLabels.service';
-import { TicketCommentsService } from '../services/ticket/ticketComments.service';
-import { WorkspaceMemberService } from '../services/workspace/workspaceMember.service';
-import { TicketAssigneeService } from '../services/ticket/ticketAssignee.service';
-import { TicketReporterService } from '../services/ticket/ticketReporter.service';
-import { TicketListsService } from '../services/ticket/ticketList.service';
-import { StorageService } from '../services/storage/storage.service';
-import { WorkspaceTicketLabelService } from '../services/workspace/workspaceTicketLabel.service';
-import { WorkspaceMemberInviteService } from '../services/workspace/workspaceMemberInvite.service';
-import { UserService } from '../services/user/user.service';
 
 export type UserEntity = SchemaEntity<{
   id: string;
@@ -116,6 +102,13 @@ export type TicketLabelEntity = SchemaEntity<{
   updatedAt: string;
 }>;
 
+export type NotificationEntity = SchemaEntity<{
+  userId: string;
+  data: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}>;
+
 export type SchemaEntities = {
   user: UserEntity;
   workspace: WorkspaceEntity;
@@ -129,6 +122,7 @@ export type SchemaEntities = {
   ticketAttachment: TicketAttachmentEntity;
   ticketComment: TicketCommentEntity;
   ticketLabel: TicketLabelEntity;
+  notification: NotificationEntity;
 };
 
 export type UserContext = {
@@ -138,21 +132,11 @@ export type UserContext = {
 };
 
 export type SchemaContext = {
-  db: PrismaClient;
-  userService: UserService;
-  workspaceService: WorkspaceService;
-  workspaceMemberService: WorkspaceMemberService;
-  workspaceTicketLabelService: WorkspaceTicketLabelService;
-  workspaceMemberInviteService: WorkspaceMemberInviteService;
-  ticketsService: TicketsService;
-  ticketListsService: TicketListsService;
-  ticketAttachmentsService: TicketAttachmentsService;
-  ticketAssigneeService: TicketAssigneeService;
-  ticketReporterService: TicketReporterService;
-  ticketCommentsService: TicketCommentsService;
-  ticketLabelsService: TicketLabelsService;
-  storageService: StorageService;
   user: UserContext;
 };
 
-export const schema = new Schema<SchemaContext, SchemaEntities>();
+export type SchemaConnection = {
+  user: UserContext;
+};
+
+export const schema = new Schema<SchemaContext, SchemaEntities, SchemaConnection>();

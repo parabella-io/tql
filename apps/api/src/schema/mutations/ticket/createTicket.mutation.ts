@@ -1,6 +1,10 @@
 import z from 'zod';
 
-import { schema } from '../../schema';
+import { ticketsService } from '../../../services';
+
+import { NotificationEntity, schema } from '../../schema';
+import { db } from '../../../database-client';
+import { v7 } from 'uuid';
 
 export const createTicket = schema.mutation('createTicket', {
   input: z.object({
@@ -20,7 +24,7 @@ export const createTicket = schema.mutation('createTicket', {
   },
 
   resolve: async ({ context, input }) => {
-    const ticket = await context.ticketsService.create(context.user, {
+    const ticket = await ticketsService.create(context.user, {
       workspaceId: input.workspaceId,
       ticketListId: input.ticketListId,
       title: input.title,
@@ -31,5 +35,36 @@ export const createTicket = schema.mutation('createTicket', {
         inserts: [ticket],
       },
     };
+  },
+
+  resolveEffects: async ({ changes, emit }) => {
+    const ticket = changes.ticket?.inserts?.[0];
+
+    if (!ticket) return;
+
+    const workspaceUsers = await db.workspaceMember.findMany({
+      where: {
+        workspaceId: ticket.workspaceId,
+      },
+      include: {
+        user: true,
+      },
+    });
+
+    const notifications = workspaceUsers.map((workspaceUser) => ({
+      id: v7(),
+      userId: workspaceUser.userId,
+      data: {
+        ticketId: ticket.id,
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+
+    emit({
+      notification: {
+        inserts: notifications,
+      },
+    });
   },
 });

@@ -85,6 +85,7 @@ describe('MutationResolver - resolveEffects', () => {
           inserts: [{ id: 't1', name: 'first' }],
         },
       },
+      emit: expect.any(Function),
     });
   });
 
@@ -110,6 +111,7 @@ describe('MutationResolver - resolveEffects', () => {
       context,
       input: { id: 't1' },
       changes: {},
+      emit: expect.any(Function),
     });
   });
 

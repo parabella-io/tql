@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { ticketAssigneeService } from '../../../services';
+
 export const unassignTicketMember = schema.mutation('unassignTicketMember', {
   input: z.object({
     workspaceId: z.string(),
@@ -19,7 +21,7 @@ export const unassignTicketMember = schema.mutation('unassignTicketMember', {
   },
 
   resolve: async ({ context, input }) => {
-    const ticketAssignee = await context.ticketAssigneeService.unassign(context.user, {
+    const ticketAssignee = await ticketAssigneeService.unassign(context.user, {
       workspaceId: input.workspaceId,
       ticketId: input.ticketId,
     });

@@ -121,4 +121,11 @@ export type MutationOptions<
   onUpdate?: (params: UpdateHookParams<MutationInput, S, MutationName>) => void;
   onUpsert?: (params: UpsertHookParams<MutationInput, S, MutationName>) => void;
   onDelete?: (params: DeleteHookParams<MutationInput, S, MutationName>) => void;
+  /**
+   * Which transport this mutation runs over. Defaults to `'http'`.
+   * Set to `'ws'` to ride the shared WebSocket transport — requires
+   * the client to be constructed with `transports.ws`. The socket is
+   * opened lazily on first use.
+   */
+  transport?: 'http' | 'ws';
 };

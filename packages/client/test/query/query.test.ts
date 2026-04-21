@@ -66,7 +66,6 @@ describe('Query', () => {
         state: 'CA',
         zip: '12345',
       },
-      __model: 'profile',
     } as unknown as ProfileByIdData;
 
     query.updateState(params, (state) => {
@@ -133,7 +132,6 @@ describe('Query', () => {
         state: 'CA',
         zip: '12345',
       },
-      __model: 'profile',
     } as unknown as ProfileData;
 
     const metadata = {
@@ -262,7 +260,6 @@ describe('Query', () => {
       title: 'Post Title',
       content: 'Post Content',
       profileId: '1',
-      __model: 'post',
     } as unknown as PostData;
 
     query.register(params);
@@ -349,7 +346,6 @@ describe('Query', () => {
             state: 'CA',
             zip: '12345',
           },
-          __model: 'profile',
         },
         error: null,
         metadata: {},

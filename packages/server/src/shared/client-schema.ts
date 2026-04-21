@@ -17,5 +17,7 @@ export type ClientSchema = {
   MutationInputMap: Record<string, any>;
   MutationResponseMap: Record<string, any>;
   MutationRegistry: Record<string, any>;
+  SubscriptionInputMap: Record<string, any>;
+  SubscriptionRegistry: Record<string, any>;
   SchemaEntities: Record<string, any>;
 };

@@ -4,8 +4,20 @@ import { Model, ModelConstructor, IncludesMap } from './query/model.js';
 import { ExtractEntityShape } from './extract-entity-shape.js';
 import { Mutation, MutationOptions } from './mutation/mutation.js';
 import { SchemaEntity } from './schema-entity.js';
+import { Subscription, type SubscribeToMap, type SubscriptionOptions } from './subscription/subscription.js';
 
-export class Schema<SchemaContext extends Record<string, any>, SchemaEntities extends Record<string, SchemaEntity<Record<string, any>>>> {
+export class Schema<
+  SchemaContext extends Record<string, any>,
+  SchemaEntities extends Record<string, SchemaEntity<Record<string, any>>>,
+  SchemaConnection = unknown,
+> {
+  /**
+   * Phantom slot so the `SchemaConnection` generic has a consumer on the
+   * class. Users never read this — it's here to prevent TypeScript from
+   * inferring `unknown` at call sites that need the connection shape.
+   */
+  declare __connection: SchemaConnection;
+
   /**
    * Models registered via {@link Schema.model}. Populated lazily as each model
    * is constructed so codegen can introspect the full schema without needing a
@@ -19,6 +31,13 @@ export class Schema<SchemaContext extends Record<string, any>, SchemaEntities ex
    * them up by name without a separate resolver factory.
    */
   public readonly mutations: Record<string, Mutation<SchemaContext, SchemaEntities, any, any>> = {};
+
+  /**
+   * Subscriptions registered via {@link Schema.subscription}. Exposed to
+   * codegen and the runtime {@link SubscriptionResolver} alongside
+   * {@link Schema.mutations}.
+   */
+  public readonly subscriptions: Record<string, Subscription<SchemaContext, SchemaEntities, SchemaConnection, any, any>> = {};
 
   model<
     ModelName extends keyof SchemaEntities,
@@ -51,5 +70,22 @@ export class Schema<SchemaContext extends Record<string, any>, SchemaEntities ex
     this.mutations[mutationName] = mutation as unknown as Mutation<SchemaContext, SchemaEntities, any, any>;
 
     return mutation;
+  }
+
+  subscription<Args extends z.ZodObject<z.ZodRawShape>, const SubscribeTo extends SubscribeToMap<SchemaEntities>>(
+    subscriptionName: string,
+    options: SubscriptionOptions<SchemaContext, SchemaEntities, SchemaConnection, Args, SubscribeTo>,
+  ): Subscription<SchemaContext, SchemaEntities, SchemaConnection, Args, SubscribeTo> {
+    const subscription = new Subscription<SchemaContext, SchemaEntities, SchemaConnection, Args, SubscribeTo>(subscriptionName, options);
+
+    this.subscriptions[subscriptionName] = subscription as unknown as Subscription<
+      SchemaContext,
+      SchemaEntities,
+      SchemaConnection,
+      any,
+      any
+    >;
+
+    return subscription;
   }
 }

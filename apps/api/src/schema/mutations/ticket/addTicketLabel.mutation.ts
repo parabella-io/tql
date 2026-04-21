@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { ticketLabelsService } from '../../../services';
+
 export const addTicketLabel = schema.mutation('addTicketLabel', {
   input: z.object({
     workspaceId: z.string(),
@@ -20,7 +22,7 @@ export const addTicketLabel = schema.mutation('addTicketLabel', {
   },
 
   resolve: async ({ context, input }) => {
-    const ticketLabel = await context.ticketLabelsService.add(context.user, {
+    const ticketLabel = await ticketLabelsService.add(context.user, {
       workspaceId: input.workspaceId,
       ticketId: input.ticketId,
       labelId: input.labelId,

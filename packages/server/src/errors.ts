@@ -15,10 +15,18 @@ export enum TQLServerErrorType {
   QueryError = 'Query error',
   QueryNotAllowedError = 'Query not allowed',
 
+  SubscriptionNotFoundError = 'Subscription not found',
+  SubscriptionArgsSchemaError = 'Subscription args schema error',
+  SubscriptionNotAllowedError = 'Subscription not allowed',
+  SubscriptionError = 'Subscription error',
+
   DuplicateModelNameError = 'Duplicate model name',
 
   EntityNotFoundError = 'Entity not found',
   EntityUnauthorizedError = 'Entity unauthorized',
+
+  WebSocketMessageMalformedError = 'WebSocket message malformed',
+  WebSocketMessageUnsupportedError = 'WebSocket message type unsupported',
 }
 
 export type FormattedTQLServerError = {

@@ -2,6 +2,10 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { db } from '../../../database-client';
+
+import { workspaceMemberInviteService } from '../../../services';
+
 export const declineWorkspaceMemberInvite = schema.mutation('declineWorkspaceMemberInvite', {
   input: z.object({
     workspaceId: z.string(),
@@ -15,7 +19,7 @@ export const declineWorkspaceMemberInvite = schema.mutation('declineWorkspaceMem
   },
 
   allow: async ({ context, input }) => {
-    const workspaceMemberInvite = await context.db.workspaceMemberInvite.findUniqueOrThrow({
+    const workspaceMemberInvite = await db.workspaceMemberInvite.findUniqueOrThrow({
       where: {
         id: input.inviteId,
       },
@@ -33,7 +37,7 @@ export const declineWorkspaceMemberInvite = schema.mutation('declineWorkspaceMem
   },
 
   resolve: async ({ context, input }) => {
-    const workspaceMemberInvite = await context.workspaceMemberInviteService.decline(context.user, {
+    const workspaceMemberInvite = await workspaceMemberInviteService.decline(context.user, {
       workspaceId: input.workspaceId,
       inviteId: input.inviteId,
     });

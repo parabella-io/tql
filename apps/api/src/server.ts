@@ -4,22 +4,8 @@ import { db } from './database-client';
 import { schema, SchemaContext, UserContext } from './schema/index';
 import { auth } from './auth';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { InMemoryEffectQueue, Server as TQLServer, createFastifyHttpAdapter } from '@tql/server';
-import {
-  workspaceService,
-  ticketsService,
-  ticketAttachmentsService,
-  ticketCommentsService,
-  ticketLabelsService,
-  ticketReporterService,
-  ticketAssigneeService,
-  workspaceMemberService,
-  ticketListsService,
-  storageService,
-  workspaceTicketLabelService,
-  workspaceMemberInviteService,
-  userService,
-} from './services';
+import { InMemoryBackbone, InMemoryEffectQueue, Server as TQLServer, createFastifyHttpAdapter } from '@tql/server';
+import { storageService } from './services';
 import z from 'zod';
 import type { ClientSchema } from '../generated/schema';
 
@@ -154,20 +140,6 @@ async function protectedRoutes(server: FastifyInstance) {
 
   const createContext = async ({ request }: { request: any }): Promise<SchemaContext> => {
     return {
-      db: db,
-      userService: userService,
-      workspaceService: workspaceService,
-      workspaceTicketLabelService: workspaceTicketLabelService,
-      workspaceMemberInviteService: workspaceMemberInviteService,
-      ticketsService: ticketsService,
-      ticketListsService: ticketListsService,
-      ticketAttachmentsService: ticketAttachmentsService,
-      ticketCommentsService: ticketCommentsService,
-      ticketLabelsService: ticketLabelsService,
-      ticketAssigneeService: ticketAssigneeService,
-      ticketReporterService: ticketReporterService,
-      workspaceMemberService: workspaceMemberService,
-      storageService: storageService,
       user: request.user,
     };
   };
@@ -179,8 +151,19 @@ async function protectedRoutes(server: FastifyInstance) {
       outputPath: './generated/schema.d.ts',
     },
     createContext,
+    createConnection: createContext,
     effects: {
       queue: new InMemoryEffectQueue(),
+      onError(error, meta) {
+        server.log.error(error);
+      },
+    },
+    subscriptions: {
+      backbone: new InMemoryBackbone({
+        onError(error, message) {
+          server.log.error(error);
+        },
+      }),
     },
   });
 

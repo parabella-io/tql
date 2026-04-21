@@ -11,9 +11,10 @@ import { IncludeSingle } from '../query/include-single.js';
 import { QueryMany } from '../query/query-many.js';
 import { QuerySingle } from '../query/query-single.js';
 import { Schema } from '../schema.js';
+import { Subscription } from '../subscription/subscription.js';
 
 type GenerateSchemaOptions = {
-  schema: Schema<any, any>;
+  schema: Schema<any, any, any>;
   outputPath: string;
 };
 
@@ -162,7 +163,7 @@ type MutationInfo = {
 
 const MUTATION_OPS: MutationOpName[] = ['inserts', 'updates', 'upserts', 'deletes'];
 
-const collectModels = (schema: Schema<any, any>): ModelInfo[] => {
+const collectModels = (schema: Schema<any, any, any>): ModelInfo[] => {
   return Object.keys(schema.models).map((modelName) => {
     const model = schema.models[modelName] as Model<any, any, any, any, any, any, any>;
 
@@ -190,7 +191,7 @@ const collectModels = (schema: Schema<any, any>): ModelInfo[] => {
   });
 };
 
-const collectMutations = (schema: Schema<any, any>): MutationInfo[] => {
+const collectMutations = (schema: Schema<any, any, any>): MutationInfo[] => {
   return Object.keys(schema.mutations).map((mutationName) => {
     const mutation = schema.mutations[mutationName] as Mutation<any, any, any, any>;
     return {
@@ -202,15 +203,38 @@ const collectMutations = (schema: Schema<any, any>): MutationInfo[] => {
   });
 };
 
+type SubscribeToDeclaration = Partial<Record<string, true>>;
+
+type SubscriptionInfo = {
+  subscriptionName: string;
+  pascalName: string;
+  argsSchema: ZodObject<any>;
+  subscribeTo: SubscribeToDeclaration;
+};
+
+const collectSubscriptions = (schema: Schema<any, any, any>): SubscriptionInfo[] => {
+  const subscriptions = schema.subscriptions ?? {};
+  return Object.keys(subscriptions).map((subscriptionName) => {
+    const subscription = subscriptions[subscriptionName] as Subscription<any, any, any, any, any>;
+    return {
+      subscriptionName,
+      pascalName: toPascalCase(subscriptionName),
+      argsSchema: subscription.getArgsSchema() as ZodObject<any>,
+      subscribeTo: (subscription.getSubscribeTo() ?? {}) as SubscribeToDeclaration,
+    };
+  });
+};
+
 const hasIncludes = (model: ModelInfo): boolean => model.includeSingles.length > 0 || model.includeManys.length > 0;
 
 // =============================================================================
 // RENDERING
 // =============================================================================
 
-const renderSchemaSource = (schema: Schema<any, any>): string => {
+const renderSchemaSource = (schema: Schema<any, any, any>): string => {
   const models = collectModels(schema);
   const mutations = collectMutations(schema);
+  const subscriptions = collectSubscriptions(schema);
 
   const sections = [
     HEADER_COMMENT,
@@ -225,6 +249,9 @@ const renderSchemaSource = (schema: Schema<any, any>): string => {
     renderMutationInputsSection(mutations),
     renderMutationInputMap(mutations),
     renderMutationRegistry(mutations),
+    renderSubscriptionInputsSection(subscriptions),
+    renderSubscriptionInputMap(subscriptions),
+    renderSubscriptionRegistry(subscriptions),
     QUERY_PROJECTION_BLOCK,
     MUTATION_PROJECTION_BLOCK,
     CLIENT_SCHEMA_BLOCK,
@@ -240,7 +267,7 @@ const renderEntitiesSection = (models: ModelInfo[]): string => {
 
 const renderEntity = (model: ModelInfo): string => {
   const fields = renderObjectShapeLines(model.schema, '  ');
-  const lines = [`export interface ${model.pascalName}Entity {`, ...fields, `  __model: '${model.modelName}';`, `}`];
+  const lines = [`export interface ${model.pascalName}Entity {`, ...fields, `}`];
   return lines.join('\n');
 };
 
@@ -258,7 +285,7 @@ const renderEntityByName = (models: ModelInfo[]): string => {
 
 const renderSelectsSection = (models: ModelInfo[]): string => {
   const blocks = models.map((model) => {
-    const selectMap = `type ${model.pascalName}SelectMap = { [K in Exclude<keyof ${model.pascalName}Entity, '__model'>]?: true };`;
+    const selectMap = `type ${model.pascalName}SelectMap = { [K in keyof ${model.pascalName}Entity]?: true };`;
     const select = `type ${model.pascalName}Select = true | ${model.pascalName}SelectMap;`;
     return `${selectMap}\n${select}`;
   });
@@ -487,6 +514,52 @@ const renderChangedLiteral = (changed: ChangedDeclaration): string => {
 };
 
 // =============================================================================
+// SUBSCRIPTIONS
+// =============================================================================
+
+const renderSubscriptionInputsSection = (subscriptions: SubscriptionInfo[]): string => {
+  if (subscriptions.length === 0) return '';
+
+  const blocks = subscriptions.map((subscription) => renderSubscriptionInput(subscription));
+
+  return [bannerComment('PER-SUBSCRIPTION INPUT INTERFACES'), ...blocks].join('\n\n');
+};
+
+const renderSubscriptionInput = (subscription: SubscriptionInfo): string => {
+  const argsInterfaceName = `${subscription.pascalName}Args`;
+  const inputInterfaceName = `${subscription.pascalName}Input`;
+
+  const argsLines = [`interface ${argsInterfaceName} {`, ...renderObjectShapeLines(subscription.argsSchema, '  '), `}`];
+  const inputLines = [`export interface ${inputInterfaceName} {`, `  args: ${argsInterfaceName};`, `}`];
+
+  return [argsLines.join('\n'), inputLines.join('\n')].join('\n');
+};
+
+const renderSubscriptionInputMap = (subscriptions: SubscriptionInfo[]): string => {
+  const entries = subscriptions.map((subscription) => `  ${subscription.subscriptionName}: ${subscription.pascalName}Input;`);
+  const body = ['export interface SubscriptionInputMap {', ...entries, '}'].join('\n');
+  return [bannerComment('AGGREGATE SUBSCRIPTION INPUT MAP'), body].join('\n\n');
+};
+
+const renderSubscriptionRegistry = (subscriptions: SubscriptionInfo[]): string => {
+  const entries = subscriptions.map((subscription) => {
+    const subscribeTo = renderSubscribeToLiteral(subscription.subscribeTo);
+    return `  ${subscription.subscriptionName}: { subscribeTo: ${subscribeTo} };`;
+  });
+
+  const body = ['export interface SubscriptionRegistry {', ...entries, '}'].join('\n');
+  return [bannerComment('SUBSCRIPTION REGISTRY (literal `subscribeTo` map per subscription)'), body].join('\n\n');
+};
+
+const renderSubscribeToLiteral = (subscribeTo: SubscribeToDeclaration): string => {
+  const entityKeys = Object.keys(subscribeTo);
+  if (entityKeys.length === 0) return '{}';
+
+  const parts = entityKeys.filter((key) => subscribeTo[key] === true).map((key) => `${key}: true`);
+  return `{ ${parts.join('; ')} }`;
+};
+
+// =============================================================================
 // ZOD -> TS
 // =============================================================================
 
@@ -621,7 +694,7 @@ const HEADER_COMMENT = `/**
  * inputs, registries, and the aggregate \`ClientSchema\`).
  *
  * Layout:
- *   1. <Model>Entity                    one per registered model, with \`__model\` brand
+ *   1. <Model>Entity                    one per registered model
  *   2. SchemaEntities                   name -> entity lookup (mutation projection)
  *   3. <Model>Select / <Model>SelectMap selectable scalar projection input
  *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
@@ -692,5 +765,7 @@ export interface ClientSchema extends ClientSchemaConstraint {
   MutationInputMap: MutationInputMap;
   MutationResponseMap: MutationResponseMap;
   MutationRegistry: MutationRegistry;
+  SubscriptionInputMap: SubscriptionInputMap;
+  SubscriptionRegistry: SubscriptionRegistry;
   SchemaEntities: SchemaEntities;
 }`;

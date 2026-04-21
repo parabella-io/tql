@@ -12,14 +12,14 @@ import { StorageService } from './storage/storage.service';
 import { WorkspaceTicketLabelService } from './workspace/workspaceTicketLabel.service';
 import { WorkspaceMemberInviteService } from './workspace/workspaceMemberInvite.service';
 import { UserService } from './user/user.service';
+import { NotificationService } from './notification/notification.service';
 
 export const userService = new UserService(db);
-
+export const notificationService = new NotificationService(db);
 export const workspaceService = new WorkspaceService(db);
 export const workspaceMemberService = new WorkspaceMemberService(db);
 export const workspaceTicketLabelService = new WorkspaceTicketLabelService(db);
 export const workspaceMemberInviteService = new WorkspaceMemberInviteService(db);
-
 export const ticketsService = new TicketsService(db);
 export const ticketListsService = new TicketListsService(db);
 export const ticketAssigneeService = new TicketAssigneeService(db);
@@ -27,5 +27,4 @@ export const ticketReporterService = new TicketReporterService(db);
 export const ticketAttachmentsService = new TicketAttachmentsService(db);
 export const ticketCommentsService = new TicketCommentsService(db);
 export const ticketLabelsService = new TicketLabelsService(db);
-
 export const storageService = new StorageService(db);

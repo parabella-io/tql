@@ -44,7 +44,6 @@ describe('QueryResolver explicit single-query aliases - Success', () => {
 
     expect(response.profileById.data?.id).toBe(profile.id);
     expect(response.profileById.data?.name).toBe(profile.name);
-    expect(response.profileById.data?.__model).toBe('profile');
   });
 
   test('should resolve profile', async () => {
@@ -70,7 +69,6 @@ describe('QueryResolver explicit single-query aliases - Success', () => {
 
     expect(response.profile.data?.name).toBe(profile.name);
 
-    expect(response.profile.data?.__model).toBe('profile');
   });
 });
 
@@ -116,7 +114,6 @@ describe('QueryResolver QuerySingle- Success', () => {
 
     expect(response.profile.data?.id).toBe(profile.id);
     expect(response.profile.data?.name).toBe(profile.name);
-    expect(response.profile.data?.__model).toBe('profile');
   });
 
   test('should resolve query metadata successfully', async () => {
@@ -141,7 +138,6 @@ describe('QueryResolver QuerySingle- Success', () => {
 
     expect(response.profile.metadata.totalCount).toBe(profileEntities.length);
 
-    expect(response.profile.data?.__model).toBe('profile');
   });
 });
 
@@ -184,7 +180,6 @@ describe('QueryResolver QueryMany- Success', () => {
 
     expect(response.profiles.metadata.totalCount).toBe(profileEntities.length);
     for (const profile of response.profiles.data!) {
-      expect(profile.__model).toBe('profile');
     }
   });
 });
@@ -249,11 +244,9 @@ describe('QueryResolver IncludeSingle - Success', () => {
 
     expect(response.postById.data?.id).toBe(post.id);
     expect(response.postById.data?.profile?.id).toBe(post.profileId);
-    expect(response.postById.data?.__model).toBe('post');
     expect(response.postById.data?.profile?.name).toBe(profile!.name);
     expect(response.postById.data?.profile?.hobbies).toEqual(profile!.hobbies);
     expect(response.postById.data?.profile?.address).toEqual(profile!.address);
-    expect(response.postById.data?.profile?.__model).toBe('profile');
   });
 
   test('should only return selected include profile fields', async () => {
@@ -341,7 +334,6 @@ describe('QueryResolver IncludeSingle - Success', () => {
           expect(post.firstComment?.id).toBe(expectedComment.id);
           expect(post.firstComment?.comment).toBe(expectedComment.comment);
           expect(post.firstComment?.postId).toBe(post.id);
-          expect(post.firstComment?.__model).toBe('comment');
         } else {
           expect(post.firstComment).toBeNull();
         }
@@ -464,10 +456,8 @@ describe('QueryResolver IncludeMany - Success', () => {
       expect(comment.comment).toBe(expectedComment!.comment);
       expect(comment.postId).toBe(expectedComment!.postId);
       expect(comment.profileId).toBe(expectedComment!.profileId);
-      expect(comment.__model).toBe('comment');
       expect(comment.profile.id).toBe(expectedProfile!.id);
       expect(comment.profile.name).toBe(expectedProfile!.name);
-      expect(comment.profile.__model).toBe('profile');
     }
 
     expect(queryResolver.invokeCount).toBe(3);

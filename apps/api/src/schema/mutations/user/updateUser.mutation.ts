@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { userService } from '../../../services';
+
 export const updateUser = schema.mutation('updateUser', {
   input: z.object({
     userId: z.string(),
@@ -19,7 +21,7 @@ export const updateUser = schema.mutation('updateUser', {
   },
 
   resolve: async ({ context, input }) => {
-    const user = await context.userService.update(context.user, {
+    const user = await userService.update(context.user, {
       userId: input.userId,
       name: input.name,
     });

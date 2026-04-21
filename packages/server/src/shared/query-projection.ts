@@ -1,13 +1,13 @@
 import type { FormattedTQLServerError } from '../errors.js';
 
 import type { ClientSchema } from './client-schema.js';
-import type { ExtractInclude, ExtractSelect, IncludeKind, IncludeProjection, Remove__Model, Selected } from './projection.js';
+import type { ExtractInclude, ExtractSelect, IncludeKind, IncludeProjection, Selected } from './projection.js';
 
 /**
  * Shape of a single entry in the codegen-emitted `QueryRegistry`. Carries
  * everything required to project a response from a user-supplied input:
  *
- *  - `entity`     — the underlying entity shape (with its `__model` brand).
+ *  - `entity`     — the underlying entity shape.
  *  - `kind`       — single / many arity.
  *  - `nullable`   — whether a `single` query may resolve to `null`.
  *  - `includeMap` — the parent's per-relation include map, or `never` when
@@ -23,14 +23,11 @@ export type QueryRegistryEntry = {
 /**
  * Project per-call data for a single query directly from a {@link
  * QueryRegistryEntry}-shaped registry and a user-supplied input.
- *
- * Schema-agnostic and *retains* the `__model` brand — used by the
- * codegen-emitted `QueryResponseMap` so resolver classes (and any
- * server-side runtime test harness) can still observe the brand.
  */
 export type QueryDataFromRegistry<Registry, QueryName extends keyof Registry, QueryInput> = Registry[QueryName] extends infer R
   ? R extends QueryRegistryEntry
-    ? Selected<R['entity'], ExtractSelect<QueryInput>> & IncludeProjection<ExtractInclude<QueryInput>, R['includeMap']> extends infer Projection
+    ? Selected<R['entity'], ExtractSelect<QueryInput>> &
+        IncludeProjection<ExtractInclude<QueryInput>, R['includeMap']> extends infer Projection
       ? R['kind'] extends 'many'
         ? Projection[]
         : R['nullable'] extends true
@@ -41,13 +38,14 @@ export type QueryDataFromRegistry<Registry, QueryName extends keyof Registry, Qu
   : never;
 
 /**
- * Client-facing convenience wrapper around {@link QueryDataFromRegistry}
- * that *strips* the `__model` brand recursively. Used by `@tql/client` to
- * derive per-call response data without exposing the codegen-only marker
- * to consumers.
+ * Client-facing alias for {@link QueryDataFromRegistry} parameterized by the
+ * aggregate {@link ClientSchema}. Used by `@tql/client` to derive per-call
+ * response data.
  */
-export type QueryDataFor<S extends ClientSchema, QueryName extends keyof S['QueryRegistry'], QueryInput> = Remove__Model<
-  QueryDataFromRegistry<S['QueryRegistry'], QueryName, QueryInput>
+export type QueryDataFor<S extends ClientSchema, QueryName extends keyof S['QueryRegistry'], QueryInput> = QueryDataFromRegistry<
+  S['QueryRegistry'],
+  QueryName,
+  QueryInput
 >;
 
 /**

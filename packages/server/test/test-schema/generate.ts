@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { generateSchema } from '../../src/codegen/index.js';
 import './models.js';
 import './mutations.js';
+import './subscriptions.js';
 import { schema } from './schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));

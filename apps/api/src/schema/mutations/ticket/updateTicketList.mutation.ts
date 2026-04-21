@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { ticketListsService } from '../../../services';
+
 export const updateTicketList = schema.mutation('updateTicketList', {
   input: z.object({
     id: z.string(),
@@ -19,7 +21,7 @@ export const updateTicketList = schema.mutation('updateTicketList', {
   },
 
   resolve: async ({ context, input }) => {
-    const ticketList = await context.ticketListsService.update(context.user, {
+    const ticketList = await ticketListsService.update(context.user, {
       id: input.id,
       name: input.name,
     });

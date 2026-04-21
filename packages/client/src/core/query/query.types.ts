@@ -13,11 +13,11 @@
  * `QueryResponseMap` default. That keeps `draft` types in update hooks in
  * sync with what the query actually fetches.
  *
- * All projection helpers (`Selected`, `IncludeProjection`, `Remove__Model`,
- * `QueryDataFor`, …) are imported from `@tql/server/shared` so the client
- * and the codegen output share a single source of truth.
+ * All projection helpers (`Selected`, `IncludeProjection`, `QueryDataFor`, …)
+ * are imported from `@tql/server/shared` so the client and the codegen
+ * output share a single source of truth.
  */
-import type { ClientSchema, QueryDataFor, Remove__Model } from '@tql/server/shared';
+import type { ClientSchema, QueryDataFor } from '@tql/server/shared';
 
 export type { ClientSchema, QueryDataFor };
 
@@ -69,13 +69,18 @@ export type QueryOptions<
   query: (params: QueryParams) => QueryInput;
   staleTimeInMs?: number;
   isEnabled?: boolean;
+  /**
+   * Which transport this query runs over. Defaults to `'http'`. Set to
+   * `'ws'` to ride the shared WebSocket transport — requires the client
+   * to be constructed with `transports.ws`. The socket is opened
+   * lazily on first use.
+   */
+  transport?: 'http' | 'ws';
 };
 
 export type QueryModelNameFor<S extends ClientSchema> = keyof S['SchemaEntities'] & string;
 
-export type QueryModelShapeFor<S extends ClientSchema, ModelName extends QueryModelNameFor<S>> = Remove__Model<
-  S['SchemaEntities'][ModelName]
->;
+export type QueryModelShapeFor<S extends ClientSchema, ModelName extends QueryModelNameFor<S>> = S['SchemaEntities'][ModelName];
 
 export type QueryModelUpdateHook<
   S extends ClientSchema,

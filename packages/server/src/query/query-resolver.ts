@@ -11,7 +11,7 @@ import { ExtractEntityShape } from '../extract-entity-shape.js';
 import type { ClientSchema } from '../client-schema.js';
 
 export type QueryResolverOptions = {
-  schema: Schema<any, any>;
+  schema: Schema<any, any, any>;
 };
 
 /**
@@ -45,7 +45,7 @@ export class QueryResolver<S extends ClientSchema> {
     SchemaEntities: S['SchemaEntities'];
   };
 
-  private readonly schema: Schema<any, any>;
+  private readonly schema: Schema<any, any, any>;
 
   private readonly models: Record<string, Model<any, any, any, any, any, any, any>> = {};
 
@@ -231,11 +231,7 @@ export class QueryResolver<S extends ClientSchema> {
 
       const schema = model.getSchema();
 
-      const schemaWithModel = schema.extend({
-        __model: z.string(modelName).default(modelName),
-      });
-
-      const parsedResult = isNullable ? schemaWithModel.nullable().safeParse(entity) : schemaWithModel.safeParse(entity);
+      const parsedResult = isNullable ? schema.nullable().safeParse(entity) : schema.safeParse(entity);
 
       if (parsedResult.error) {
         throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, { queryName, message: parsedResult.error.message });
@@ -366,13 +362,7 @@ export class QueryResolver<S extends ClientSchema> {
 
       const schema = model.getSchema();
 
-      const schemaWithModel = z.array(
-        schema.extend({
-          __model: z.literal(modelName).default(modelName),
-        }),
-      );
-
-      const parsedResult = schemaWithModel.safeParse(entities);
+      const parsedResult = z.array(schema).safeParse(entities);
 
       if (parsedResult.error) {
         throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, {
@@ -619,16 +609,12 @@ export class QueryResolver<S extends ClientSchema> {
 
     const schema = model.getSchema();
 
-    const schemaWithModel = schema.extend({
-      __model: z.literal(includeModelName).default(includeModelName),
-    });
-
     const matchKey = includeSingle.getMatchKey();
     const entitiesByParentId = new Map<string, Record<string, any>>();
 
     for (const entity of result as Array<Record<string, any>>) {
       const parentId = entity[matchKey];
-      const parsedEntity = schemaWithModel.safeParse(entity);
+      const parsedEntity = schema.safeParse(entity);
 
       if (parsedEntity.error) {
         throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, {
@@ -725,16 +711,12 @@ export class QueryResolver<S extends ClientSchema> {
 
     const schema = model.getSchema();
 
-    const schemaWithModel = schema.extend({
-      __model: z.literal(includeModelName).default(includeModelName),
-    });
-
     const matchKey = includeMany.getMatchKey();
     const entitiesByParentId = new Map<string, Array<Record<string, any>>>();
 
     for (const entity of result as Array<Record<string, any>>) {
       const parentId = entity[matchKey];
-      const parsedEntity = schemaWithModel.safeParse(entity);
+      const parsedEntity = schema.safeParse(entity);
 
       if (parsedEntity.error) {
         throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, {

@@ -2,6 +2,8 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { ticketAssigneeService } from '../../../services';
+
 export const assignTicketMember = schema.mutation('assignTicketMember', {
   input: z.object({
     workspaceId: z.string(),
@@ -20,7 +22,7 @@ export const assignTicketMember = schema.mutation('assignTicketMember', {
   },
 
   resolve: async ({ context, input }) => {
-    const ticketAssignee = await context.ticketAssigneeService.assign(context.user, {
+    const ticketAssignee = await ticketAssigneeService.assign(context.user, {
       workspaceId: input.workspaceId,
       ticketId: input.ticketId,
       memberId: input.memberId,

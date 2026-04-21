@@ -1,18 +1,19 @@
 import { Client } from '@tql/client'
 
-import { axios } from './axios'
-
 import type { ClientSchema } from '@tql/api'
 
+const port = 3001
+
 export const tql = new Client<ClientSchema>({
-  handleQuery: async (query) => {
-    const response = await axios.post('/query', query)
-
-    return response.data
+  transports: {
+    http: {
+      url: `http://localhost:${port}`,
+    },
+    sse: {
+      eventsUrl: `http://localhost:${port}/events`,
+      subscribeUrl: `http://localhost:${port}/subscribe`,
+      unsubscribeUrl: `http://localhost:${port}/unsubscribe`,
+    },
   },
-  handleMutation: async (mutation) => {
-    const response = await axios.post('/mutation', mutation)
-
-    return response.data
-  },
+  subscriptionTransport: 'sse',
 })

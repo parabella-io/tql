@@ -1,4 +1,4 @@
-// @schema-hash 4d1ee3681482befa
+// @schema-hash d39d40af71228aa0
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -14,7 +14,7 @@
  * inputs, registries, and the aggregate `ClientSchema`).
  *
  * Layout:
- *   1. <Model>Entity                    one per registered model, with `__model` brand
+ *   1. <Model>Entity                    one per registered model
  *   2. SchemaEntities                   name -> entity lookup (mutation projection)
  *   3. <Model>Select / <Model>SelectMap selectable scalar projection input
  *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
@@ -55,7 +55,6 @@ export interface ProfileEntity {
     state: string;
     zip: string;
   };
-  __model: 'profile';
 }
 
 export interface PostEntity {
@@ -63,7 +62,6 @@ export interface PostEntity {
   title: string;
   content: string;
   profileId: string;
-  __model: 'post';
 }
 
 export interface CommentEntity {
@@ -71,7 +69,6 @@ export interface CommentEntity {
   comment: string;
   postId: string;
   profileId: string;
-  __model: 'comment';
 }
 
 // ===========================================================================
@@ -88,13 +85,13 @@ export interface SchemaEntities {
 // PER-MODEL SELECT SHAPES
 // ===========================================================================
 
-type ProfileSelectMap = { [K in Exclude<keyof ProfileEntity, '__model'>]?: true };
+type ProfileSelectMap = { [K in keyof ProfileEntity]?: true };
 type ProfileSelect = true | ProfileSelectMap;
 
-type PostSelectMap = { [K in Exclude<keyof PostEntity, '__model'>]?: true };
+type PostSelectMap = { [K in keyof PostEntity]?: true };
 type PostSelect = true | PostSelectMap;
 
-type CommentSelectMap = { [K in Exclude<keyof CommentEntity, '__model'>]?: true };
+type CommentSelectMap = { [K in keyof CommentEntity]?: true };
 type CommentSelect = true | CommentSelectMap;
 
 // ===========================================================================
@@ -401,6 +398,42 @@ export interface MutationRegistry {
 }
 
 // ===========================================================================
+// PER-SUBSCRIPTION INPUT INTERFACES
+// ===========================================================================
+
+interface PostSubscriptionArgs {
+  postId: string;
+}
+export interface PostSubscriptionInput {
+  args: PostSubscriptionArgs;
+}
+
+interface CommentSubscriptionArgs {
+  postId: string;
+}
+export interface CommentSubscriptionInput {
+  args: CommentSubscriptionArgs;
+}
+
+// ===========================================================================
+// AGGREGATE SUBSCRIPTION INPUT MAP
+// ===========================================================================
+
+export interface SubscriptionInputMap {
+  postSubscription: PostSubscriptionInput;
+  commentSubscription: CommentSubscriptionInput;
+}
+
+// ===========================================================================
+// SUBSCRIPTION REGISTRY (literal `subscribeTo` map per subscription)
+// ===========================================================================
+
+export interface SubscriptionRegistry {
+  postSubscription: { subscribeTo: { post: true } };
+  commentSubscription: { subscribeTo: { comment: true } };
+}
+
+// ===========================================================================
 // QUERY PROJECTION + RESPONSE
 // ===========================================================================
 
@@ -453,23 +486,7 @@ export interface ClientSchema extends ClientSchemaConstraint {
   MutationInputMap: MutationInputMap;
   MutationResponseMap: MutationResponseMap;
   MutationRegistry: MutationRegistry;
+  SubscriptionInputMap: SubscriptionInputMap;
+  SubscriptionRegistry: SubscriptionRegistry;
   SchemaEntities: SchemaEntities;
-}
-
-// ===========================================================================
-// handleQuery — type-only stub
-// ===========================================================================
-
-export function handleQuery<const Q extends Partial<QueryInputMap>>(query: Q): HandleQueryResponse<Q> {
-  void query;
-  return null as unknown as HandleQueryResponse<Q>;
-}
-
-// ===========================================================================
-// handleMutation — type-only stub
-// ===========================================================================
-
-export function handleMutation<const Q extends Partial<MutationInputMap>>(mutation: Q): HandleMutationResponse<Q> {
-  void mutation;
-  return null as unknown as HandleMutationResponse<Q>;
 }

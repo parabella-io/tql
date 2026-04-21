@@ -43,13 +43,11 @@ interface UserEntity {
   email: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'user';
 }
 
 interface WorkspaceEntity {
   id: string;
   name: string;
-  __model: 'workspace';
 }
 
 interface WorkspaceMemberEntity {
@@ -61,7 +59,6 @@ interface WorkspaceMemberEntity {
   isWorkspaceOwner: boolean;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceMember';
 }
 
 interface WorkspaceMemberInviteEntity {
@@ -70,7 +67,6 @@ interface WorkspaceMemberInviteEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceMemberInvite';
 }
 
 interface WorkspaceTicketLabelEntity {
@@ -79,7 +75,6 @@ interface WorkspaceTicketLabelEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceTicketLabel';
 }
 
 interface TicketEntity {
@@ -92,7 +87,6 @@ interface TicketEntity {
   reporterId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticket';
 }
 
 interface TicketListEntity {
@@ -101,7 +95,6 @@ interface TicketListEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketList';
 }
 
 interface TicketAssigneeEntity {
@@ -112,7 +105,6 @@ interface TicketAssigneeEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketAssignee';
 }
 
 interface TicketReporterEntity {
@@ -123,7 +115,6 @@ interface TicketReporterEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketReporter';
 }
 
 interface TicketAttachmentEntity {
@@ -135,7 +126,6 @@ interface TicketAttachmentEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketAttachment';
 }
 
 interface TicketCommentEntity {
@@ -145,7 +135,6 @@ interface TicketCommentEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketComment';
 }
 
 interface TicketLabelEntity {
@@ -156,7 +145,6 @@ interface TicketLabelEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketLabel';
 }
 
 // String-literal -> entity lookup. Drives the response projection without

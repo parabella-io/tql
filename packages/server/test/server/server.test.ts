@@ -7,11 +7,7 @@ import type { ClientSchema } from '../test-schema/generated/schema.js';
 import { Server } from '../../src/server/server.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
-import type {
-  HttpAdapter,
-  HttpHandler,
-  HttpHandlerHooks,
-} from '../../src/server/adapters/http/http-adapter.js';
+import type { HttpAdapter, HttpHandler, HttpHandlerHooks } from '../../src/server/adapters/http/http-adapter.js';
 
 import '../test-schema/models.js';
 import '../test-schema/mutations.js';
@@ -24,7 +20,10 @@ type StoredHandler = HttpHandler<TestRequest>;
 
 type FakeTransport = {
   adapter: HttpAdapter<TestRequest>;
-  invoke(path: string, request: TestRequest): Promise<{
+  invoke(
+    path: string,
+    request: TestRequest,
+  ): Promise<{
     response: unknown;
     flushResponse(): Promise<void>;
   }>;
@@ -36,6 +35,10 @@ function createFakeTransport(): FakeTransport {
   const adapter: HttpAdapter<TestRequest> = {
     post(path, handler) {
       routes.set(path, handler);
+    },
+    sse() {
+      // Unused by these tests; the SSE surface is exercised in
+      // server-sse-subscriptions.test.ts.
     },
     getBody(request) {
       return request.body;
@@ -119,7 +122,6 @@ describe('Server', () => {
         data: {
           id: data.profileEntities[0].id,
           name: data.profileEntities[0].name,
-          __model: 'profile',
         },
         error: null,
       },
@@ -211,6 +213,8 @@ type EffectSchema = {
   QueryInputMap: {};
   QueryResponseMap: {};
   QueryRegistry: Record<string, any>;
+  SubscriptionInputMap: {};
+  SubscriptionRegistry: Record<string, any>;
 };
 
 describe('Server - effects lifecycle', () => {
@@ -260,6 +264,7 @@ describe('Server - effects lifecycle', () => {
       context: { userId: 'u1' },
       input: { id: 't1', name: 'first' },
       changes: { effectThing: { inserts: [{ id: 't1', name: 'first' }] } },
+      emit: expect.any(Function),
     });
   });
 

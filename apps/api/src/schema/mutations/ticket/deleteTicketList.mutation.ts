@@ -2,6 +2,10 @@ import z from 'zod';
 
 import { schema } from '../../schema';
 
+import { ticketListsService } from '../../../services';
+
+import { db } from '../../../database-client';
+
 export const deleteTicketList = schema.mutation('deleteTicketList', {
   input: z.object({
     id: z.string(),
@@ -14,7 +18,7 @@ export const deleteTicketList = schema.mutation('deleteTicketList', {
   },
 
   allow: async ({ context, input }) => {
-    const ticketList = await context.db.ticketList.findUnique({
+    const ticketList = await db.ticketList.findUnique({
       where: {
         id: input.id,
       },
@@ -28,7 +32,7 @@ export const deleteTicketList = schema.mutation('deleteTicketList', {
   },
 
   resolve: async ({ context, input }) => {
-    const ticketList = await context.ticketListsService.delete(context.user, {
+    const ticketList = await ticketListsService.delete(context.user, {
       id: input.id,
     });
 
