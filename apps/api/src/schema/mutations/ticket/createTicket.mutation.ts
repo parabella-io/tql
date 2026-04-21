@@ -1,10 +1,8 @@
 import z from 'zod';
-
-import { ticketsService } from '../../../services';
-
-import { NotificationEntity, schema } from '../../schema';
-import { db } from '../../../database-client';
 import { v7 } from 'uuid';
+import { ticketsService } from '../../../services';
+import { schema } from '../../schema';
+import { db } from '../../../database-client';
 
 export const createTicket = schema.mutation('createTicket', {
   input: z.object({
