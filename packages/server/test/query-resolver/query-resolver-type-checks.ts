@@ -2,13 +2,31 @@ import { queryResolver } from '../test-schema/resolvers.js';
 
 type ResolverQueryInput = typeof queryResolver.$types.QueryInput;
 
+const profileSelect = {
+  name: true,
+  hobbies: true,
+  address: true,
+} as const;
+
+const postSelect = {
+  title: true,
+  content: true,
+  profileId: true,
+} as const;
+
+const commentSelect = {
+  comment: true,
+  postId: true,
+  profileId: true,
+} as const;
+
 const typeCheck = async () => {
   const _validDeclaredInput: ResolverQueryInput = {
     profile: {
       query: {
         name: 'Declan',
       },
-      select: true,
+      select: profileSelect,
     },
   };
 
@@ -19,18 +37,18 @@ const typeCheck = async () => {
         // @ts-expect-error - extra root query arg should be rejected in QueryInput too
         id: '1',
       },
-      select: true,
+      select: profileSelect,
     },
   };
 
   const _validDeclaredNestedInput: ResolverQueryInput = {
     postById: {
       query: { id: '1' },
-      select: true,
+      select: postSelect,
       include: {
         profile: {
           query: { comment: null },
-          select: true,
+          select: profileSelect,
         },
       },
     },
@@ -39,7 +57,7 @@ const typeCheck = async () => {
   const _invalidDeclaredIncludeInput: ResolverQueryInput = {
     postById: {
       query: { id: '1' },
-      select: true,
+      select: postSelect,
       include: {
         profile: {
           query: {
@@ -47,7 +65,7 @@ const typeCheck = async () => {
             // @ts-expect-error - extra include query arg should be rejected in QueryInput too
             id: '1',
           },
-          select: true,
+          select: profileSelect,
         },
       },
     },
@@ -56,14 +74,14 @@ const typeCheck = async () => {
   const _invalidDeclaredIncludeName: ResolverQueryInput = {
     postById: {
       query: { id: '1' },
-      select: true,
+      select: postSelect,
       include: {
         comments: {
           query: {
             limit: 10,
             order: 'asc',
           },
-          select: true,
+          select: commentSelect,
           include: {
             // @ts-expect-error - comments only defines the profile include
             posts: {},
@@ -91,14 +109,13 @@ const typeCheck = async () => {
   const _selectedProfileName: string | undefined = selected.profileById.data?.name;
   const _selectedProfileCity: string | undefined = selected.profileById.data?.address.city;
   const _selectedHobbyName: string | undefined = selected.profileById.data?.hobbies[0]?.name;
-  const _selectedProfileModel: 'profile' | undefined = selected.profileById.data?.__model;
 
   const full = await queryResolver.handle({
     context: {} as any,
     query: {
       profileById: {
         query: { id: '1' },
-        select: true,
+        select: profileSelect,
       },
     },
   });
@@ -117,7 +134,7 @@ const typeCheck = async () => {
         include: {
           profile: {
             query: { comment: null },
-            select: true,
+            select: profileSelect,
           },
           comments: {
             query: {
@@ -131,7 +148,7 @@ const typeCheck = async () => {
             include: {
               profile: {
                 query: {},
-                select: true,
+                select: profileSelect,
               },
             },
           },
@@ -156,7 +173,7 @@ const typeCheck = async () => {
         query: {
           name: 'Declan',
         },
-        select: true,
+        select: profileSelect,
       },
     },
   });
@@ -168,7 +185,7 @@ const typeCheck = async () => {
         query: {
           name: 'Declan',
         },
-        select: true,
+        select: profileSelect,
       },
     },
   });

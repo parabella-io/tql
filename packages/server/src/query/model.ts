@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { Field, FieldConstructor } from './field.js';
+import { ExternalField, externalField } from './external-field.js';
 import { QuerySingle } from './query-single.js';
 import type { QuerySingleOptions } from './query-single.js';
 import { QueryMany } from './query-many.js';
@@ -8,97 +9,19 @@ import type { QueryManyOptions } from './query-many.js';
 import { ExtractEntityShape } from '../extract-entity-shape.js';
 import { IncludeSingle, IncludeSingleOptions } from './include-single.js';
 import { IncludeMany, IncludeManyOptions } from './include-many.js';
-import type { EnforceQueryManyMetadata, QueryManyMetadataMap } from './query-many.js';
-import type { EnforceQuerySingleMetadata, QuerySingleMetadataMap } from './query-single.js';
-
-type QueryMetadataFn<SchemaContext extends Record<string, any>, QueryArgs extends Record<string, any> = any> = {
-  <ReturnType, Schema extends z.ZodType<ReturnType>>(def: {
-    schema: Schema;
-    resolve: (options: { context: SchemaContext; query: QueryArgs }) => ReturnType | Promise<ReturnType>;
-  }): {
-    schema: Schema;
-    resolve: (options: { context: SchemaContext; query: QueryArgs }) => ReturnType | Promise<ReturnType>;
-  };
-};
-
-type QuerySingleMetadataBuilder<
-  SchemaContext extends Record<string, any>,
-  QueryArgs extends Record<string, any>,
-  Metadata extends QuerySingleMetadataMap<SchemaContext, QueryArgs>,
-> = (helpers: {
-  queryMetadata: QueryMetadataFn<SchemaContext, QueryArgs>;
-}) => Metadata & EnforceQuerySingleMetadata<SchemaContext, QueryArgs, Metadata>;
-
-type QueryManyMetadataBuilder<
-  SchemaContext extends Record<string, any>,
-  QueryArgs extends Record<string, any>,
-  Metadata extends QueryManyMetadataMap<SchemaContext, QueryArgs>,
-> = (helpers: {
-  queryMetadata: QueryMetadataFn<SchemaContext, QueryArgs>;
-}) => Metadata & EnforceQueryManyMetadata<SchemaContext, QueryArgs, Metadata>;
 
 type QuerySingleFn<
   SchemaContext extends Record<string, any>,
   SchemaEntities extends Record<string, any>,
   ModelName extends keyof SchemaEntities,
 > = {
-  // non-nullable, with metadata builder
-  <QueryArgs extends Record<string, any>, const Metadata extends QuerySingleMetadataMap<SchemaContext, QueryArgs>>(options: {
-    query?: z.ZodSchema<QueryArgs>;
-    nullable?: false;
-    allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
-    metadata: QuerySingleMetadataBuilder<SchemaContext, QueryArgs, Metadata>;
-    resolve: ({ context, query }: { context: SchemaContext; query: QueryArgs }) => Promise<ExtractEntityShape<SchemaEntities, ModelName>>;
-  }): QuerySingle<SchemaContext, SchemaEntities, ModelName, QueryArgs, false, Metadata>;
-
-  // non-nullable, with metadata object
-  <QueryArgs extends Record<string, any>, const Metadata extends QuerySingleMetadataMap<SchemaContext, QueryArgs>>(options: {
-    query?: z.ZodSchema<QueryArgs>;
-    nullable?: false;
-    allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
-    metadata: Metadata & EnforceQuerySingleMetadata<SchemaContext, QueryArgs, Metadata>;
-    resolve: ({ context, query }: { context: SchemaContext; query: QueryArgs }) => Promise<ExtractEntityShape<SchemaEntities, ModelName>>;
-  }): QuerySingle<SchemaContext, SchemaEntities, ModelName, QueryArgs, false, Metadata>;
-
-  // non-nullable, no metadata
   <QueryArgs extends Record<string, any>>(
-    options: QuerySingleOptions<SchemaContext, SchemaEntities, ModelName, QueryArgs, false, undefined>,
-  ): QuerySingle<SchemaContext, SchemaEntities, ModelName, QueryArgs, false, undefined>;
+    options: QuerySingleOptions<SchemaContext, SchemaEntities, ModelName, QueryArgs, false>,
+  ): QuerySingle<SchemaContext, SchemaEntities, ModelName, QueryArgs, false>;
 
-  // nullable, with metadata builder
-  <QueryArgs extends Record<string, any>, const Metadata extends QuerySingleMetadataMap<SchemaContext, QueryArgs>>(options: {
-    query?: z.ZodSchema<QueryArgs>;
-    nullable: true;
-    allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
-    metadata: QuerySingleMetadataBuilder<SchemaContext, QueryArgs, Metadata>;
-    resolve: ({
-      context,
-      query,
-    }: {
-      context: SchemaContext;
-      query: QueryArgs;
-    }) => Promise<ExtractEntityShape<SchemaEntities, ModelName> | null>;
-  }): QuerySingle<SchemaContext, SchemaEntities, ModelName, QueryArgs, true, Metadata>;
-
-  // nullable, with metadata object
-  <QueryArgs extends Record<string, any>, const Metadata extends QuerySingleMetadataMap<SchemaContext, QueryArgs>>(options: {
-    query?: z.ZodSchema<QueryArgs>;
-    nullable: true;
-    allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
-    metadata: Metadata & EnforceQuerySingleMetadata<SchemaContext, QueryArgs, Metadata>;
-    resolve: ({
-      context,
-      query,
-    }: {
-      context: SchemaContext;
-      query: QueryArgs;
-    }) => Promise<ExtractEntityShape<SchemaEntities, ModelName> | null>;
-  }): QuerySingle<SchemaContext, SchemaEntities, ModelName, QueryArgs, true, Metadata>;
-
-  // nullable, no metadata
   <QueryArgs extends Record<string, any>>(
-    options: QuerySingleOptions<SchemaContext, SchemaEntities, ModelName, QueryArgs, true, undefined> & { nullable: true },
-  ): QuerySingle<SchemaContext, SchemaEntities, ModelName, QueryArgs, true, undefined>;
+    options: QuerySingleOptions<SchemaContext, SchemaEntities, ModelName, QueryArgs, true> & { nullable: true },
+  ): QuerySingle<SchemaContext, SchemaEntities, ModelName, QueryArgs, true>;
 };
 
 type QueryManyFn<
@@ -106,38 +29,9 @@ type QueryManyFn<
   SchemaEntities extends Record<string, any>,
   ModelName extends keyof SchemaEntities,
 > = {
-  // with metadata builder
-  <QueryArgs extends Record<string, any>, const Metadata extends QueryManyMetadataMap<SchemaContext, QueryArgs>>(options: {
-    query?: z.ZodSchema<QueryArgs>;
-    allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
-    metadata: QueryManyMetadataBuilder<SchemaContext, QueryArgs, Metadata>;
-    resolve: ({
-      context,
-      query,
-    }: {
-      context: SchemaContext;
-      query: QueryArgs;
-    }) => Promise<Array<ExtractEntityShape<SchemaEntities, ModelName>>>;
-  }): QueryMany<SchemaContext, SchemaEntities, ModelName, QueryArgs, Metadata>;
-
-  // with metadata object
-  <QueryArgs extends Record<string, any>, const Metadata extends QueryManyMetadataMap<SchemaContext, QueryArgs>>(options: {
-    query?: z.ZodSchema<QueryArgs>;
-    allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
-    metadata: Metadata & EnforceQueryManyMetadata<SchemaContext, QueryArgs, Metadata>;
-    resolve: ({
-      context,
-      query,
-    }: {
-      context: SchemaContext;
-      query: QueryArgs;
-    }) => Promise<Array<ExtractEntityShape<SchemaEntities, ModelName>>>;
-  }): QueryMany<SchemaContext, SchemaEntities, ModelName, QueryArgs, Metadata>;
-
-  // no metadata
   <QueryArgs extends Record<string, any>>(
-    options: QueryManyOptions<SchemaContext, SchemaEntities, ModelName, QueryArgs, undefined>,
-  ): QueryMany<SchemaContext, SchemaEntities, ModelName, QueryArgs, undefined>;
+    options: QueryManyOptions<SchemaContext, SchemaEntities, ModelName, QueryArgs>,
+  ): QueryMany<SchemaContext, SchemaEntities, ModelName, QueryArgs>;
 };
 
 type IncludeSingleFn<
@@ -167,6 +61,14 @@ type IncludeManyFn<
   ): IncludeMany<SchemaContext, SchemaEntities, ModelName, RelationName, QueryArgs, MatchKey>;
 };
 
+export type ExternalFieldsHelpers<
+  SchemaContext extends Record<string, any>,
+  SchemaEntities extends Record<string, any>,
+  ModelName extends keyof SchemaEntities,
+> = {
+  externalField: typeof externalField;
+};
+
 export type QueryHelpers<
   SchemaContext extends Record<string, any>,
   SchemaEntities extends Record<string, any>,
@@ -175,8 +77,6 @@ export type QueryHelpers<
   querySingle: QuerySingleFn<SchemaContext, SchemaEntities, ModelName>;
 
   queryMany: QueryManyFn<SchemaContext, SchemaEntities, ModelName>;
-
-  queryMetadata: QueryMetadataFn<SchemaContext>;
 };
 
 export type IncludeHelpers<
@@ -202,6 +102,12 @@ export type IncludesMap<
   | IncludeMany<SchemaContext, SchemaEntities, ModelName, keyof SchemaEntities & string, any, string>
 >;
 
+export type ModelExternalFieldsMap<
+  SchemaContext extends Record<string, any>,
+  SchemaEntities extends Record<string, any>,
+  ModelName extends keyof SchemaEntities,
+> = Record<string, ExternalField<SchemaContext, SchemaEntities, ModelName, any>>;
+
 export type ModelConstructor<
   SchemaContext extends Record<string, any>,
   SchemaEntities extends Record<string, any>,
@@ -209,9 +115,10 @@ export type ModelConstructor<
   ModelSchema extends z.ZodObject<{
     [K in keyof ExtractEntityShape<SchemaEntities, ModelName>]: z.ZodType<ExtractEntityShape<SchemaEntities, ModelName>[K]>;
   }>,
-  ModelFields extends Record<keyof ExtractEntityShape<SchemaEntities, ModelName>, Field<SchemaContext, SchemaEntities, ModelName>>,
+  ModelFields extends Record<string, Field<SchemaContext, SchemaEntities, ModelName>>,
   ModelQueries extends Record<string, any>,
   ModelIncludes extends IncludesMap<SchemaContext, SchemaEntities, ModelName>,
+  ModelExternalFields extends ModelExternalFieldsMap<SchemaContext, SchemaEntities, ModelName> = Record<string, never>,
 > = {
   schema: ModelSchema;
   allowEach?: (options: { context: SchemaContext; entity: ExtractEntityShape<SchemaEntities, ModelName> }) => boolean;
@@ -220,6 +127,7 @@ export type ModelConstructor<
   }: {
     field: (options?: FieldConstructor<SchemaContext, SchemaEntities, ModelName>) => Field<SchemaContext, SchemaEntities, ModelName>;
   }) => ModelFields;
+  externalFields?: (helpers: ExternalFieldsHelpers<SchemaContext, SchemaEntities, ModelName>) => ModelExternalFields;
   queries: (options: QueryHelpers<SchemaContext, SchemaEntities, ModelName>) => ModelQueries;
   includes?: (options: IncludeHelpers<SchemaContext, SchemaEntities, ModelName>) => ModelIncludes;
 };
@@ -231,9 +139,10 @@ export class Model<
   ModelSchema extends z.ZodObject<{
     [K in keyof ExtractEntityShape<SchemaEntities, ModelName>]: z.ZodType<ExtractEntityShape<SchemaEntities, ModelName>[K]>;
   }>,
-  ModelFields extends Record<keyof ExtractEntityShape<SchemaEntities, ModelName>, Field<SchemaContext, SchemaEntities, ModelName>>,
+  ModelFields extends Record<string, Field<SchemaContext, SchemaEntities, ModelName>>,
   ModelQueries extends Record<string, any>,
   ModelIncludes extends IncludesMap<SchemaContext, SchemaEntities, ModelName> = {},
+  ModelExternalFields extends ModelExternalFieldsMap<SchemaContext, SchemaEntities, ModelName> = Record<string, never>,
 > {
   modelName: ModelName;
 
@@ -241,11 +150,9 @@ export class Model<
 
   allowEach?: (options: { context: SchemaContext; entity: ExtractEntityShape<SchemaEntities, ModelName> }) => boolean;
 
-  fields: ({
-    field,
-  }: {
-    field: (options?: FieldConstructor<SchemaContext, SchemaEntities, ModelName>) => Field<SchemaContext, SchemaEntities, ModelName>;
-  }) => ModelFields;
+  fields: ModelFields;
+
+  externalFields: ModelExternalFields;
 
   queries?: ModelQueries;
 
@@ -253,7 +160,7 @@ export class Model<
 
   constructor(
     modelName: ModelName,
-    options: ModelConstructor<SchemaContext, SchemaEntities, ModelName, ModelSchema, ModelFields, ModelQueries, ModelIncludes>,
+    options: ModelConstructor<SchemaContext, SchemaEntities, ModelName, ModelSchema, ModelFields, ModelQueries, ModelIncludes, ModelExternalFields>,
   ) {
     this.modelName = modelName;
 
@@ -261,41 +168,33 @@ export class Model<
 
     this.allowEach = options.allowEach;
 
-    this.fields = options.fields;
+    const field = (opts?: FieldConstructor<SchemaContext, SchemaEntities, ModelName>) => {
+      const f = new Field<SchemaContext, SchemaEntities, ModelName>();
+      if (opts?.allow) {
+        f.allow = opts.allow;
+      }
+      return f;
+    };
 
-    const querySingle = ((options: any) => {
-      const metadata =
-        typeof options.metadata === 'function'
-          ? options.metadata({ queryMetadata: ((def: any) => this.queryMetadata(def)) as any })
-          : options.metadata;
+    this.fields = options.fields({ field });
 
-      return new QuerySingle(modelName as any, {
-        ...options,
-        metadata,
-      });
-    }) as QuerySingleFn<SchemaContext, SchemaEntities, ModelName>;
+    this.externalFields = (options.externalFields?.({ externalField }) ?? {}) as ModelExternalFields;
 
-    const queryMany = ((options: any) => {
-      const metadata =
-        typeof options.metadata === 'function'
-          ? options.metadata({ queryMetadata: ((def: any) => this.queryMetadata(def)) as any })
-          : options.metadata;
-
-      return new QueryMany(modelName as any, {
-        ...options,
-        metadata,
-      });
-    }) as QueryManyFn<SchemaContext, SchemaEntities, ModelName>;
-
-    const queryMetadataHelper = ((def: any) => this.queryMetadata(def)) as QueryMetadataFn<SchemaContext>;
-
-    const includeSingle = ((relationName: any, options: any) => new IncludeSingle(modelName, relationName, options)) as IncludeSingleFn<
+    const querySingle = ((opts: any) => new QuerySingle(modelName as any, opts)) as QuerySingleFn<
       SchemaContext,
       SchemaEntities,
       ModelName
     >;
 
-    const includeMany = ((relationName: any, options: any) => new IncludeMany(modelName, relationName, options)) as IncludeManyFn<
+    const queryMany = ((opts: any) => new QueryMany(modelName as any, opts)) as QueryManyFn<SchemaContext, SchemaEntities, ModelName>;
+
+    const includeSingle = ((relationName: any, includeOpts: any) => new IncludeSingle(modelName, relationName, includeOpts)) as IncludeSingleFn<
+      SchemaContext,
+      SchemaEntities,
+      ModelName
+    >;
+
+    const includeMany = ((relationName: any, includeOpts: any) => new IncludeMany(modelName, relationName, includeOpts)) as IncludeManyFn<
       SchemaContext,
       SchemaEntities,
       ModelName
@@ -304,7 +203,6 @@ export class Model<
     this.queries = options?.queries?.({
       querySingle,
       queryMany,
-      queryMetadata: queryMetadataHelper,
     });
 
     this.includes = options?.includes?.({ includeSingle, includeMany });
@@ -318,14 +216,12 @@ export class Model<
     return this.allowEach || (() => true);
   }
 
-  queryMetadata<ReturnType, Schema extends z.ZodType<ReturnType>>(def: {
-    schema: Schema;
-    resolve: (options: { context: SchemaContext; query: any }) => ReturnType | Promise<ReturnType>;
-  }): {
-    schema: Schema;
-    resolve: (options: { context: SchemaContext; query: any }) => ReturnType | Promise<ReturnType>;
-  } {
-    return def;
+  public getExternalFields(): ModelExternalFields {
+    return this.externalFields;
+  }
+
+  public getExternalFieldKeys(): string[] {
+    return Object.keys(this.externalFields ?? {});
   }
 
   public getQuerySingles(): GetQuerySingles<SchemaContext, SchemaEntities, ModelName>[] {
@@ -405,7 +301,7 @@ export type GetQuerySingles<
   ModelName extends keyof SchemaEntities,
 > = {
   queryName: string;
-  querySingle: QuerySingle<SchemaContext, SchemaEntities, ModelName, any, any, any>;
+  querySingle: QuerySingle<SchemaContext, SchemaEntities, ModelName, any, any>;
 };
 
 export type GetQueryManys<
@@ -414,7 +310,7 @@ export type GetQueryManys<
   ModelName extends keyof SchemaEntities,
 > = {
   queryName: string;
-  queryMany: QueryMany<SchemaContext, SchemaEntities, ModelName, any, any>;
+  queryMany: QueryMany<SchemaContext, SchemaEntities, ModelName, any>;
 };
 
 export type GetIncludeSingles<

@@ -1,13 +1,12 @@
 {
   "extends": "@tql/ts-config/tsconfig.server.json",
-  "include": ["src", "test", "tsconfig.json", "tsconfig.test.json", "prisma.config.ts", "vitest.config.ts", "../../packages/server/psuedo/subscriptions", "../../packages/server/psuedo/reactors"],
+  "include": ["src", "test", "tsconfig.json", "prisma.config.ts"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
     "outDir": "dist",
     "declaration": false,
     "declarationMap": false,
     "paths": {
-      "@seed": ["./prisma/seed/seed.ts"],
       "@server/*": ["./src/*"]
     }
   }

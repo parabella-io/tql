@@ -16,7 +16,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,
@@ -44,7 +43,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,
@@ -72,7 +70,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,
@@ -102,7 +99,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,
@@ -118,7 +114,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,
@@ -171,7 +166,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,
@@ -187,7 +181,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,
@@ -218,68 +211,6 @@ describe('Query Store', () => {
     expect((updatedQueryTwoState.data as Record<string, any>)?.name).toBe('test');
   });
 
-  it('should be able to set metadata for multiple keys', () => {
-    const store = createQueryStore();
-
-    const storeState = store.getState();
-
-    const queryOneState: QueryState = {
-      queryName: 'queryOne',
-      queryKey: 'queryOne',
-      query: { args: { id: '1' } },
-      queryHashKey: 'queryOne',
-      error: null,
-      data: null,
-      params: {},
-      isLoading: false,
-      isStale: false,
-      metadata: null,
-      isEnabled: true,
-      staleTimeInMs: 0,
-      staleAtTimestamp: null,
-    };
-
-    const queryTwoState: QueryState = {
-      queryName: 'queryTwo',
-      queryKey: 'queryTwo',
-      query: { args: { id: '2' } },
-      queryHashKey: 'queryTwo',
-      error: null,
-      data: null,
-      params: {},
-      isLoading: false,
-      isStale: false,
-      metadata: null,
-      isEnabled: true,
-      staleTimeInMs: 0,
-      staleAtTimestamp: null,
-    };
-
-    storeState.setState('queryOne', queryOneState);
-
-    storeState.setState('queryTwo', queryTwoState);
-
-    const initialStoreState = store.getState();
-
-    expect(initialStoreState.state['queryOne']).toBe(queryOneState);
-
-    expect(initialStoreState.state['queryTwo']).toBe(queryTwoState);
-
-    initialStoreState.setMetadata(['queryOne', 'queryTwo'], (data) => {
-      data.page = 1;
-    });
-
-    const updatedStoreState = store.getState();
-
-    const updatedQueryOneState = updatedStoreState.state['queryOne'] as QueryState;
-
-    const updatedQueryTwoState = updatedStoreState.state['queryTwo'] as QueryState;
-
-    expect(updatedQueryOneState.metadata?.page).toBe(1);
-
-    expect(updatedQueryTwoState.metadata?.page).toBe(1);
-  });
-
   it('should be able to set loading for multiple keys', () => {
     const store = createQueryStore();
 
@@ -295,7 +226,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,
@@ -311,7 +241,6 @@ describe('Query Store', () => {
       params: {},
       isLoading: false,
       isStale: false,
-      metadata: null,
       isEnabled: true,
       staleTimeInMs: 0,
       staleAtTimestamp: null,

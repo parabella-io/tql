@@ -1,4 +1,4 @@
-// @schema-hash 4d1ee3681482befa
+// @schema-hash ab5067a0dc1219c6
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -14,13 +14,13 @@
  * inputs, registries, and the aggregate `ClientSchema`).
  *
  * Layout:
- *   1. <Model>Entity                    one per registered model, with `__model` brand
+ *   1. <Model>Entity                    one per registered model
  *   2. SchemaEntities                   name -> entity lookup (mutation projection)
- *   3. <Model>Select / <Model>SelectMap selectable scalar projection input
+ *   3. <Model>Select / <Model>SelectMap entity scalars
  *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
  *   5. <Model>IncludeMap                map of relation-name -> named IncludeNode
- *   6. <Query>Input + QueryInputMap     per-query envelopes and aggregate map
- *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap }
+ *   6. <Query>Input + QueryInputMap     per-query envelopes (`query`, `select`, `include?`) and aggregate map
+ *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys }
  *   8. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
  *   9. MutationRegistry                 mutationName -> declared `changed` map
  *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
@@ -55,7 +55,6 @@ export interface ProfileEntity {
     state: string;
     zip: string;
   };
-  __model: 'profile';
 }
 
 export interface PostEntity {
@@ -63,7 +62,7 @@ export interface PostEntity {
   title: string;
   content: string;
   profileId: string;
-  __model: 'post';
+  commentsCount: number;
 }
 
 export interface CommentEntity {
@@ -71,7 +70,6 @@ export interface CommentEntity {
   comment: string;
   postId: string;
   profileId: string;
-  __model: 'comment';
 }
 
 // ===========================================================================
@@ -88,14 +86,14 @@ export interface SchemaEntities {
 // PER-MODEL SELECT SHAPES
 // ===========================================================================
 
-type ProfileSelectMap = { [K in Exclude<keyof ProfileEntity, '__model'>]?: true };
-type ProfileSelect = true | ProfileSelectMap;
+type ProfileSelectMap = { [K in keyof ProfileEntity]?: true };
+type ProfileSelect = ProfileSelectMap;
 
-type PostSelectMap = { [K in Exclude<keyof PostEntity, '__model'>]?: true };
-type PostSelect = true | PostSelectMap;
+type PostSelectMap = { [K in keyof PostEntity]?: true };
+type PostSelect = PostSelectMap;
 
-type CommentSelectMap = { [K in Exclude<keyof CommentEntity, '__model'>]?: true };
-type CommentSelect = true | CommentSelectMap;
+type CommentSelectMap = { [K in keyof CommentEntity]?: true };
+type CommentSelect = CommentSelectMap;
 
 // ===========================================================================
 // INCLUDE NODES (one named interface per parent x include relation)
@@ -189,7 +187,6 @@ export interface ProfileInput {
   };
   select: ProfileSelect;
   include?: ProfileIncludeMap;
-  metadata?: { totalCount?: true };
 }
 
 export interface ProfileNullableInput {
@@ -208,7 +205,6 @@ export interface ProfilesInput {
   };
   select: ProfileSelect;
   include?: ProfileIncludeMap;
-  metadata?: { totalCount?: true };
 }
 
 // ---- post ----
@@ -268,18 +264,18 @@ export interface QueryInputMap {
 }
 
 // ===========================================================================
-// QUERY REGISTRY (entity + arity + nullability + parent include map)
+// QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys)
 // ===========================================================================
 
 export interface QueryRegistry {
-  profileById: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap };
-  profile: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap };
-  profileNullable: { entity: ProfileEntity; kind: 'single'; nullable: true; includeMap: ProfileIncludeMap };
-  profiles: { entity: ProfileEntity; kind: 'many'; nullable: false; includeMap: ProfileIncludeMap };
-  postById: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap };
-  post: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap };
-  posts: { entity: PostEntity; kind: 'many'; nullable: false; includeMap: PostIncludeMap };
-  commentById: { entity: CommentEntity; kind: 'single'; nullable: false; includeMap: CommentIncludeMap };
+  profileById: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  profile: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  profileNullable: { entity: ProfileEntity; kind: 'single'; nullable: true; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  profiles: { entity: ProfileEntity; kind: 'many'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  postById: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  post: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  posts: { entity: PostEntity; kind: 'many'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  commentById: { entity: CommentEntity; kind: 'single'; nullable: false; includeMap: CommentIncludeMap; externalFieldKeys: readonly [] };
 }
 
 // ===========================================================================
@@ -454,22 +450,4 @@ export interface ClientSchema extends ClientSchemaConstraint {
   MutationResponseMap: MutationResponseMap;
   MutationRegistry: MutationRegistry;
   SchemaEntities: SchemaEntities;
-}
-
-// ===========================================================================
-// handleQuery — type-only stub
-// ===========================================================================
-
-export function handleQuery<const Q extends Partial<QueryInputMap>>(query: Q): HandleQueryResponse<Q> {
-  void query;
-  return null as unknown as HandleQueryResponse<Q>;
-}
-
-// ===========================================================================
-// handleMutation — type-only stub
-// ===========================================================================
-
-export function handleMutation<const Q extends Partial<MutationInputMap>>(mutation: Q): HandleMutationResponse<Q> {
-  void mutation;
-  return null as unknown as HandleMutationResponse<Q>;
 }

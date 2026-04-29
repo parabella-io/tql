@@ -107,7 +107,6 @@ describe('Mutation', () => {
       [postsQueryName]: {
         data: posts,
         error: null,
-        metadata: {},
       },
     });
 
@@ -126,7 +125,11 @@ describe('Mutation', () => {
           query: {
             title: params.title,
           },
-          select: true,
+          select: {
+            title: true,
+            content: true,
+            profileId: true,
+          },
         }),
       },
     });
@@ -323,7 +326,6 @@ describe('Mutation', () => {
       [postsQueryName]: {
         data: posts,
         error: null,
-        metadata: {},
       },
     });
 
@@ -342,7 +344,11 @@ describe('Mutation', () => {
           query: {
             title: params.title,
           },
-          select: true,
+          select: {
+            title: true,
+            content: true,
+            profileId: true,
+          },
         }),
       },
     });
@@ -480,7 +486,6 @@ describe('Mutation', () => {
       [postsQueryName]: {
         data: posts,
         error: null,
-        metadata: {},
       },
     });
 
@@ -499,7 +504,11 @@ describe('Mutation', () => {
           query: {
             title: params.title,
           },
-          select: true,
+          select: {
+            title: true,
+            content: true,
+            profileId: true,
+          },
         }),
       },
     });

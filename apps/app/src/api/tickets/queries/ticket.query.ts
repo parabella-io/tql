@@ -6,85 +6,126 @@ export const ticketQuery = tql.createQuery('ticketById', {
     query: {
       id: params.id,
     },
-    select: true,
+    select: {
+      title: true,
+      description: true,
+      workspaceId: true,
+      ticketListId: true,
+      assigneeId: true,
+      reporterId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
     include: {
       assignee: {
         query: {},
-        select: true,
+        select: {
+          ticketId: true,
+          userId: true,
+          name: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
       reporter: {
         query: {},
-        select: true,
+        select: {
+          ticketId: true,
+          userId: true,
+          name: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
       attachments: {
         query: {
           order: 'asc',
         },
-        select: true,
+        select: {
+          ticketId: true,
+          key: true,
+          name: true,
+          size: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
       comments: {
         query: {
           order: 'asc',
         },
-        select: true,
+        select: {
+          content: true,
+          ticketId: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
       labels: {
         query: {
           order: 'asc',
         },
-        select: true,
+        select: {
+          name: true,
+          workspaceTicketLabelId: true,
+          ticketId: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
     },
   }),
 })
 
 ticketQuery.updateOnChange('ticket', {
-  onInsert() {},
+  filter: ({ params, change }) => {
+    return params.id === change.id
+  },
   onUpdate({ draft, change }) {
-    if (!draft || draft.id !== change.id) return
     draft.title = change.title
     draft.description = change.description
   },
-  onDelete() {},
 })
 
 ticketQuery.updateOnChange('ticketAttachment', {
+  filter: ({ params, change }) => {
+    return params.id === change.ticketId
+  },
   onInsert({ draft, change }) {
-    if (!draft || draft.id !== change.ticketId) return
-
     draft.attachments.push(change)
   },
-  onUpdate() {},
   onDelete({ draft, change }) {
-    if (!draft) return
-
     draft.attachments = draft.attachments.filter((att) => att.id !== change.id)
   },
 })
 
 ticketQuery.updateOnChange('ticketAssignee', {
+  filter: ({ params, change }) => {
+    return params.id === change.ticketId
+  },
   onInsert({ draft, change }) {
-    if (!draft || draft.id !== change.ticketId) return
     draft.assignee = change
     draft.assigneeId = change.id
   },
-  onUpdate() {},
-  onDelete({ draft, change }) {
-    if (!draft || draft.id !== change.ticketId) return
+  onDelete({ draft }) {
     draft.assigneeId = null
     draft.assignee = null
   },
 })
 
 ticketQuery.updateOnChange('ticketLabel', {
+  filter: ({ params, change }) => {
+    return params.id === change.ticketId
+  },
   onInsert({ draft, change }) {
-    if (!draft || draft.id !== change.ticketId) return
     draft.labels.push(change)
   },
-  onUpdate() {},
   onDelete({ draft, change }) {
-    console.log('change', change)
-    if (!draft || draft.id !== change.ticketId) return
     draft.labels = draft.labels.filter((label) => label.id !== change.id)
   },
 })

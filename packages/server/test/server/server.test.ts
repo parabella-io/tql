@@ -1,18 +1,12 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
-
 import { create } from '../test-schema/database.js';
 import { schema as testSchema } from '../test-schema/schema.js';
 import type { ClientSchema } from '../test-schema/generated/schema.js';
 import { Server } from '../../src/server/server.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
-import type {
-  HttpAdapter,
-  HttpHandler,
-  HttpHandlerHooks,
-} from '../../src/server/adapters/http/http-adapter.js';
-
+import type { HttpAdapter, HttpHandler, HttpHandlerHooks } from '../../src/server/adapters/http/http-adapter.js';
 import '../test-schema/models.js';
 import '../test-schema/mutations.js';
 
@@ -24,7 +18,10 @@ type StoredHandler = HttpHandler<TestRequest>;
 
 type FakeTransport = {
   adapter: HttpAdapter<TestRequest>;
-  invoke(path: string, request: TestRequest): Promise<{
+  invoke(
+    path: string,
+    request: TestRequest,
+  ): Promise<{
     response: unknown;
     flushResponse(): Promise<void>;
   }>;
@@ -46,9 +43,11 @@ function createFakeTransport(): FakeTransport {
     adapter,
     async invoke(path, request) {
       const handler = routes.get(path);
+
       if (!handler) throw new Error(`no handler for ${path}`);
 
       const afterResponseCallbacks: Array<() => void | Promise<void>> = [];
+
       const hooks: HttpHandlerHooks = {
         afterResponse(cb) {
           afterResponseCallbacks.push(cb);
@@ -83,6 +82,7 @@ describe('Server', () => {
 
   test('creates context from the HTTP request and forwards it to query handlers', async () => {
     const data = await create();
+
     database = data.db;
 
     const transport = createFakeTransport();
@@ -119,7 +119,6 @@ describe('Server', () => {
         data: {
           id: data.profileEntities[0].id,
           name: data.profileEntities[0].name,
-          __model: 'profile',
         },
         error: null,
       },
@@ -128,6 +127,7 @@ describe('Server', () => {
 
   test('creates context from the HTTP request and forwards it to mutation handlers', async () => {
     const data = await create();
+
     database = data.db;
 
     const transport = createFakeTransport();
@@ -250,12 +250,15 @@ describe('Server - effects lifecycle', () => {
         error: null,
       },
     });
+
     expect(resolveEffects).not.toHaveBeenCalled();
 
     await flushResponse();
+
     await server.drainEffects();
 
     expect(resolveEffects).toHaveBeenCalledTimes(1);
+
     expect(resolveEffects).toHaveBeenCalledWith({
       context: { userId: 'u1' },
       input: { id: 't1', name: 'first' },
@@ -265,6 +268,7 @@ describe('Server - effects lifecycle', () => {
 
   test('does not enqueue effects when mutation fails', async () => {
     const effectSchema = new Schema<EffectSchemaContext, EffectSchemaEntities>();
+
     const resolveEffects = vi.fn(async () => {});
 
     effectSchema.mutation('createEffectThing', {
@@ -294,6 +298,7 @@ describe('Server - effects lifecycle', () => {
     });
 
     await flushResponse();
+
     await server.drainEffects();
 
     expect(resolveEffects).not.toHaveBeenCalled();
@@ -301,6 +306,7 @@ describe('Server - effects lifecycle', () => {
 
   test('effect failures are isolated from the HTTP response and routed to onError', async () => {
     const effectSchema = new Schema<EffectSchemaContext, EffectSchemaEntities>();
+
     const boom = new Error('effect failed');
 
     effectSchema.mutation('createEffectThing', {
@@ -316,6 +322,7 @@ describe('Server - effects lifecycle', () => {
     });
 
     const transport = createFakeTransport();
+
     const onError = vi.fn();
 
     const server = new Server<EffectSchema>({
@@ -338,6 +345,7 @@ describe('Server - effects lifecycle', () => {
     });
 
     await flushResponse();
+
     await server.drainEffects();
 
     expect(onError).toHaveBeenCalledTimes(1);

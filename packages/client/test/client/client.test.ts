@@ -47,13 +47,17 @@ describe('Client', () => {
     const comments = commentEntities.filter((c) => c.profileId === profile.id);
 
     const client = new Client<Schema>({
-      handleQuery: async (query) => {
-        return queryResolver.handle({
-          context,
-          query: query,
-        });
+      transports: {
+        http: {
+          query: async (query) => {
+            return queryResolver.handle({
+              context,
+              query: query,
+            });
+          },
+          mutation: vi.fn(),
+        },
       },
-      handleMutation: vi.fn(),
     });
 
     const response = await client.query('profileById', {
@@ -105,18 +109,22 @@ describe('Client', () => {
     };
 
     const client = new Client<Schema>({
-      handleQuery: vi.fn(),
-      handleMutation: async () => {
-        return {
-          createPost: {
-            changes: {
-              post: {
-                inserts: [createdPost],
+      transports: {
+        http: {
+          query: vi.fn(),
+          mutation: async () => {
+            return {
+              createPost: {
+                changes: {
+                  post: {
+                    inserts: [createdPost],
+                  },
+                },
+                error: null,
               },
-            },
-            error: null,
+            } as any;
           },
-        } as any;
+        },
       },
     });
 

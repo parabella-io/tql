@@ -11,4 +11,4 @@ export type {
   TicketAttachmentEntity,
   TicketCommentEntity,
   TicketLabelEntity,
-} from '../generated/schema.d';
+} from '../__generated__/schema.d.ts';

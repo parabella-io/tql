@@ -1,10 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ClientSchema } from '@tql/server/test-schema';
 import { Query } from '../../src/core/query/query';
-import { QueryDataFor, QueryMetadataFor } from '../../src/core/query/query.types';
+import { QueryDataFor } from '../../src/core/query/query.types';
 import { createQueryStore, QueryStore } from '../../src/core/query/query-store';
 
 type Schema = ClientSchema;
+
+const profileSelect = {
+  name: true,
+  hobbies: true,
+  address: true,
+} as const;
+
+const postSelect = {
+  title: true,
+  content: true,
+  profileId: true,
+} as const;
 
 describe('Query', () => {
   const handleQuery = vi.fn(async (query: Record<string, any>) =>
@@ -12,9 +24,10 @@ describe('Query', () => {
       Object.keys(query).map((queryName) => [
         queryName,
         {
-          data: null,
+          // Truthy placeholder so `execute` paths do not reject;
+          // individual tests override state via `updateState` where needed.
+          data: {},
           error: null,
-          metadata: {},
         },
       ]),
     ),
@@ -31,7 +44,7 @@ describe('Query', () => {
 
     type ProfileByIdQueryInput = {
       query: { id: string };
-      select: true;
+      select: typeof profileSelect;
     };
 
     type ProfileByIdData = QueryDataFor<Schema, 'profileById', ProfileByIdQueryInput>;
@@ -49,7 +62,7 @@ describe('Query', () => {
         queryKey,
         query: (params) => ({
           query: { id: params.id },
-          select: true,
+          select: profileSelect,
         }),
       },
     });
@@ -81,80 +94,6 @@ describe('Query', () => {
     expect(updatedData!.address).toEqual(data!.address);
   });
 
-  it('should be able to register profile query with metadata and be typesafe', async () => {
-    const queryKey = 'profile';
-
-    type ProfileQueryParams = {
-      name: string | null;
-    };
-
-    type ProfileQueryInput = {
-      query: { name: string | null };
-      select: true;
-      metadata: {
-        totalCount: true;
-      };
-    };
-
-    type ProfileData = QueryDataFor<Schema, 'profile', ProfileQueryInput>;
-
-    type ProfileMetadata = QueryMetadataFor<Schema, 'profile', ProfileQueryInput>;
-
-    const params: ProfileQueryParams = {
-      name: 'John Doe',
-    };
-
-    const query = new Query<Schema, 'profile', ProfileQueryInput, ProfileQueryParams>({
-      queryHandler: handleQuery,
-      store: store,
-      queryName: queryKey,
-      queryUpdateHooks: {},
-      queryOptions: {
-        queryKey,
-        query: (params) => ({
-          query: { name: params.name },
-          select: true,
-          metadata: {
-            totalCount: true,
-          },
-        }),
-      },
-    });
-
-    query.register(params);
-
-    const data = {
-      id: '1',
-      name: 'John Doe',
-      hobbies: [],
-      address: {
-        street: '123 Main St',
-        city: 'Anytown',
-        state: 'CA',
-        zip: '12345',
-      },
-      __model: 'profile',
-    } as unknown as ProfileData;
-
-    const metadata = {
-      totalCount: 1,
-    } as ProfileMetadata;
-
-    query.updateState(params, (state) => {
-      state.data = data;
-      state.metadata = metadata;
-      return state;
-    });
-
-    const updatedData = query.getData(params);
-    expect(updatedData!.id).toEqual(data!.id);
-    expect(updatedData!.name).toEqual(data!.name);
-    expect(updatedData!.hobbies).toEqual(data!.hobbies);
-    expect(updatedData!.address).toEqual(data!.address);
-    const updatedMetadata = query.getMetadata(params);
-    expect(updatedMetadata!.totalCount).toEqual(metadata!.totalCount);
-  });
-
   it('should be able to register posts query and be typesafe', async () => {
     const queryKey = 'posts';
 
@@ -164,7 +103,7 @@ describe('Query', () => {
 
     type PostsQueryInput = {
       query: { title: string | null; cursor: { id: string } | null; limit: number; order: 'asc' | 'desc' };
-      select: true;
+      select: typeof postSelect;
     };
 
     type PostsData = QueryDataFor<Schema, 'posts', PostsQueryInput>;
@@ -187,7 +126,7 @@ describe('Query', () => {
             limit: 10,
             order: 'asc',
           },
-          select: true,
+          select: postSelect,
         }),
       },
     });
@@ -234,7 +173,7 @@ describe('Query', () => {
 
     type PostQueryInput = {
       query: { id: string };
-      select: true;
+      select: typeof postSelect;
     };
 
     type PostData = QueryDataFor<Schema, 'post', PostQueryInput>;
@@ -252,7 +191,7 @@ describe('Query', () => {
         queryKey,
         query: (params) => ({
           query: { id: params.id },
-          select: true,
+          select: postSelect,
         }),
       },
     });
@@ -286,7 +225,7 @@ describe('Query', () => {
 
     type ProfileNullableQueryInput = {
       query: {};
-      select: true;
+      select: typeof profileSelect;
     };
 
     type ProfileNullableData = QueryDataFor<Schema, 'profileNullable', ProfileNullableQueryInput>;
@@ -302,7 +241,7 @@ describe('Query', () => {
         queryKey,
         query: () => ({
           query: {},
-          select: true,
+          select: profileSelect,
         }),
       },
     });
@@ -330,7 +269,7 @@ describe('Query', () => {
 
     type ProfileByIdQueryInput = {
       query: { id: string };
-      select: true;
+      select: typeof profileSelect;
     };
 
     const params: ProfileByIdQueryParams = {
@@ -352,7 +291,6 @@ describe('Query', () => {
           __model: 'profile',
         },
         error: null,
-        metadata: {},
       },
     };
 
@@ -374,7 +312,7 @@ describe('Query', () => {
         queryKey,
         query: (nextParams) => ({
           query: { id: nextParams.id },
-          select: true,
+          select: profileSelect,
         }),
       },
     });
@@ -389,5 +327,60 @@ describe('Query', () => {
     await expect(firstExecution).resolves.toEqual(response);
     await expect(secondExecution).resolves.toEqual(response);
     expect(query.getData(params)).toEqual(response.profileById.data);
+  });
+
+  it('should not re-execute an already registered query when registering again', async () => {
+    const queryKey = 'profileById';
+    const localStore = createQueryStore();
+
+    type ProfileByIdQueryParams = {
+      id: string;
+    };
+
+    type ProfileByIdQueryInput = {
+      query: { id: string };
+      select: typeof profileSelect;
+    };
+
+    const params: ProfileByIdQueryParams = {
+      id: '1',
+    };
+
+    const response = {
+      profileById: {
+        data: {
+          id: params.id,
+          name: 'John Doe',
+          hobbies: [],
+          address: null,
+          __model: 'profile',
+        },
+        error: null,
+      },
+    };
+
+    const handleQuery = vi.fn(async () => response);
+
+    const query = new Query<Schema, 'profileById', ProfileByIdQueryInput, ProfileByIdQueryParams>({
+      store: localStore,
+      queryHandler: handleQuery,
+      queryName: queryKey,
+      queryUpdateHooks: {},
+      queryOptions: {
+        queryKey,
+        query: (nextParams) => ({
+          query: { id: nextParams.id },
+          select: profileSelect,
+        }),
+      },
+    });
+
+    query.register(params);
+    await vi.waitFor(() => expect(query.getData(params)).toEqual(response.profileById.data));
+
+    query.register(params);
+    query.register({ ...params });
+
+    expect(handleQuery).toHaveBeenCalledTimes(1);
   });
 });

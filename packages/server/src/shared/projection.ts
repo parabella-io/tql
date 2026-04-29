@@ -24,17 +24,15 @@ export interface IncludeNodeMarker<Kind extends IncludeKind, Target> {
   readonly __target?: Target;
 }
 
-export type ExtractSelect<Node> = [NonNullable<Node>] extends [{ select: infer S }] ? S : true;
+export type ExtractSelect<Node> = [NonNullable<Node>] extends [{ select: infer S }] ? S : {};
 
 export type ExtractInclude<Node> = [NonNullable<Node>] extends [{ include?: infer I }] ? Exclude<I, undefined> : undefined;
 
 export type GetNestedIncludeMap<NodeDef> = NodeDef extends { include?: infer M } ? NonNullable<M> : never;
 
-export type Selected<Entity, Sel> = [Sel] extends [true]
-  ? Entity
-  : [Sel] extends [Record<string, any>]
-    ? { [K in (Extract<keyof Sel, keyof Entity> | 'id' | '__model') & keyof Entity]: Entity[K] }
-    : Entity;
+export type Selected<Entity, Sel> = [Sel] extends [Record<string, any>]
+  ? { [K in (Extract<keyof Sel, keyof Entity> | 'id') & keyof Entity]: Entity[K] }
+  : { [K in 'id' & keyof Entity]: Entity[K] };
 
 export type IncludeProjection<UserInc, ParentMap> = [UserInc] extends [Record<string, any>]
   ? [ParentMap] extends [Record<string, any>]
@@ -57,8 +55,8 @@ export type ResolveIncludeNode<UserNode, NodeDef> =
     : never;
 
 /**
- * Strip the entity `__model` brand recursively so consumers don't see the
- * codegen-only marker on returned data.
+ * Strip the legacy entity `__model` brand recursively for callers that still
+ * consume older generated schemas.
  */
 export type Remove__Model<T> =
   T extends Array<infer U>

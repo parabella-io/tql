@@ -10,19 +10,20 @@ import { Spinner } from "@/shared/components/ui/spinner"
 import { IconTrash } from "@tabler/icons-react"
 import { ConfirmActionDialog } from "@/shared/components/dialogs/ConfirmActionDialog"
 import { toast } from "sonner"
+import { useEffect } from "react"
 
 type MemberInvitesListProps = {
     workspaceId: string
 }
 
 export const MemberInvitesList = ({ workspaceId }: MemberInvitesListProps) => {
+
     const { data: invites, error } = useQuery({
         query: workspaceMemberInvitesQuery,
         params: {
             workspaceId,
         },
     })
-
 
     if (error) {
         return <ErrorCenter message="Failed to load members." />

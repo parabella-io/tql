@@ -10,7 +10,6 @@ export enum TQLServerErrorType {
   QueryIncludeNotFoundError = 'Query include not found',
   QueryInputSchemaValidationError = 'Query input schema validation error',
   QueryCursorSchemaValidationError = 'Query cursor schema validation error',
-  QueryMetadataSchemaValidationError = 'Query metadata schema validation error',
   QueryEntitySchemaValidationError = 'Query entity schema error',
   QueryError = 'Query error',
   QueryNotAllowedError = 'Query not allowed',

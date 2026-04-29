@@ -8,26 +8,33 @@ export const workspaceMemberInvitesQuery = tql.createQuery(
       query: {
         workspaceId: params.workspaceId,
       },
-      select: true,
+      select: {
+        email: true,
+        workspaceId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
   },
 )
 
 workspaceMemberInvitesQuery.updateOnChange('workspaceMemberInvite', {
-  onInsert: ({ draft, params, change }) => {
-    if (!draft || params.workspaceId !== change.workspaceId) return
+  filter: ({ params, change }) => {
+    return params.workspaceId === change.workspaceId
+  },
+  onInsert: ({ draft, change }) => {
     draft.push(change)
   },
-  onUpdate: ({ draft, params, change }) => {
-    if (!draft || params.workspaceId !== change.workspaceId) return
+  onUpdate: ({ draft, change }) => {
     const index = draft.findIndex((item) => item.id === change.id)
+
     if (index !== -1) {
       draft[index] = change
     }
   },
-  onDelete: ({ draft, params, change }) => {
-    if (!draft || params.workspaceId !== change.workspaceId) return
+  onDelete: ({ draft, change }) => {
     const index = draft.findIndex((item) => item.id === change.id)
+
     if (index !== -1) {
       draft.splice(index, 1)
     }

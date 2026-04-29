@@ -60,6 +60,7 @@ export type ServerOptions = {
 
 export class Server<S extends ClientSchema> {
   public readonly queryResolver: QueryResolver<S>;
+
   public readonly mutationResolver: MutationResolver<S>;
 
   private readonly contextFactory: (options: { request: any }) => Promise<any>;
@@ -68,11 +69,15 @@ export class Server<S extends ClientSchema> {
 
   constructor(options: ServerOptions) {
     this.effectQueue = Server.createEffectQueue(options.effects);
+
     this.queryResolver = new QueryResolver<S>({ schema: options.schema });
+
     this.mutationResolver = new MutationResolver<S>({
       schema: options.schema,
     });
+
     this.contextFactory = options.createContext;
+
     this.runSchemaCodegen(options.schema, options.generateSchema);
   }
 
@@ -103,7 +108,7 @@ export class Server<S extends ClientSchema> {
   public async handleQuery<const Q extends Partial<S['QueryInputMap']>>(options: {
     request: any;
     query: Q;
-  }): Promise<ApplyQueryResponseMap<S['QueryResponseMap'], Q>> {
+  }): Promise<ApplyQueryResponseMap<S, Q>> {
     const context = await this.createContext({ request: options.request });
 
     return this.queryResolver.handle({

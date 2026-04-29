@@ -1,4 +1,4 @@
-// @schema-hash 644262f4903224f1
+// @schema-hash 032c155fe894fc8f
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -14,13 +14,13 @@
  * inputs, registries, and the aggregate `ClientSchema`).
  *
  * Layout:
- *   1. <Model>Entity                    one per registered model, with `__model` brand
+ *   1. <Model>Entity                    one per registered model
  *   2. SchemaEntities                   name -> entity lookup (mutation projection)
- *   3. <Model>Select / <Model>SelectMap selectable scalar projection input
+ *   3. <Model>Select / <Model>SelectMap entity scalars
  *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
  *   5. <Model>IncludeMap                map of relation-name -> named IncludeNode
- *   6. <Query>Input + QueryInputMap     per-query envelopes and aggregate map
- *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap }
+ *   6. <Query>Input + QueryInputMap     per-query envelopes (`query`, `select`, `include?`) and aggregate map
+ *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys }
  *   8. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
  *   9. MutationRegistry                 mutationName -> declared `changed` map
  *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
@@ -48,13 +48,11 @@ export interface UserEntity {
   email: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'user';
 }
 
 export interface WorkspaceEntity {
   id: string;
   name: string;
-  __model: 'workspace';
 }
 
 export interface WorkspaceMemberEntity {
@@ -66,7 +64,6 @@ export interface WorkspaceMemberEntity {
   isWorkspaceOwner: boolean;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceMember';
 }
 
 export interface WorkspaceTicketLabelEntity {
@@ -75,7 +72,6 @@ export interface WorkspaceTicketLabelEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceTicketLabel';
 }
 
 export interface WorkspaceMemberInviteEntity {
@@ -84,7 +80,6 @@ export interface WorkspaceMemberInviteEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'workspaceMemberInvite';
 }
 
 export interface TicketEntity {
@@ -97,7 +92,6 @@ export interface TicketEntity {
   reporterId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticket';
 }
 
 export interface TicketAttachmentEntity {
@@ -109,7 +103,6 @@ export interface TicketAttachmentEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketAttachment';
 }
 
 export interface TicketCommentEntity {
@@ -119,7 +112,6 @@ export interface TicketCommentEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketComment';
 }
 
 export interface TicketLabelEntity {
@@ -130,7 +122,6 @@ export interface TicketLabelEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketLabel';
 }
 
 export interface TicketAssigneeEntity {
@@ -141,7 +132,6 @@ export interface TicketAssigneeEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketAssignee';
 }
 
 export interface TicketReporterEntity {
@@ -152,7 +142,6 @@ export interface TicketReporterEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketReporter';
 }
 
 export interface TicketListEntity {
@@ -161,7 +150,6 @@ export interface TicketListEntity {
   workspaceId: string;
   createdAt: string;
   updatedAt: string;
-  __model: 'ticketList';
 }
 
 // ===========================================================================
@@ -187,41 +175,41 @@ export interface SchemaEntities {
 // PER-MODEL SELECT SHAPES
 // ===========================================================================
 
-type UserSelectMap = { [K in Exclude<keyof UserEntity, '__model'>]?: true };
-type UserSelect = true | UserSelectMap;
+type UserSelectMap = { [K in keyof UserEntity]?: true };
+type UserSelect = UserSelectMap;
 
-type WorkspaceSelectMap = { [K in Exclude<keyof WorkspaceEntity, '__model'>]?: true };
-type WorkspaceSelect = true | WorkspaceSelectMap;
+type WorkspaceSelectMap = { [K in keyof WorkspaceEntity]?: true };
+type WorkspaceSelect = WorkspaceSelectMap;
 
-type WorkspaceMemberSelectMap = { [K in Exclude<keyof WorkspaceMemberEntity, '__model'>]?: true };
-type WorkspaceMemberSelect = true | WorkspaceMemberSelectMap;
+type WorkspaceMemberSelectMap = { [K in keyof WorkspaceMemberEntity]?: true };
+type WorkspaceMemberSelect = WorkspaceMemberSelectMap;
 
-type WorkspaceTicketLabelSelectMap = { [K in Exclude<keyof WorkspaceTicketLabelEntity, '__model'>]?: true };
-type WorkspaceTicketLabelSelect = true | WorkspaceTicketLabelSelectMap;
+type WorkspaceTicketLabelSelectMap = { [K in keyof WorkspaceTicketLabelEntity]?: true };
+type WorkspaceTicketLabelSelect = WorkspaceTicketLabelSelectMap;
 
-type WorkspaceMemberInviteSelectMap = { [K in Exclude<keyof WorkspaceMemberInviteEntity, '__model'>]?: true };
-type WorkspaceMemberInviteSelect = true | WorkspaceMemberInviteSelectMap;
+type WorkspaceMemberInviteSelectMap = { [K in keyof WorkspaceMemberInviteEntity]?: true };
+type WorkspaceMemberInviteSelect = WorkspaceMemberInviteSelectMap;
 
-type TicketSelectMap = { [K in Exclude<keyof TicketEntity, '__model'>]?: true };
-type TicketSelect = true | TicketSelectMap;
+type TicketSelectMap = { [K in keyof TicketEntity]?: true };
+type TicketSelect = TicketSelectMap;
 
-type TicketAttachmentSelectMap = { [K in Exclude<keyof TicketAttachmentEntity, '__model'>]?: true };
-type TicketAttachmentSelect = true | TicketAttachmentSelectMap;
+type TicketAttachmentSelectMap = { [K in keyof TicketAttachmentEntity]?: true };
+type TicketAttachmentSelect = TicketAttachmentSelectMap;
 
-type TicketCommentSelectMap = { [K in Exclude<keyof TicketCommentEntity, '__model'>]?: true };
-type TicketCommentSelect = true | TicketCommentSelectMap;
+type TicketCommentSelectMap = { [K in keyof TicketCommentEntity]?: true };
+type TicketCommentSelect = TicketCommentSelectMap;
 
-type TicketLabelSelectMap = { [K in Exclude<keyof TicketLabelEntity, '__model'>]?: true };
-type TicketLabelSelect = true | TicketLabelSelectMap;
+type TicketLabelSelectMap = { [K in keyof TicketLabelEntity]?: true };
+type TicketLabelSelect = TicketLabelSelectMap;
 
-type TicketAssigneeSelectMap = { [K in Exclude<keyof TicketAssigneeEntity, '__model'>]?: true };
-type TicketAssigneeSelect = true | TicketAssigneeSelectMap;
+type TicketAssigneeSelectMap = { [K in keyof TicketAssigneeEntity]?: true };
+type TicketAssigneeSelect = TicketAssigneeSelectMap;
 
-type TicketReporterSelectMap = { [K in Exclude<keyof TicketReporterEntity, '__model'>]?: true };
-type TicketReporterSelect = true | TicketReporterSelectMap;
+type TicketReporterSelectMap = { [K in keyof TicketReporterEntity]?: true };
+type TicketReporterSelect = TicketReporterSelectMap;
 
-type TicketListSelectMap = { [K in Exclude<keyof TicketListEntity, '__model'>]?: true };
-type TicketListSelect = true | TicketListSelectMap;
+type TicketListSelectMap = { [K in keyof TicketListEntity]?: true };
+type TicketListSelect = TicketListSelectMap;
 
 // ===========================================================================
 // INCLUDE NODES (one named interface per parent x include relation)
@@ -522,42 +510,32 @@ export interface QueryInputMap {
 }
 
 // ===========================================================================
-// QUERY REGISTRY (entity + arity + nullability + parent include map)
+// QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys)
 // ===========================================================================
 
 export interface QueryRegistry {
-  userById: { entity: UserEntity; kind: 'single'; nullable: false; includeMap: never };
-  workspaceById: { entity: WorkspaceEntity; kind: 'single'; nullable: false; includeMap: WorkspaceIncludeMap };
-  myWorkspaces: { entity: WorkspaceEntity; kind: 'many'; nullable: false; includeMap: WorkspaceIncludeMap };
-  workspaceMemberById: { entity: WorkspaceMemberEntity; kind: 'single'; nullable: false; includeMap: never };
-  workspaceMembers: { entity: WorkspaceMemberEntity; kind: 'many'; nullable: false; includeMap: never };
-  workspaceTicketLabelById: { entity: WorkspaceTicketLabelEntity; kind: 'single'; nullable: false; includeMap: never };
-  workspaceTicketLabels: { entity: WorkspaceTicketLabelEntity; kind: 'many'; nullable: false; includeMap: never };
-  workspaceMemberInviteById: {
-    entity: WorkspaceMemberInviteEntity;
-    kind: 'single';
-    nullable: false;
-    includeMap: WorkspaceMemberInviteIncludeMap;
-  };
-  myWorkspaceInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap };
-  workspaceMemberInvites: {
-    entity: WorkspaceMemberInviteEntity;
-    kind: 'many';
-    nullable: false;
-    includeMap: WorkspaceMemberInviteIncludeMap;
-  };
-  ticketById: { entity: TicketEntity; kind: 'single'; nullable: false; includeMap: TicketIncludeMap };
-  tickets: { entity: TicketEntity; kind: 'many'; nullable: false; includeMap: TicketIncludeMap };
-  ticketAttachmentById: { entity: TicketAttachmentEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketAttachments: { entity: TicketAttachmentEntity; kind: 'many'; nullable: false; includeMap: never };
-  ticketCommentById: { entity: TicketCommentEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketComments: { entity: TicketCommentEntity; kind: 'many'; nullable: false; includeMap: never };
-  ticketLabelById: { entity: TicketLabelEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketLabels: { entity: TicketLabelEntity; kind: 'many'; nullable: false; includeMap: never };
-  ticketAssigneeById: { entity: TicketAssigneeEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketReporterById: { entity: TicketReporterEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketListById: { entity: TicketListEntity; kind: 'single'; nullable: false; includeMap: TicketListIncludeMap };
-  ticketLists: { entity: TicketListEntity; kind: 'many'; nullable: false; includeMap: TicketListIncludeMap };
+  userById: { entity: UserEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  workspaceById: { entity: WorkspaceEntity; kind: 'single'; nullable: false; includeMap: WorkspaceIncludeMap; externalFieldKeys: readonly [] };
+  myWorkspaces: { entity: WorkspaceEntity; kind: 'many'; nullable: false; includeMap: WorkspaceIncludeMap; externalFieldKeys: readonly [] };
+  workspaceMemberById: { entity: WorkspaceMemberEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  workspaceMembers: { entity: WorkspaceMemberEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  workspaceTicketLabelById: { entity: WorkspaceTicketLabelEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  workspaceTicketLabels: { entity: WorkspaceTicketLabelEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  workspaceMemberInviteById: { entity: WorkspaceMemberInviteEntity; kind: 'single'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly [] };
+  myWorkspaceInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly [] };
+  workspaceMemberInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly [] };
+  ticketById: { entity: TicketEntity; kind: 'single'; nullable: false; includeMap: TicketIncludeMap; externalFieldKeys: readonly [] };
+  tickets: { entity: TicketEntity; kind: 'many'; nullable: false; includeMap: TicketIncludeMap; externalFieldKeys: readonly [] };
+  ticketAttachmentById: { entity: TicketAttachmentEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  ticketAttachments: { entity: TicketAttachmentEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  ticketCommentById: { entity: TicketCommentEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  ticketComments: { entity: TicketCommentEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  ticketLabelById: { entity: TicketLabelEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  ticketLabels: { entity: TicketLabelEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  ticketAssigneeById: { entity: TicketAssigneeEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  ticketReporterById: { entity: TicketReporterEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
+  ticketListById: { entity: TicketListEntity; kind: 'single'; nullable: false; includeMap: TicketListIncludeMap; externalFieldKeys: readonly [] };
+  ticketLists: { entity: TicketListEntity; kind: 'many'; nullable: false; includeMap: TicketListIncludeMap; externalFieldKeys: readonly [] };
 }
 
 // ===========================================================================
@@ -808,11 +786,7 @@ export interface MutationRegistry {
   createWorkspace: { workspace: { inserts: true } };
   deleteWorkspace: { workspace: { deletes: true } };
   inviteWorkspaceMember: { workspaceMemberInvite: { inserts: true } };
-  acceptWorkspaceMemberInvite: {
-    workspace: { inserts: true };
-    workspaceMember: { inserts: true };
-    workspaceMemberInvite: { deletes: true };
-  };
+  acceptWorkspaceMemberInvite: { workspace: { inserts: true }; workspaceMember: { inserts: true }; workspaceMemberInvite: { deletes: true } };
   declineWorkspaceMemberInvite: { workspaceMemberInvite: { deletes: true } };
   removeInviteWorkspaceMember: { workspaceMemberInvite: { deletes: true } };
   removeWorkspaceMember: { workspaceMember: { deletes: true } };

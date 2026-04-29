@@ -3,8 +3,9 @@ import { describe, test, expect } from 'vitest';
 import { selectFields } from '../../src/query/select-fields.js';
 
 describe('selectFields', () => {
-  test('should return the whole data if select is true', () => {
+  test('should select only explicit fields and implicit id', () => {
     const data = {
+      id: '1',
       name: 'John Doe',
       age: 30,
       address: {
@@ -18,9 +19,19 @@ describe('selectFields', () => {
         { name: 'Writing', level: 2 },
       ],
     };
-    const select = true;
+    const select = {
+      name: true,
+      hobbies: true,
+    };
     const result = selectFields(data, select);
-    expect(result).toEqual(data);
+    expect(result).toEqual({
+      id: '1',
+      name: 'John Doe',
+      hobbies: [
+        { name: 'Reading', level: 1 },
+        { name: 'Writing', level: 2 },
+      ],
+    });
   });
 
   test('should select nested object fields', () => {

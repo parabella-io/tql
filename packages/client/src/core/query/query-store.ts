@@ -1,15 +1,20 @@
-import { createStore, StoreApi } from 'zustand/vanilla';
+import { createStore, Mutate, StoreApi } from 'zustand/vanilla';
 import { immer } from 'zustand/middleware/immer';
 import stableStringify from 'fast-json-stable-stringify';
 import md5 from 'md5';
 import { produce } from 'immer';
 import type { FormattedTQLServerError } from '@tql/server/shared';
+import { subscribeWithSelector } from 'zustand/middleware';
 
 type QueryData = Record<string, any> | Array<Record<string, any>> | null;
 
-type QueryMetadata = Record<string, any> | null;
-
 type QueryError = FormattedTQLServerError | null;
+
+type WithSelector = [
+  ['zustand/subscribeWithSelector', never]
+]
+
+
 
 export type QueryState = {
   queryName: string;
@@ -18,7 +23,6 @@ export type QueryState = {
   query: any;
   data: QueryData;
   params: Record<string, any>;
-  metadata: QueryMetadata;
   error: QueryError;
   isEnabled: boolean;
   isLoading: boolean;
@@ -39,17 +43,19 @@ export type QueryActions = {
   setStates: (states: Record<QueryHashKey, QueryState>) => void;
   setData: (keys: QueryHashKey[] | QueryHashKey, updator: (prevData: any) => any) => void;
   setLoading: (keys: QueryHashKey[] | QueryHashKey, isLoading: boolean) => void;
-  setMetadata: (keys: QueryHashKey[] | QueryHashKey, updator: (prevMetadata: any) => any) => void;
   updateState: (keys: QueryHashKey[] | QueryHashKey, updator: (prevState: QueryState) => QueryState | void) => void;
   getData: (hashKey: QueryHashKey) => QueryData | null;
   reset: () => void;
 };
 
-export type QueryStore = StoreApi<QueryStoreState & QueryActions>;
+export type QueryStore = Mutate<
+  StoreApi<QueryStoreState & QueryActions>,
+  WithSelector
+>;
 
 export const createQueryStore = (): QueryStore => {
   return createStore<QueryStoreState & QueryActions>()(
-    immer((set, get) => ({
+    subscribeWithSelector(immer((set, get) => ({
       state: {},
       setRegister: (hashKey: QueryHashKey, queryState: QueryState) =>
         set((state) => {
@@ -98,23 +104,6 @@ export const createQueryStore = (): QueryStore => {
             }
           }),
         ),
-      setMetadata: (keys: string[] | string, updator: (prevMetadata: QueryMetadata) => QueryMetadata) =>
-        set(
-          produce((state) => {
-            const keysArray = Array.isArray(keys) ? keys : [keys];
-
-            for (const key of keysArray) {
-              if (state.state[key] && 'metadata' in state.state[key]) {
-                state.state[key].metadata = produce(state.state[key].metadata ?? {}, (draft: QueryMetadata) => {
-                  const result = updator(draft);
-                  if (typeof result !== 'undefined') {
-                    return result;
-                  }
-                });
-              }
-            }
-          }),
-        ),
       updateState: (keys: QueryHashKey[] | QueryHashKey, updator: (prevState: QueryState) => QueryState | void) =>
         set(
           produce((state) => {
@@ -134,7 +123,7 @@ export const createQueryStore = (): QueryStore => {
         ),
       getData: (hashKey: QueryHashKey) => get().state[hashKey]?.data ?? null,
       reset: () => set({ state: {} }),
-    })),
+    }))),
   );
 };
 
