@@ -35,6 +35,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <script
+          src="//unpkg.com/react-scan/dist/auto.global.js"
+          crossOrigin="anonymous"
+          strategy="beforeInteractive"
+        />
+        <script />
         <HeadContent />
       </head>
       <body>

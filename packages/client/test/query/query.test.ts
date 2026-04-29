@@ -12,7 +12,7 @@ describe('Query', () => {
       Object.keys(query).map((queryName) => [
         queryName,
         {
-          // Truthy placeholder so `execute` / `checkIfStale` paths do not reject;
+          // Truthy placeholder so `execute` paths do not reject;
           // individual tests override state via `updateState` where needed.
           data: {},
           error: null,
@@ -315,5 +315,60 @@ describe('Query', () => {
     await expect(firstExecution).resolves.toEqual(response);
     await expect(secondExecution).resolves.toEqual(response);
     expect(query.getData(params)).toEqual(response.profileById.data);
+  });
+
+  it('should not re-execute an already registered query when registering again', async () => {
+    const queryKey = 'profileById';
+    const localStore = createQueryStore();
+
+    type ProfileByIdQueryParams = {
+      id: string;
+    };
+
+    type ProfileByIdQueryInput = {
+      query: { id: string };
+      select: true;
+    };
+
+    const params: ProfileByIdQueryParams = {
+      id: '1',
+    };
+
+    const response = {
+      profileById: {
+        data: {
+          id: params.id,
+          name: 'John Doe',
+          hobbies: [],
+          address: null,
+          __model: 'profile',
+        },
+        error: null,
+      },
+    };
+
+    const handleQuery = vi.fn(async () => response);
+
+    const query = new Query<Schema, 'profileById', ProfileByIdQueryInput, ProfileByIdQueryParams>({
+      store: localStore,
+      queryHandler: handleQuery,
+      queryName: queryKey,
+      queryUpdateHooks: {},
+      queryOptions: {
+        queryKey,
+        query: (nextParams) => ({
+          query: { id: nextParams.id },
+          select: true,
+        }),
+      },
+    });
+
+    query.register(params);
+    await vi.waitFor(() => expect(query.getData(params)).toEqual(response.profileById.data));
+
+    query.register(params);
+    query.register({ ...params });
+
+    expect(handleQuery).toHaveBeenCalledTimes(1);
   });
 });

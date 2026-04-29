@@ -7,7 +7,6 @@ import { useParams } from "@tanstack/react-router"
 import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/shared/components/ui/tabs"
 import { MemberInvitesList } from "./components/member-list/member-invites-list"
 import { InviteMemberDialog } from "./components/member-list/dialogs/invite-member.dialog"
-import { useEffect } from "react"
 
 export const WorkspaceMembersPage = () => {
 

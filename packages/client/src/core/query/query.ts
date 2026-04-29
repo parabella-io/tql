@@ -14,7 +14,6 @@ import type {
   SingleQueryRequestFor,
   QueryUpdateHooksMap,
 } from './query.types';
-import { produce } from 'immer';
 import { deepPartialMatch } from '../utils';
 import { ClientHandleQuery } from '../client/client';
 
@@ -44,7 +43,6 @@ export class Query<
 
   private readonly queryHandler: ClientHandleQuery<S>;
   private readonly queryUpdateHooks: QueryUpdateHooksMap;
-  private readonly setState: (hashKey: QueryHashKey, query: QueryState) => void;
   private readonly setRegister: (hashKey: QueryHashKey, queryState: QueryState) => void;
   private readonly inFlightQueries: Map<QueryHashKey, Promise<any>> = new Map();
 
@@ -56,97 +54,89 @@ export class Query<
     this.queryOptions = queryOptions;
     this.queryHandler = queryHandler;
     this.store = store;
-    this.setState = store.getState().setState;
     this.setRegister = store.getState().setRegister;
     this.queryUpdateHooks = queryUpdateHooks;
   }
 
-  public register(params: QueryParams): QueryHashKey {
-    const query = this.queryOptions.query(params);
-    const isEnabled = this.queryOptions.isEnabled ?? true;
-    const staleTimeInMs = this.queryOptions.staleTimeInMs ?? 0;
-    const staleAtTimestamp = staleTimeInMs > 0 ? Date.now() - 1000 : null;
-    const queryHashKey = this.getHashKey(params);
+  private ensureRegistered(params: QueryParams): { hashKey: QueryHashKey; state: QueryState; didRegister: boolean } {
+    const hashKey = this.getHashKey(params);
+    const existing = this.store.getState().state[hashKey] as QueryState | undefined;
 
-    if (this.getStateOrNull(params)) {
-      console.log(`Query [${this.queryName}]: query already registered`);
-      return queryHashKey;
+    if (existing) {
+      return { hashKey, state: existing, didRegister: false };
     }
 
-    this.setRegister(queryHashKey, {
+    const staleTimeInMs = this.queryOptions.staleTimeInMs ?? 0;
+    const next: QueryState = {
       queryName: this.queryName,
       queryKey: this.queryKey,
-      queryHashKey,
-      query,
+      queryHashKey: hashKey,
+      query: this.queryOptions.query(params),
       params,
       error: null,
       data: null,
-      isEnabled,
+      isEnabled: this.queryOptions.isEnabled ?? true,
       isLoading: false,
       isStale: true,
-      staleAtTimestamp,
+      staleAtTimestamp: null,
       staleTimeInMs,
-    });
+    };
 
-    this.checkIfStale(params);
+    this.setRegister(hashKey, next);
 
-    return queryHashKey;
+    return { hashKey, state: next, didRegister: true };
   }
 
-  public checkIfStale(params: QueryParams) {
-    console.log(`Query [${this.queryName}]: checkIfStale`);
+  private isStale(state: QueryState): boolean {
+    return state.staleAtTimestamp === null || state.staleAtTimestamp < Date.now();
+  }
 
-    const { state } = this.store.getState();
+  private patchState(hashKey: QueryHashKey, patch: Partial<QueryState>): void {
+    this.store.getState().updateState(hashKey, (draft) => {
+      for (const key of Object.keys(patch) as (keyof QueryState)[]) {
+        const next = patch[key];
 
-    const _hashKey = this.getHashKey(params);
+        if (!Object.is(draft[key], next)) {
+          draft[key] = next as never;
+        }
+      }
+    });
+  }
 
-    const queryState = state[_hashKey] as QueryState;
+  public register(params: QueryParams): QueryHashKey {
+    const { hashKey, state, didRegister } = this.ensureRegistered(params);
 
-    if (!queryState) {
-      throw new Error(`Query [${this.queryName}]: not registered`);
+    if (didRegister && this.isStale(state)) {
+      void this.execute(params);
     }
 
-    if (queryState.staleAtTimestamp === null || (queryState.staleAtTimestamp && queryState.staleAtTimestamp < Date.now())) {
-      this.setState(_hashKey, {
-        ...queryState,
-        isStale: true,
-      });
-
-      this.execute(params);
-    }
+    return hashKey;
   }
 
   public async execute(params: QueryParams): Promise<QueryResponse<S, SingleQueryRequestFor<S, QueryName, QueryInput>>> {
-    this.register(params);
+    const { hashKey, state } = this.ensureRegistered(params);
 
-    const queryHashKey = this.getHashKey(params);
-
-    const existingPromise = this.inFlightQueries.get(queryHashKey);
+    const existingPromise = this.inFlightQueries.get(hashKey);
 
     if (existingPromise) {
       return existingPromise as Promise<QueryResponse<S, SingleQueryRequestFor<S, QueryName, QueryInput>>>;
     }
 
-    const queryInput = this.queryOptions.query(params);
-    const queryState = this.getState(params);
-    const request = singleQueryInput(queryState.queryName, queryInput) as SingleQueryRequestFor<S, QueryName, QueryInput>;
+    const request = singleQueryInput(state.queryName, state.query) as SingleQueryRequestFor<S, QueryName, QueryInput>;
 
     const now = Date.now();
-    const stateTimeInMs = queryState.staleTimeInMs;
+    const stateTimeInMs = state.staleTimeInMs;
     const staleAtTimestamp = stateTimeInMs > 0 ? now + stateTimeInMs : null;
 
     const executionPromise = (async () => {
       try {
-        this.setState(queryHashKey, {
-          ...queryState,
-          isLoading: true,
-        });
+        this.patchState(hashKey, { isLoading: true });
 
         const response = await this.queryHandler<typeof request>(request as typeof request & Partial<S['QueryInputMap']>);
 
         if (!response) throw new Error(`Query [${this.queryName}]: invalid response`);
 
-        const queryResponse = response[queryState.queryName];
+        const queryResponse = response[state.queryName];
 
         const { data, error } = queryResponse;
 
@@ -154,8 +144,7 @@ export class Query<
 
         if (error) throw error;
 
-        this.setState(queryHashKey, {
-          ...queryState,
+        this.patchState(hashKey, {
           data,
           error,
           isStale: false,
@@ -167,8 +156,7 @@ export class Query<
       } catch (error) {
         const formattedError = { type: 'unknown', details: { message: 'Unknown error', fullError: error } } as FormattedTQLServerError;
 
-        this.setState(queryHashKey, {
-          ...queryState,
+        this.patchState(hashKey, {
           error: formattedError,
           isLoading: false,
           staleAtTimestamp,
@@ -176,11 +164,11 @@ export class Query<
 
         throw error;
       } finally {
-        this.inFlightQueries.delete(queryHashKey);
+        this.inFlightQueries.delete(hashKey);
       }
     })();
 
-    this.inFlightQueries.set(queryHashKey, executionPromise);
+    this.inFlightQueries.set(hashKey, executionPromise);
 
     return executionPromise;
   }
@@ -216,7 +204,7 @@ export class Query<
   public updateState = (params: QueryParams, updator: (prevState: QueryState) => QueryState | void) => {
     const queryHashKey = this.getHashKey(params);
 
-    this.setState(queryHashKey, produce(this.getState(params), updator));
+    this.store.getState().updateState(queryHashKey, updator);
   };
 
   public getData = (params: QueryParams): QueryDataFor<S, QueryName, QueryInput> => {
@@ -234,11 +222,14 @@ export class Query<
   public subscribe = (params: QueryParams, callback: (queryState: QueryState) => void) => {
     const queryHashKey = this.getHashKey(params);
 
-    return this.store.subscribe((state) => state.state[queryHashKey], (currentState) => {
-      if (currentState) {
-        callback(currentState);
-      }
-    });
+    return this.store.subscribe(
+      (state) => state.state[queryHashKey],
+      (currentState) => {
+        if (currentState) {
+          callback(currentState);
+        }
+      },
+    );
   };
 
   public getAllHashKeys = () => {

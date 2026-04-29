@@ -26,14 +26,13 @@ export const useQuery = <QueryType extends AnyQuery>(options: {
   }, [params, isEnabled]);
 
   const state = useSyncExternalStore(
-    (callback) => query.subscribe(params, () => callback()),
+    (callback) =>
+      query.subscribe(params, () => {
+        callback();
+      }),
     () => query.getStateOrNull(params) ?? null,
     () => null,
   );
-
-  useEffect(() => {
-    console.log(`Query [${query.options.queryName}]: state changed`, state);
-  }, [state]);
 
   return useMemo(
     () =>
