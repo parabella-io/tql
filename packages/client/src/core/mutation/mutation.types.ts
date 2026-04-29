@@ -1,6 +1,7 @@
 import type { ClientSchema, MutationChangesFor } from '@tql/server/shared';
 
 import { OptimisticQueryStore } from '../query/query-optimistic-update';
+import type { TransportKey } from '../transports';
 
 export type OptimisticQueryStorePublic = Omit<OptimisticQueryStore, 'start' | 'commit' | 'rollback'>;
 
@@ -121,4 +122,9 @@ export type MutationOptions<
   onUpdate?: (params: UpdateHookParams<MutationInput, S, MutationName>) => void;
   onUpsert?: (params: UpsertHookParams<MutationInput, S, MutationName>) => void;
   onDelete?: (params: DeleteHookParams<MutationInput, S, MutationName>) => void;
+  /**
+   * Which registered transport should serve this mutation. Defaults to the
+   * client's `defaultTransport` (or `'http'`).
+   */
+  transport?: TransportKey;
 };

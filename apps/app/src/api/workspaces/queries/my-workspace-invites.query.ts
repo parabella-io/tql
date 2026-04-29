@@ -24,12 +24,10 @@ myWorkspaceInvitesQuery.updateOnChange('workspaceMemberInvite', {
   onInsert: ({}) => {},
   onUpdate: ({}) => {},
   onDelete: ({ draft, change }) => {
-    if (draft) {
-      const index = draft.findIndex((item) => item.id === change.id)
+    const index = draft.findIndex((item) => item.id === change.id)
 
-      if (index !== -1) {
-        draft.splice(index, 1)
-      }
+    if (index !== -1) {
+      draft.splice(index, 1)
     }
   },
 })

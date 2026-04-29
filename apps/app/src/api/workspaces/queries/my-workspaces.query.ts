@@ -13,29 +13,23 @@ export const myWorkspacesQuery = tql.createQuery('myWorkspaces', {
  */
 myWorkspacesQuery.updateOnChange('workspace', {
   onInsert({ draft, change }) {
-    if (draft) {
-      draft.push(change)
-    }
+    draft.push(change)
   },
   onUpdate({ draft, change }) {
-    if (draft) {
-      const index = draft.findIndex((item) => item.id === change.id)
+    const index = draft.findIndex((item) => item.id === change.id)
 
-      if (index !== -1) {
-        draft[index] = {
-          ...draft[index],
-          ...change,
-        }
+    if (index !== -1) {
+      draft[index] = {
+        ...draft[index],
+        ...change,
       }
     }
   },
   onDelete({ draft, change }) {
-    if (draft) {
-      const index = draft.findIndex((item) => item.id === change.id)
+    const index = draft.findIndex((item) => item.id === change.id)
 
-      if (index !== -1) {
-        draft.splice(index, 1)
-      }
+    if (index !== -1) {
+      draft.splice(index, 1)
     }
   },
 })

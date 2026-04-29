@@ -31,34 +31,28 @@ ticketListsQuery.updateOnChange('ticketList', {
     }
   },
   onUpdate({ draft, change }) {
-    if (draft) {
-      const index = draft.findIndex((item) => item.id === change.id)
+    const index = draft.findIndex((item) => item.id === change.id)
 
-      if (index !== -1) {
-        const existing = draft[index]!
+    if (index !== -1) {
+      const existing = draft[index]!
 
-        draft[index] = {
-          ...existing,
-          ...change,
-        }
+      draft[index] = {
+        ...existing,
+        ...change,
       }
     }
   },
   onDelete({ draft, change }) {
-    if (draft) {
-      const index = draft.findIndex((item) => item.id === change.id)
+    const index = draft.findIndex((item) => item.id === change.id)
 
-      if (index !== -1) {
-        draft.splice(index, 1)
-      }
+    if (index !== -1) {
+      draft.splice(index, 1)
     }
   },
 })
 
 ticketListsQuery.updateOnChange('ticket', {
   onInsert({ draft, change }) {
-    if (!draft) return
-
     const listIndex = draft.findIndex((item) => item.id === change.ticketListId)
 
     if (listIndex !== -1) {
@@ -66,8 +60,6 @@ ticketListsQuery.updateOnChange('ticket', {
     }
   },
   onUpdate({ draft, change }) {
-    if (!draft) return
-
     const listIndex = draft.findIndex((item) => item.id === change.ticketListId)
 
     if (listIndex === -1) return

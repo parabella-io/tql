@@ -18,6 +18,7 @@
  * and the codegen output share a single source of truth.
  */
 import type { ClientSchema, QueryDataFor, Remove__Model } from '@tql/server/shared';
+import type { TransportKey } from '../transports';
 
 export type { ClientSchema, QueryDataFor };
 
@@ -59,6 +60,11 @@ export type QueryOptions<
   query: (params: QueryParams) => QueryInput;
   staleTimeInMs?: number;
   isEnabled?: boolean;
+  /**
+   * Which registered transport should serve this query. Defaults to the
+   * client's `defaultTransport` (or `'http'`).
+   */
+  transport?: TransportKey;
 };
 
 export type QueryModelNameFor<S extends ClientSchema> = keyof S['SchemaEntities'] & string;
@@ -75,6 +81,7 @@ export type QueryModelUpdateHook<
   QueryInput extends QueryInputFor<S, QueryName>,
   QueryParams extends Record<string, any>,
 > = {
+  filter?: (params: { params: QueryParams; change: QueryModel }) => boolean;
   onInsert?: (params: {
     draft: QueryDataFor<S, QueryName, QueryInput>;
     change: QueryModel;

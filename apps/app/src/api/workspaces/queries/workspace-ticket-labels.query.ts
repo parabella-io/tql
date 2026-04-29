@@ -18,14 +18,10 @@ export const workspaceTicketLabelsQuery = tql.createQuery(
 )
 
 workspaceTicketLabelsQuery.updateOnChange('workspaceTicketLabel', {
-  onInsert({ draft, params, change }) {
-    if (!draft || params.workspaceId !== change.workspaceId) return
+  filter: ({ params, change }) => {
+    return params.workspaceId === change.workspaceId
+  },
+  onInsert({ draft, change }) {
     draft.push(change)
-  },
-  onUpdate({ draft, params, change }) {
-    if (!draft || params.workspaceId !== change.workspaceId) return
-  },
-  onDelete({ draft, params, change }) {
-    if (!draft || params.workspaceId !== change.workspaceId) return
   },
 })
