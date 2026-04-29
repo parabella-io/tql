@@ -272,9 +272,7 @@ const renderExternalFieldsTypesSection = (models: ModelInfo[]): string => {
     if (model.externalFieldEntries.length === 0) {
       return `export type ${model.pascalName}ExternalFields = Record<never, never>;`;
     }
-    const lines = model.externalFieldEntries.map(
-      ({ name, schema }) => `  ${name}: ${zodToTs(schema, '  ')};`,
-    );
+    const lines = model.externalFieldEntries.map(({ name, schema }) => `  ${name}: ${zodToTs(schema, '  ')};`);
     return [`export interface ${model.pascalName}ExternalFields {`, ...lines, `}`].join('\n');
   });
 
@@ -476,10 +474,9 @@ const renderQueryRegistry = (models: ModelInfo[]): string => {
   }
 
   const body = ['export interface QueryRegistry {', ...entries, '}'].join('\n');
-  return [
-    bannerComment('QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys + externalFields)'),
-    body,
-  ].join('\n\n');
+  return [bannerComment('QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys + externalFields)'), body].join(
+    '\n\n',
+  );
 };
 
 const renderMutationInputsSection = (mutations: MutationInfo[]): string => {
