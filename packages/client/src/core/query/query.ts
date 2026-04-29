@@ -1,5 +1,6 @@
 import type { FormattedTQLServerError } from '@tql/server/shared';
 import { createQueryHashKey, QueryHashKey, QueryState, QueryStore } from './query-store';
+
 import type {
   ClientSchema,
   QueryNameFor,
@@ -68,7 +69,7 @@ export class Query<
     const queryHashKey = this.getHashKey(params);
 
     if (this.getStateOrNull(params)) {
-      console.log('query already registered');
+      console.log(`Query [${this.queryName}]: query already registered`);
       return queryHashKey;
     }
 
@@ -93,7 +94,7 @@ export class Query<
   }
 
   public checkIfStale(params: QueryParams) {
-    console.log('checkIfStale', params);
+    console.log(`Query [${this.queryName}]: checkIfStale`);
 
     const { state } = this.store.getState();
 
@@ -102,7 +103,7 @@ export class Query<
     const queryState = state[_hashKey] as QueryState;
 
     if (!queryState) {
-      throw new Error(`Query ${this.queryKey} not registered`);
+      throw new Error(`Query [${this.queryName}]: not registered`);
     }
 
     if (queryState.staleAtTimestamp === null || (queryState.staleAtTimestamp && queryState.staleAtTimestamp < Date.now())) {
@@ -143,13 +144,13 @@ export class Query<
 
         const response = await this.queryHandler<typeof request>(request as typeof request & Partial<S['QueryInputMap']>);
 
-        if (!response) throw new Error('Invalid response from query');
+        if (!response) throw new Error(`Query [${this.queryName}]: invalid response`);
 
         const queryResponse = response[queryState.queryName];
 
         const { data, error } = queryResponse;
 
-        if (!data) throw new Error(`Invalid response from query "${queryState.queryName}"`);
+        if (!data) throw new Error(`Query [${this.queryName}]: invalid response`);
 
         if (error) throw error;
 
@@ -192,7 +193,7 @@ export class Query<
     const queryState = state[queryHashKey];
 
     if (!queryState) {
-      throw new Error(`Query ${this.queryKey} not registered`);
+      throw new Error(`Query [${this.queryName}]: not registered`);
     }
 
     return queryState as QueryState;
@@ -233,11 +234,9 @@ export class Query<
   public subscribe = (params: QueryParams, callback: (queryState: QueryState) => void) => {
     const queryHashKey = this.getHashKey(params);
 
-    return this.store.subscribe((state) => {
-      const queryState = state.state[queryHashKey];
-
-      if (queryState) {
-        callback(queryState);
+    return this.store.subscribe((state) => state.state[queryHashKey], (currentState) => {
+      if (currentState) {
+        callback(currentState);
       }
     });
   };
@@ -275,7 +274,7 @@ export class Query<
     hooks: QueryModelUpdateHook<S, ModelName, QueryName, QueryModelShapeFor<S, ModelName>, QueryInput, QueryParams>,
   ) {
     if (this.queryUpdateHooks[modelName]?.[this.queryName]) {
-      throw new Error(`Hook for model ${modelName} already added`);
+      throw new Error(`Query [${this.queryName}]: hook for model ${modelName} already added`);
     }
 
     const queryUpdateHooks = this.queryUpdateHooks[modelName] ?? {};

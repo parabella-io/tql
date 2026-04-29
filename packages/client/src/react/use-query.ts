@@ -31,6 +31,10 @@ export const useQuery = <QueryType extends AnyQuery>(options: {
     () => null,
   );
 
+  useEffect(() => {
+    console.log(`Query [${query.options.queryName}]: state changed`, state);
+  }, [state]);
+
   return useMemo(
     () =>
       ({

@@ -12,7 +12,7 @@ export const WorkspaceLayout = ({ children }: { children: React.ReactNode }) => 
     const { data: workspaces } = useQuery({
         query: myWorkspacesQuery,
         params: {},
-    })
+    });
 
     if (!workspaces) {
         return (

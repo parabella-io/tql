@@ -1,13 +1,20 @@
-import { createStore, StoreApi } from 'zustand/vanilla';
+import { createStore, Mutate, StoreApi } from 'zustand/vanilla';
 import { immer } from 'zustand/middleware/immer';
 import stableStringify from 'fast-json-stable-stringify';
 import md5 from 'md5';
 import { produce } from 'immer';
 import type { FormattedTQLServerError } from '@tql/server/shared';
+import { subscribeWithSelector } from 'zustand/middleware';
 
 type QueryData = Record<string, any> | Array<Record<string, any>> | null;
 
 type QueryError = FormattedTQLServerError | null;
+
+type WithSelector = [
+  ['zustand/subscribeWithSelector', never]
+]
+
+
 
 export type QueryState = {
   queryName: string;
@@ -41,11 +48,14 @@ export type QueryActions = {
   reset: () => void;
 };
 
-export type QueryStore = StoreApi<QueryStoreState & QueryActions>;
+export type QueryStore = Mutate<
+  StoreApi<QueryStoreState & QueryActions>,
+  WithSelector
+>;
 
 export const createQueryStore = (): QueryStore => {
   return createStore<QueryStoreState & QueryActions>()(
-    immer((set, get) => ({
+    subscribeWithSelector(immer((set, get) => ({
       state: {},
       setRegister: (hashKey: QueryHashKey, queryState: QueryState) =>
         set((state) => {
@@ -113,7 +123,7 @@ export const createQueryStore = (): QueryStore => {
         ),
       getData: (hashKey: QueryHashKey) => get().state[hashKey]?.data ?? null,
       reset: () => set({ state: {} }),
-    })),
+    }))),
   );
 };
 

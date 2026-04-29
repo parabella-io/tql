@@ -16,13 +16,13 @@ type MemberInvitesListProps = {
 }
 
 export const MemberInvitesList = ({ workspaceId }: MemberInvitesListProps) => {
+
     const { data: invites, error } = useQuery({
         query: workspaceMemberInvitesQuery,
         params: {
             workspaceId,
         },
     })
-
 
     if (error) {
         return <ErrorCenter message="Failed to load members." />

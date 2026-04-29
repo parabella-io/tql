@@ -243,19 +243,14 @@ export class Mutation<
   public subscribe = (params: MutationParams, callback: (mutationState: MutationState) => void) => {
     const mutationHashKey = this.getHashKey(params);
 
-    return this.mutationStore.subscribe((state) => {
-      const mutationState = state[mutationHashKey];
-
-      if (mutationState) {
-        callback(mutationState);
-      }
-    });
-  };
-
-  public subscribeAll = (callback: () => void) => {
-    return this.mutationStore.subscribe(() => {
-      callback();
-    });
+    return this.mutationStore.subscribe(
+      (state) => state.state[mutationHashKey],
+      (currentState) => {
+        if (currentState) {
+          callback(currentState);
+        }
+      },
+    );
   };
 
   private triggerMutationHooks(

@@ -1,6 +1,10 @@
 import type { FormattedTQLServerError } from '@tql/server/shared';
 import { immer } from 'zustand/middleware/immer';
 import { createStore, StoreApi } from 'zustand/vanilla';
+import { subscribeWithSelector } from 'zustand/middleware';
+import { Mutate } from 'zustand';
+
+type WithSelector = [['zustand/subscribeWithSelector', never]];
 
 export type MutationState = {
   mutationName: string;
@@ -23,17 +27,19 @@ export type MutationStoreActions = {
   reset: () => void;
 };
 
-export type MutationStore = StoreApi<MutationStoreState & MutationStoreActions>;
+export type MutationStore = Mutate<StoreApi<MutationStoreState & MutationStoreActions>, WithSelector>;
 
 export const createMutationStore = (): MutationStore => {
   return createStore<MutationStoreState & MutationStoreActions>()(
-    immer((set) => ({
-      state: {},
-      setState: (mutationKey: string, mutationState: MutationState) =>
-        set((state) => {
-          state.state[mutationKey] = mutationState;
-        }),
-      reset: () => set({ state: {} }),
-    })),
+    subscribeWithSelector(
+      immer((set) => ({
+        state: {},
+        setState: (mutationKey: string, mutationState: MutationState) =>
+          set((state) => {
+            state.state[mutationKey] = mutationState;
+          }),
+        reset: () => set({ state: {} }),
+      })),
+    ),
   );
 };

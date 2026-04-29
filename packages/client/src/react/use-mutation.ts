@@ -8,9 +8,7 @@ type AnyMutation = Mutation<any, any, any, any>;
 type MutationParamsFor<MutationType extends AnyMutation> = MutationType extends Mutation<any, any, any, infer Params> ? Params : never;
 
 type MutationChangesFor<MutationType extends AnyMutation> =
-  MutationType extends Mutation<infer S, infer MutationName, any, any>
-    ? SingleMutationChangesForName<S, MutationName>
-    : never;
+  MutationType extends Mutation<infer S, infer MutationName, any, any> ? SingleMutationChangesForName<S, MutationName> : never;
 
 type UseMutationResult<MutationType extends AnyMutation> = {
   mutate: (params: MutationParamsFor<MutationType>) => Promise<MutationChangesFor<MutationType>>;
@@ -21,22 +19,27 @@ type UseMutationResult<MutationType extends AnyMutation> = {
   isError: boolean;
 };
 
+const noopUnsubscribe = () => {};
+
 export const useMutation = <MutationType extends AnyMutation>(options: { mutation: MutationType }): UseMutationResult<MutationType> => {
   const { mutation } = options;
 
   const [params, setParams] = useState<MutationParamsFor<MutationType> | null>(null);
 
-  const state = useSyncExternalStore(
-    (callback) => mutation.subscribeAll(callback),
-    () => {
-      if (!params) {
-        return null;
-      }
-
-      return mutation.getStateOrNull(params) ?? null;
+  const subscribe = useCallback(
+    (callback: () => void) => {
+      if (!params) return noopUnsubscribe;
+      return mutation.subscribe(params, () => callback());
     },
-    () => null,
-  ) as MutationState | null;
+    [mutation, params],
+  );
+
+  const getSnapshot = useCallback(() => {
+    if (!params) return null;
+    return mutation.getStateOrNull(params) ?? null;
+  }, [mutation, params]);
+
+  const state = useSyncExternalStore(subscribe, getSnapshot, () => null) as MutationState | null;
 
   const mutate = useCallback(
     async (nextParams: MutationParamsFor<MutationType>) => {
