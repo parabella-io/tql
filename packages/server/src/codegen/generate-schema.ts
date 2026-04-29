@@ -266,7 +266,6 @@ const renderEntity = (model: ModelInfo): string => {
     `export interface ${model.pascalName}Entity {`,
     ...fields,
     ...externalFields,
-    `  __model: '${model.modelName}';`,
     `}`,
   ];
   return lines.join('\n');
@@ -286,8 +285,8 @@ const renderEntityByName = (models: ModelInfo[]): string => {
 
 const renderSelectsSection = (models: ModelInfo[]): string => {
   const blocks = models.map((model) => {
-    const selectMap = `type ${model.pascalName}SelectMap = { [K in Exclude<keyof ${model.pascalName}Entity, '__model'>]?: true };`;
-    const select = `type ${model.pascalName}Select = true | ${model.pascalName}SelectMap;`;
+    const selectMap = `type ${model.pascalName}SelectMap = { [K in keyof ${model.pascalName}Entity]?: true };`;
+    const select = `type ${model.pascalName}Select = ${model.pascalName}SelectMap;`;
     return [selectMap, select].join('\n');
   });
 
@@ -653,7 +652,7 @@ const HEADER_COMMENT = `/**
  * inputs, registries, and the aggregate \`ClientSchema\`).
  *
  * Layout:
- *   1. <Model>Entity                    one per registered model, with \`__model\` brand
+ *   1. <Model>Entity                    one per registered model
  *   2. SchemaEntities                   name -> entity lookup (mutation projection)
  *   3. <Model>Select / <Model>SelectMap entity scalars
  *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair

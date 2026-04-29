@@ -4,7 +4,9 @@ export const myWorkspacesQuery = tql.createQuery('myWorkspaces', {
   queryKey: 'myWorkspaces',
   query: () => ({
     query: {},
-    select: true,
+    select: {
+      name: true,
+    },
   }),
 })
 

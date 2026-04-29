@@ -8,14 +8,28 @@ export const ticketListsQuery = tql.createQuery('ticketLists', {
       limit: 10,
       order: 'asc',
     },
-    select: true,
+    select: {
+      name: true,
+      workspaceId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
     include: {
       tickets: {
         query: {
           limit: 10,
           order: 'asc',
         },
-        select: true,
+        select: {
+          title: true,
+          description: true,
+          workspaceId: true,
+          ticketListId: true,
+          assigneeId: true,
+          reporterId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
     },
   }),

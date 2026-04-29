@@ -6,6 +6,14 @@ export const workspaceMembersQuery = tql.createQuery('workspaceMembers', {
     query: {
       workspaceId: params.workspaceId,
     },
-    select: true,
+    select: {
+      userId: true,
+      name: true,
+      email: true,
+      workspaceId: true,
+      isWorkspaceOwner: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   }),
 })

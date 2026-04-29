@@ -12,7 +12,12 @@ export const workspaceTicketLabelsQuery = tql.createQuery(
       query: {
         workspaceId: params.workspaceId,
       },
-      select: true,
+      select: {
+        name: true,
+        workspaceId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
   },
 )

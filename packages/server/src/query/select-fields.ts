@@ -1,4 +1,4 @@
-type Select = true | Record<string, any>;
+type Select = Record<string, any>;
 
 const isPlainObject = (v: unknown): v is Record<string, any> => {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -8,22 +8,16 @@ const isPlainObject = (v: unknown): v is Record<string, any> => {
  * Applies a "select" tree to an object/array.
  *
  * Rules:
- * - select === true -> return data as-is
  * - select[key] === true -> include full value for that key
  * - select[key] is an object -> recurse into that value (object or array of objects)
  * - Arrays:
  *   - if select is object and value is an array of objects -> map recursion
- *   - if value is an array of non-objects and select is not true -> return the array as-is (best-effort)
+ *   - if value is an array of non-objects -> return the array as-is (best-effort)
  */
 export const selectFields = <T>(data: T, select: Select): any => {
-  if (select === true) {
-    return data;
-  }
-
   select = {
     ...select,
     id: true,
-    __model: true,
   };
 
   // Array root

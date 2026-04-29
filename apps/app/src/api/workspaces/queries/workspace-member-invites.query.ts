@@ -8,7 +8,12 @@ export const workspaceMemberInvitesQuery = tql.createQuery(
       query: {
         workspaceId: params.workspaceId,
       },
-      select: true,
+      select: {
+        email: true,
+        workspaceId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     }),
   },
 )

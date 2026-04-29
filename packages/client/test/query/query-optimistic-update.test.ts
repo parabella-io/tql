@@ -72,7 +72,11 @@ describe('Query Optimistic Update - get()', () => {
         queryKey: profileQueryName,
         query: (params) => ({
           query: { name: params.name },
-          select: true,
+          select: {
+            name: true,
+            hobbies: true,
+            address: true,
+          },
         }),
       },
     });
@@ -89,7 +93,11 @@ describe('Query Optimistic Update - get()', () => {
           cursor: null,
           limit: 100,
           order: 'asc',
-          select: true,
+          select: {
+            name: true,
+            hobbies: true,
+            address: true,
+          },
         }),
       },
     });

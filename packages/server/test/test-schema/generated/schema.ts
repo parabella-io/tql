@@ -1,4 +1,4 @@
-// @schema-hash 16b443c67fe70dfd
+// @schema-hash ab5067a0dc1219c6
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -14,7 +14,7 @@
  * inputs, registries, and the aggregate `ClientSchema`).
  *
  * Layout:
- *   1. <Model>Entity                    one per registered model, with `__model` brand
+ *   1. <Model>Entity                    one per registered model
  *   2. SchemaEntities                   name -> entity lookup (mutation projection)
  *   3. <Model>Select / <Model>SelectMap entity scalars
  *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
@@ -55,7 +55,6 @@ export interface ProfileEntity {
     state: string;
     zip: string;
   };
-  __model: 'profile';
 }
 
 export interface PostEntity {
@@ -64,7 +63,6 @@ export interface PostEntity {
   content: string;
   profileId: string;
   commentsCount: number;
-  __model: 'post';
 }
 
 export interface CommentEntity {
@@ -72,7 +70,6 @@ export interface CommentEntity {
   comment: string;
   postId: string;
   profileId: string;
-  __model: 'comment';
 }
 
 // ===========================================================================
@@ -89,14 +86,14 @@ export interface SchemaEntities {
 // PER-MODEL SELECT SHAPES
 // ===========================================================================
 
-type ProfileSelectMap = { [K in Exclude<keyof ProfileEntity, '__model'>]?: true };
-type ProfileSelect = true | ProfileSelectMap;
+type ProfileSelectMap = { [K in keyof ProfileEntity]?: true };
+type ProfileSelect = ProfileSelectMap;
 
-type PostSelectMap = { [K in Exclude<keyof PostEntity, '__model'>]?: true };
-type PostSelect = true | PostSelectMap;
+type PostSelectMap = { [K in keyof PostEntity]?: true };
+type PostSelect = PostSelectMap;
 
-type CommentSelectMap = { [K in Exclude<keyof CommentEntity, '__model'>]?: true };
-type CommentSelect = true | CommentSelectMap;
+type CommentSelectMap = { [K in keyof CommentEntity]?: true };
+type CommentSelect = CommentSelectMap;
 
 // ===========================================================================
 // INCLUDE NODES (one named interface per parent x include relation)

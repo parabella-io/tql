@@ -119,7 +119,6 @@ describe('Server', () => {
         data: {
           id: data.profileEntities[0].id,
           name: data.profileEntities[0].name,
-          __model: 'profile',
         },
         error: null,
       },

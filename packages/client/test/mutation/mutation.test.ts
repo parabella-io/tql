@@ -125,7 +125,11 @@ describe('Mutation', () => {
           query: {
             title: params.title,
           },
-          select: true,
+          select: {
+            title: true,
+            content: true,
+            profileId: true,
+          },
         }),
       },
     });
@@ -340,7 +344,11 @@ describe('Mutation', () => {
           query: {
             title: params.title,
           },
-          select: true,
+          select: {
+            title: true,
+            content: true,
+            profileId: true,
+          },
         }),
       },
     });
@@ -496,7 +504,11 @@ describe('Mutation', () => {
           query: {
             title: params.title,
           },
-          select: true,
+          select: {
+            title: true,
+            content: true,
+            profileId: true,
+          },
         }),
       },
     });

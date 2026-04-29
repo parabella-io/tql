@@ -30,11 +30,6 @@ export function WorkspaceNavbar({ workspaces, selectedWorkspaceId }: WorkspaceNa
 
   const isSettingsActive = matchRoute({ to: '/app/$workspaceId/settings', fuzzy: false });
 
-  console.log({
-    isBoardActive,
-    isMembersActive,
-    isSettingsActive,
-  })
 
   return (
     <Sidebar>

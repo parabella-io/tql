@@ -13,7 +13,7 @@ import type {
  * Shape of a single entry in the codegen-emitted `QueryRegistry`. Carries
  * everything required to project a response from a user-supplied input:
  *
- *  - `entity`     — the underlying entity shape (with its `__model` brand).
+ *  - `entity`     — the underlying entity shape.
  *  - `kind`       — single / many arity.
  *  - `nullable`   — whether a `single` query may resolve to `null`.
  *  - `includeMap` — the parent's per-relation include map, or `never` when
@@ -33,9 +33,8 @@ export type QueryRegistryEntry = {
  * Project per-call data for a single query directly from a {@link
  * QueryRegistryEntry}-shaped registry and a user-supplied input.
  *
- * Schema-agnostic and *retains* the `__model` brand — used by the
- * codegen-emitted `QueryResponseMap` so resolver classes (and any
- * server-side runtime test harness) can still observe the brand.
+ * Schema-agnostic and used by the codegen-emitted `QueryResponseMap` so
+ * resolver classes can reference named response shapes.
  */
 export type QueryDataFromRegistry<
   Registry extends Record<string, any>,
@@ -54,9 +53,7 @@ export type QueryDataFromRegistry<
 
 /**
  * Client-facing convenience wrapper around {@link QueryDataFromRegistry}
- * that *strips* the `__model` brand recursively. Used by `@tql/client` to
- * derive per-call response data without exposing the codegen-only marker
- * to consumers.
+ * that derives per-call response data for `@tql/client`.
  */
 export type QueryDataFor<
   S extends { QueryRegistry: Record<string, any> },

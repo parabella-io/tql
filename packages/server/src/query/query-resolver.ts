@@ -861,34 +861,38 @@ const attachExternalBatchesToParsed = (parsed: any, batches: Array<{ name: strin
 
 const selectedExternalFieldNames = (select: unknown, definedKeys: string[]): string[] => {
   if (definedKeys.length === 0) return [];
-  if (select === true) return [...definedKeys];
   if (!select || typeof select !== 'object') return [];
   const o = select as Record<string, unknown>;
   return definedKeys.filter((k) => o[k] === true);
 };
 
+const SelectInputSchema = z.custom<Record<string, unknown>>(
+  (value) => typeof value === 'object' && value !== null && !Array.isArray(value),
+  { message: 'Expected select to be an object map.' },
+);
+
 const HandleQuerySingleInputSchema = z.object({
   query: z.any(),
-  select: z.any(),
+  select: SelectInputSchema,
   include: z.any(),
 });
 
 const HandleQueryManyInputSchema = z.object({
   query: z.any(),
-  select: z.any(),
+  select: SelectInputSchema,
   include: z.any(),
 });
 
 const HandleIncludeSingleInputSchema = z.object({
   query: z.any(),
-  select: z.any(),
+  select: SelectInputSchema,
   include: z.any(),
   parents: z.array(z.any()),
 });
 
 const HandleIncludeManyInputSchema = z.object({
   query: z.any(),
-  select: z.any(),
+  select: SelectInputSchema,
   parents: z.array(z.any()),
   include: z.any(),
 });

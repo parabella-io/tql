@@ -6,33 +6,77 @@ export const ticketQuery = tql.createQuery('ticketById', {
     query: {
       id: params.id,
     },
-    select: true,
+    select: {
+      title: true,
+      description: true,
+      workspaceId: true,
+      ticketListId: true,
+      assigneeId: true,
+      reporterId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
     include: {
       assignee: {
         query: {},
-        select: true,
+        select: {
+          ticketId: true,
+          userId: true,
+          name: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
       reporter: {
         query: {},
-        select: true,
+        select: {
+          ticketId: true,
+          userId: true,
+          name: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
       attachments: {
         query: {
           order: 'asc',
         },
-        select: true,
+        select: {
+          ticketId: true,
+          key: true,
+          name: true,
+          size: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
       comments: {
         query: {
           order: 'asc',
         },
-        select: true,
+        select: {
+          content: true,
+          ticketId: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
       labels: {
         query: {
           order: 'asc',
         },
-        select: true,
+        select: {
+          name: true,
+          workspaceTicketLabelId: true,
+          ticketId: true,
+          workspaceId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
     },
   }),

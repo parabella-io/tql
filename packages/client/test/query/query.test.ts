@@ -6,6 +6,18 @@ import { createQueryStore, QueryStore } from '../../src/core/query/query-store';
 
 type Schema = ClientSchema;
 
+const profileSelect = {
+  name: true,
+  hobbies: true,
+  address: true,
+} as const;
+
+const postSelect = {
+  title: true,
+  content: true,
+  profileId: true,
+} as const;
+
 describe('Query', () => {
   const handleQuery = vi.fn(async (query: Record<string, any>) =>
     Object.fromEntries(
@@ -32,7 +44,7 @@ describe('Query', () => {
 
     type ProfileByIdQueryInput = {
       query: { id: string };
-      select: true;
+      select: typeof profileSelect;
     };
 
     type ProfileByIdData = QueryDataFor<Schema, 'profileById', ProfileByIdQueryInput>;
@@ -50,7 +62,7 @@ describe('Query', () => {
         queryKey,
         query: (params) => ({
           query: { id: params.id },
-          select: true,
+          select: profileSelect,
         }),
       },
     });
@@ -91,7 +103,7 @@ describe('Query', () => {
 
     type PostsQueryInput = {
       query: { title: string | null; cursor: { id: string } | null; limit: number; order: 'asc' | 'desc' };
-      select: true;
+      select: typeof postSelect;
     };
 
     type PostsData = QueryDataFor<Schema, 'posts', PostsQueryInput>;
@@ -114,7 +126,7 @@ describe('Query', () => {
             limit: 10,
             order: 'asc',
           },
-          select: true,
+          select: postSelect,
         }),
       },
     });
@@ -161,7 +173,7 @@ describe('Query', () => {
 
     type PostQueryInput = {
       query: { id: string };
-      select: true;
+      select: typeof postSelect;
     };
 
     type PostData = QueryDataFor<Schema, 'post', PostQueryInput>;
@@ -179,7 +191,7 @@ describe('Query', () => {
         queryKey,
         query: (params) => ({
           query: { id: params.id },
-          select: true,
+          select: postSelect,
         }),
       },
     });
@@ -213,7 +225,7 @@ describe('Query', () => {
 
     type ProfileNullableQueryInput = {
       query: {};
-      select: true;
+      select: typeof profileSelect;
     };
 
     type ProfileNullableData = QueryDataFor<Schema, 'profileNullable', ProfileNullableQueryInput>;
@@ -229,7 +241,7 @@ describe('Query', () => {
         queryKey,
         query: () => ({
           query: {},
-          select: true,
+          select: profileSelect,
         }),
       },
     });
@@ -257,7 +269,7 @@ describe('Query', () => {
 
     type ProfileByIdQueryInput = {
       query: { id: string };
-      select: true;
+      select: typeof profileSelect;
     };
 
     const params: ProfileByIdQueryParams = {
@@ -300,7 +312,7 @@ describe('Query', () => {
         queryKey,
         query: (nextParams) => ({
           query: { id: nextParams.id },
-          select: true,
+          select: profileSelect,
         }),
       },
     });
@@ -327,7 +339,7 @@ describe('Query', () => {
 
     type ProfileByIdQueryInput = {
       query: { id: string };
-      select: true;
+      select: typeof profileSelect;
     };
 
     const params: ProfileByIdQueryParams = {
@@ -358,7 +370,7 @@ describe('Query', () => {
         queryKey,
         query: (nextParams) => ({
           query: { id: nextParams.id },
-          select: true,
+          select: profileSelect,
         }),
       },
     });

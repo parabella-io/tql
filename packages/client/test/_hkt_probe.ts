@@ -5,7 +5,11 @@ type S = TestSchema;
 
 type ProfileByIdQueryInput = {
   query: { id: string };
-  select: true;
+  select: {
+    name: true;
+    hobbies: true;
+    address: true;
+  };
 };
 
 type Q = { profileById: ProfileByIdQueryInput };

@@ -5,16 +5,13 @@ import type { MutationOp, Remove__Model, WithId } from './projection.js';
 
 /**
  * Entity shape for a mutation `changes` payload row, parameterized on a
- * `SchemaEntities`-shaped lookup directly. *Retains* the `__model` brand —
- * used by the codegen-emitted `MutationChanges` so resolver classes (and
- * any server-side runtime test harness) can still observe it.
+ * `SchemaEntities`-shaped lookup directly.
  */
 export type ChangesEntityFromMap<Entities, ModelName> = ModelName extends keyof Entities ? WithId<Entities[ModelName]> : never;
 
 /**
  * Client-facing convenience wrapper around {@link ChangesEntityFromMap}
- * parameterized by the aggregate {@link ClientSchema} and *stripped* of
- * the `__model` brand for end-user consumption.
+ * parameterized by the aggregate {@link ClientSchema}.
  */
 export type EntityWithId<S extends ClientSchema, ModelName> = Remove__Model<ChangesEntityFromMap<S['SchemaEntities'], ModelName>>;
 
@@ -24,7 +21,7 @@ export type EntityWithId<S extends ClientSchema, ModelName> = Remove__Model<Chan
  * `{ inserts?, updates?, upserts?, deletes? }` object that only contains
  * the ops the mutation actually declares as changed.
  *
- * Schema-agnostic, retains `__model`.
+ * Schema-agnostic.
  */
 export type MutationChangesFromRegistry<Registry, Entities, K extends keyof Registry> = {
   [Model in keyof Registry[K] & keyof Entities]: {
@@ -37,8 +34,7 @@ export type MutationChangesFromRegistry<Registry, Entities, K extends keyof Regi
 
 /**
  * Client-facing convenience wrapper around {@link MutationChangesFromRegistry}
- * parameterized by the aggregate {@link ClientSchema}, with `__model`
- * stripped so consumers don't see the codegen-only marker.
+ * parameterized by the aggregate {@link ClientSchema}.
  */
 export type MutationChangesFor<S extends ClientSchema, K extends keyof S['MutationRegistry']> = {
   [Model in keyof S['MutationRegistry'][K] & keyof S['SchemaEntities']]: {

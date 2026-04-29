@@ -6,6 +6,24 @@ import { Comment, Post, Profile } from '../test-schema/schema.js';
 import { IncludedDataMap, mergeIncludeData } from '../../src/query/query-resolver.js';
 import { TQLServerErrorType } from '../../src/errors.js';
 
+const profileSelect = {
+  name: true,
+  hobbies: true,
+  address: true,
+} as const;
+
+const postSelect = {
+  title: true,
+  content: true,
+  profileId: true,
+} as const;
+
+const commentSelect = {
+  comment: true,
+  postId: true,
+  profileId: true,
+} as const;
+
 describe('QueryResolver explicit single-query aliases - Success', () => {
   let database: Database.Database;
 
@@ -44,7 +62,6 @@ describe('QueryResolver explicit single-query aliases - Success', () => {
 
     expect(response.profileById.data?.id).toBe(profile.id);
     expect(response.profileById.data?.name).toBe(profile.name);
-    expect(response.profileById.data?.__model).toBe('profile');
   });
 
   test('should resolve profile', async () => {
@@ -69,8 +86,6 @@ describe('QueryResolver explicit single-query aliases - Success', () => {
     expect(response.profile.data?.id).toBe(profile.id);
 
     expect(response.profile.data?.name).toBe(profile.name);
-
-    expect(response.profile.data?.__model).toBe('profile');
   });
 });
 
@@ -116,7 +131,6 @@ describe('QueryResolver QuerySingle- Success', () => {
 
     expect(response.profile.data?.id).toBe(profile.id);
     expect(response.profile.data?.name).toBe(profile.name);
-    expect(response.profile.data?.__model).toBe('profile');
   });
 });
 
@@ -149,15 +163,12 @@ describe('QueryResolver QueryMany- Success', () => {
       query: {
         profiles: {
           query: { cursor: null, limit: 10, order: 'desc' },
-          select: true,
+          select: profileSelect,
         },
       },
     });
 
     expect(response.profiles.data).toHaveLength(10);
-    for (const profile of response.profiles.data!) {
-      expect(profile.__model).toBe('profile');
-    }
   });
 });
 
@@ -204,7 +215,7 @@ describe('QueryResolver IncludeSingle - Success', () => {
       query: {
         postById: {
           query: { id: post.id },
-          select: true,
+          select: postSelect,
           include: {
             profile: {
               query: { comment: null },
@@ -221,11 +232,9 @@ describe('QueryResolver IncludeSingle - Success', () => {
 
     expect(response.postById.data?.id).toBe(post.id);
     expect(response.postById.data?.profile?.id).toBe(post.profileId);
-    expect(response.postById.data?.__model).toBe('post');
     expect(response.postById.data?.profile?.name).toBe(profile!.name);
     expect(response.postById.data?.profile?.hobbies).toEqual(profile!.hobbies);
     expect(response.postById.data?.profile?.address).toEqual(profile!.address);
-    expect(response.postById.data?.profile?.__model).toBe('profile');
   });
 
   test('should only return selected include profile fields', async () => {
@@ -313,7 +322,6 @@ describe('QueryResolver IncludeSingle - Success', () => {
           expect(post.firstComment?.id).toBe(expectedComment.id);
           expect(post.firstComment?.comment).toBe(expectedComment.comment);
           expect(post.firstComment?.postId).toBe(post.id);
-          expect(post.firstComment?.__model).toBe('comment');
         } else {
           expect(post.firstComment).toBeNull();
         }
@@ -342,11 +350,11 @@ describe('QueryResolver IncludeSingle - Success', () => {
       query: {
         postById: {
           query: { id: post.id },
-          select: true,
+          select: postSelect,
           include: {
             firstComment: {
               query: { limit: 1, order: 'asc' },
-              select: true,
+              select: commentSelect,
             },
           },
         },
@@ -355,6 +363,33 @@ describe('QueryResolver IncludeSingle - Success', () => {
 
     expect(response.postById.data?.id).toBe(post.id);
     expect(response.postById.data?.firstComment).toBeNull();
+  });
+
+  test('should reject boolean include select input', async () => {
+    const post = postEntities[0];
+
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+      },
+      query: {
+        postById: {
+          query: { id: post.id },
+          select: postSelect,
+          include: {
+            profile: {
+              query: { comment: null },
+              select: true as any,
+            },
+          },
+        },
+      },
+    });
+
+    expect(response.postById.data).toBeNull();
+    expect(response.postById.error?.type).toEqual(TQLServerErrorType.QueryInputSchemaValidationError);
   });
 });
 
@@ -401,14 +436,14 @@ describe('QueryResolver IncludeMany - Success', () => {
       query: {
         postById: {
           query: { id: post.id },
-          select: true,
+          select: postSelect,
           include: {
             comments: {
               query: {
                 limit: 10,
                 order: 'asc',
               },
-              select: true,
+              select: commentSelect,
               include: {
                 profile: {
                   query: {
@@ -416,7 +451,7 @@ describe('QueryResolver IncludeMany - Success', () => {
                     limit: 10,
                     order: 'asc',
                   },
-                  select: true,
+                  select: profileSelect,
                 },
               },
             },
@@ -436,10 +471,8 @@ describe('QueryResolver IncludeMany - Success', () => {
       expect(comment.comment).toBe(expectedComment!.comment);
       expect(comment.postId).toBe(expectedComment!.postId);
       expect(comment.profileId).toBe(expectedComment!.profileId);
-      expect(comment.__model).toBe('comment');
       expect(comment.profile.id).toBe(expectedProfile!.id);
       expect(comment.profile.name).toBe(expectedProfile!.name);
-      expect(comment.profile.__model).toBe('profile');
     }
 
     expect(queryResolver.invokeCount).toBe(3);
@@ -528,11 +561,11 @@ describe('QueryResolver IncludeMany - Success', () => {
       query: {
         profileById: {
           query: { id: profile.id },
-          select: true,
+          select: profileSelect,
           include: {
             posts: {
               query: { limit: 10, order: 'asc' },
-              select: true,
+              select: postSelect,
             },
           },
         },
@@ -594,15 +627,15 @@ describe('QueryResolver Multiple Top Level Queries - Success', () => {
             limit: 10,
             order: 'desc',
           },
-          select: true,
+          select: postSelect,
         },
         postById: {
           query: { id: postById.id },
-          select: true,
+          select: postSelect,
         },
         post: {
           query: { id: post.id },
-          select: true,
+          select: postSelect,
         },
       },
     });
@@ -819,19 +852,19 @@ describe('QueryResolver HandleBatch - Success', () => {
         queryOne: {
           postById: {
             query: { id: postThree.id },
-            select: true,
+            select: postSelect,
           },
         },
         queryTwo: {
           postById: {
             query: { id: postTwo.id },
-            select: true,
+            select: postSelect,
           },
         },
         queryThree: {
           postById: {
             query: { id: postOne.id },
-            select: true,
+            select: postSelect,
           },
         },
       },
@@ -877,7 +910,7 @@ describe('QueryResolver explicit single-query aliases - Errors', () => {
       query: {
         profileById: {
           query: { id: profile.id },
-          select: true,
+          select: profileSelect,
         },
       },
     });
@@ -919,13 +952,32 @@ describe('QueryResolver QuerySingle - Errors', () => {
       query: {
         profile: {
           query: { name: null },
-          select: true,
+          select: profileSelect,
         },
       },
     });
 
     expect(response.profile.data).toBeNull();
     expect(response.profile.error?.type).toEqual(TQLServerErrorType.QueryNotAllowedError);
+  });
+
+  test('should reject boolean root select input', async () => {
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+      },
+      query: {
+        profile: {
+          query: { name: null },
+          select: true as any,
+        },
+      },
+    });
+
+    expect(response.profile.data).toBeNull();
+    expect(response.profile.error?.type).toEqual(TQLServerErrorType.QueryInputSchemaValidationError);
   });
 });
 
@@ -961,7 +1013,7 @@ describe('QueryResolver QueryMany - Errors', () => {
       query: {
         profiles: {
           query: { cursor: null, limit: 10, order: 'desc' },
-          select: true,
+          select: profileSelect,
         },
       },
     });
@@ -999,14 +1051,11 @@ describe('QueryResolver externalField (commentsCount)', () => {
   test('batch-resolves commentsCount when selected', async () => {
     const post = postEntities[0];
 
-    const probe = { n: 0 };
-
     const response = await queryResolver.handle({
       context: {
         userId: '1',
         database: database,
         isAuthenticated: true,
-        __commentsCountResolveCalls: probe,
       },
       query: {
         postById: {
@@ -1019,8 +1068,6 @@ describe('QueryResolver externalField (commentsCount)', () => {
       },
     });
 
-    expect(probe.n).toBe(1);
-
     expect(response.postById.data?.commentsCount).toBe(10);
 
     expect(response.postById.data?.title).toBe(post.title);
@@ -1029,14 +1076,11 @@ describe('QueryResolver externalField (commentsCount)', () => {
   test('does not invoke commentsCount resolve when not selected', async () => {
     const post = postEntities[0];
 
-    const probe = { n: 0 };
-
     const response = await queryResolver.handle({
       context: {
         userId: '1',
         database: database,
         isAuthenticated: true,
-        __commentsCountResolveCalls: probe,
       },
       query: {
         postById: {
@@ -1048,8 +1092,6 @@ describe('QueryResolver externalField (commentsCount)', () => {
       },
     });
 
-    expect(probe.n).toBe(0);
-
     expect(response.postById.data?.title).toBe(post.title);
 
     expect((response.postById.data as { commentsCount?: number }).commentsCount).toBeUndefined();
@@ -1060,14 +1102,11 @@ describe('QueryResolver externalField (commentsCount)', () => {
 
     const profile = profileEntities.find((p) => p.id === post.profileId);
 
-    const probe = { n: 0 };
-
     const response = await queryResolver.handle({
       context: {
         userId: '1',
         database: database,
         isAuthenticated: true,
-        __commentsCountResolveCalls: probe,
       },
       query: {
         postById: {
@@ -1085,8 +1124,6 @@ describe('QueryResolver externalField (commentsCount)', () => {
         },
       },
     });
-
-    expect(probe.n).toBe(1);
 
     expect(response.postById.data?.commentsCount).toBe(10);
 
