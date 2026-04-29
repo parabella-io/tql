@@ -176,7 +176,7 @@ async function protectedRoutes(server: FastifyInstance) {
     schema,
     generateSchema: {
       enabled: true,
-      outputPath: './generated/schema.d.ts',
+      outputPath: './__generated__/schema.d.ts',
     },
     createContext,
     effects: {
