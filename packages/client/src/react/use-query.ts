@@ -9,7 +9,6 @@ type QueryParamsFor<QueryType extends AnyQuery> = QueryType extends Query<any, a
 type UseQueryResult<QueryType extends AnyQuery> = {
   data: ReturnType<QueryType['getData']>;
   error: ReturnType<QueryType['getError']>;
-  metadata: ReturnType<QueryType['getMetadata']>;
   isLoading: boolean;
   isError: boolean;
 };
@@ -37,7 +36,6 @@ export const useQuery = <QueryType extends AnyQuery>(options: {
       ({
         data: state?.data ?? null,
         error: state?.error ?? null,
-        metadata: state?.metadata ?? null,
         isLoading: !!state?.isLoading,
         isError: !!state?.error,
       }) as UseQueryResult<QueryType>,

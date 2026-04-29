@@ -28,6 +28,7 @@ export type {
   ExtractInclude,
   GetNestedIncludeMap,
   Selected,
+  SelectedExternal,
   IncludeProjection,
   ResolveIncludeNode,
   Remove__Model,

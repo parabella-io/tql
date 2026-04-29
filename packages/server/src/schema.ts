@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Field } from './query/field.js';
-import { Model, ModelConstructor, IncludesMap } from './query/model.js';
+import { Model, ModelConstructor, IncludesMap, type ModelExternalFieldsMap } from './query/model.js';
 import { ExtractEntityShape } from './extract-entity-shape.js';
 import { Mutation, MutationOptions } from './mutation/mutation.js';
 import { SchemaEntity } from './schema-entity.js';
@@ -11,7 +11,7 @@ export class Schema<SchemaContext extends Record<string, any>, SchemaEntities ex
    * is constructed so codegen can introspect the full schema without needing a
    * live resolver.
    */
-  public readonly models: Record<string, Model<SchemaContext, SchemaEntities, any, any, any, any, any>> = {};
+  public readonly models: Record<string, Model<SchemaContext, SchemaEntities, any, any, any, any, any, any>> = {};
 
   /**
    * Mutations registered via {@link Schema.mutation}. Each mutation is named
@@ -25,16 +25,17 @@ export class Schema<SchemaContext extends Record<string, any>, SchemaEntities ex
     ModelSchema extends z.ZodObject<{
       [P in keyof ExtractEntityShape<SchemaEntities, ModelName>]: z.ZodType<ExtractEntityShape<SchemaEntities, ModelName>[P]>;
     }>,
-    ModelFields extends Record<keyof ExtractEntityShape<SchemaEntities, ModelName>, Field<SchemaContext, SchemaEntities, ModelName>>,
+    ModelFields extends Record<string, Field<SchemaContext, SchemaEntities, ModelName>>,
     ModelQueries extends Record<string, any>,
     ModelIncludes extends IncludesMap<SchemaContext, SchemaEntities, ModelName> = {},
+    ModelExternalFields extends ModelExternalFieldsMap<SchemaContext, SchemaEntities, ModelName> = Record<string, never>,
   >(
     modelName: ModelName,
-    options: ModelConstructor<SchemaContext, SchemaEntities, ModelName, ModelSchema, ModelFields, ModelQueries, ModelIncludes>,
-  ): Model<SchemaContext, SchemaEntities, ModelName, ModelSchema, ModelFields, ModelQueries, ModelIncludes> {
+    options: ModelConstructor<SchemaContext, SchemaEntities, ModelName, ModelSchema, ModelFields, ModelQueries, ModelIncludes, ModelExternalFields>,
+  ): Model<SchemaContext, SchemaEntities, ModelName, ModelSchema, ModelFields, ModelQueries, ModelIncludes, ModelExternalFields> {
     const model = new Model(modelName, options);
 
-    this.models[modelName as string] = model as unknown as Model<SchemaContext, SchemaEntities, any, any, any, any, any>;
+    this.models[modelName as string] = model as unknown as Model<SchemaContext, SchemaEntities, any, any, any, any, any, any>;
 
     return model;
   }

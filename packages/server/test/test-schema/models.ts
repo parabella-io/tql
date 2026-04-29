@@ -1,5 +1,5 @@
-import { NotFoundError } from '../../src/errors.js';
 import { z } from 'zod';
+import { NotFoundError } from '../../src/errors.js';
 import { Comment, Post, Profile, schema } from './schema.js';
 
 export const profile = schema.model('profile', {
@@ -25,7 +25,6 @@ export const profile = schema.model('profile', {
     name: field(),
     hobbies: field(),
     address: field(),
-    anotherField: field(),
   }),
 
   allowEach: ({ context }) => {
@@ -76,23 +75,6 @@ export const profile = schema.model('profile', {
           address: JSON.parse(profile.address),
         };
       },
-      metadata: ({ queryMetadata }) => ({
-        totalCount: queryMetadata({
-          schema: z.number(),
-          resolve: async ({ context, query }) => {
-            if (false) {
-              const _queryName: string | null = query.name;
-              // @ts-expect-error - metadata query inherits the parent querySingle shape
-              query.id;
-              void _queryName;
-            }
-
-            const result: any = context.database.prepare('SELECT COUNT(*) as totalCount FROM profiles').get();
-
-            return result.totalCount as number;
-          },
-        }),
-      }),
     }),
 
     profileNullable: querySingle({
@@ -137,27 +119,6 @@ export const profile = schema.model('profile', {
           address: JSON.parse(row.address),
         }));
       },
-      metadata: ({ queryMetadata }) => ({
-        totalCount: queryMetadata({
-          schema: z.number(),
-          resolve: async ({ context, query }) => {
-            if (false) {
-              const _queryLimit: number = query.limit;
-              const _queryOrder: 'asc' | 'desc' = query.order;
-              const _queryCursorId: string | undefined = query.cursor?.id;
-              // @ts-expect-error - metadata query inherits the parent queryMany shape
-              query.name;
-              void _queryLimit;
-              void _queryOrder;
-              void _queryCursorId;
-            }
-
-            const result: any = context.database.prepare('SELECT COUNT(*) as totalCount FROM profiles').get();
-
-            return result.totalCount as number;
-          },
-        }),
-      }),
     }),
   }),
 
@@ -235,8 +196,29 @@ export const post = schema.model('post', {
     return true;
   },
 
+  externalFields: ({ externalField }) => ({
+    commentsCount: externalField({
+      schema: z.number(),
+      resolve: async ({ context, entities }) => {
+        if (entities.length === 0) {
+          return [];
+        }
+
+        const placeholders = entities.map(() => '?').join(', ');
+
+        const rows = context.database
+          .prepare(`SELECT postId, COUNT(*) as c FROM comments WHERE postId IN (${placeholders}) GROUP BY postId`)
+          .all(...entities.map((e: Post) => e.id)) as { postId: string; c: number }[];
+
+        const byPost = new Map(rows.map((r) => [r.postId, Number(r.c)]));
+
+        return entities.map((e: Post) => byPost.get(e.id) ?? 0);
+      },
+    }),
+  }),
+
   queries: ({ querySingle, queryMany }) => ({
-    postById: querySingle<{ id: string }>({
+    postById: querySingle({
       query: z.object({
         id: z.string(),
       }),
@@ -252,7 +234,7 @@ export const post = schema.model('post', {
       },
     }),
 
-    post: querySingle<{ id: string }>({
+    post: querySingle({
       query: z.object({
         id: z.string(),
       }),
@@ -268,12 +250,7 @@ export const post = schema.model('post', {
       },
     }),
 
-    posts: queryMany<{
-      title: string | null;
-      cursor: { id: string } | null;
-      limit: number;
-      order: 'asc' | 'desc';
-    }>({
+    posts: queryMany({
       query: z.object({
         title: z.string().nullable(),
         cursor: z

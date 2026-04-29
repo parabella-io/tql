@@ -17,10 +17,7 @@ export type HttpHandlerHooks = {
   afterResponse(callback: () => void | Promise<void>): void;
 };
 
-export type HttpHandler<HttpRequest, Response = unknown> = (
-  request: HttpRequest,
-  hooks: HttpHandlerHooks,
-) => Promise<Response> | Response;
+export type HttpHandler<HttpRequest, Response = unknown> = (request: HttpRequest, hooks: HttpHandlerHooks) => Promise<Response> | Response;
 
 export interface HttpAdapter<HttpRequest> {
   post(path: string, handler: HttpHandler<HttpRequest>): void;

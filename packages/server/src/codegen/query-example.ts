@@ -14,7 +14,7 @@
  *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
  *
  * Layout per query:
- *   5. <Query>Input                     `{ query, select, include?, metadata? }` interface
+ *   5. <Query>Input                     `{ query, select, include? }` interface
  *
  * Aggregates:
  *   6. QueryInputMap                    flat map of queryName -> input interface
@@ -502,9 +502,7 @@ export interface QueryInputMap {
 // QUERY REGISTRY (entity + arity + nullability + parent include map)
 //
 // Drives projection in `HandleQueryResponse` without any per-query data type
-// declarations. None of the current queries declare metadata or are nullable;
-// the registry still carries those fields so adding either later is a single
-// flag flip rather than a structural change.
+// declarations.
 // =============================================================================
 
 interface QueryRegistry {
@@ -570,7 +568,6 @@ export type HandleQueryResponse<Q extends Partial<QueryInputMap>> = {
   [K in keyof Q & keyof QueryInputMap]: {
     data: (Q[K] extends QueryInputMap[K] ? QueryData<K, Q[K]> : never) | null;
     error: FormattedTQLServerError | null;
-    metadata: Record<string, unknown>;
   };
 };
 

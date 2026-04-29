@@ -6,7 +6,6 @@ import type {
   QueryInputFor,
   QueryOptions,
   QueryDataFor,
-  QueryMetadataFor,
   QueryModelNameFor,
   QueryModelUpdateHook,
   QueryModelShapeFor,
@@ -81,7 +80,6 @@ export class Query<
       params,
       error: null,
       data: null,
-      metadata: null,
       isEnabled,
       isLoading: false,
       isStale: true,
@@ -149,7 +147,7 @@ export class Query<
 
         const queryResponse = response[queryState.queryName];
 
-        const { data, error, metadata } = queryResponse;
+        const { data, error } = queryResponse;
 
         if (!data) throw new Error(`Invalid response from query "${queryState.queryName}"`);
 
@@ -159,7 +157,6 @@ export class Query<
           ...queryState,
           data,
           error,
-          metadata,
           isStale: false,
           isLoading: false,
           staleAtTimestamp,
@@ -223,10 +220,6 @@ export class Query<
 
   public getData = (params: QueryParams): QueryDataFor<S, QueryName, QueryInput> => {
     return this.getState(params).data as QueryDataFor<S, QueryName, QueryInput>;
-  };
-
-  public getMetadata = (params: QueryParams): QueryMetadataFor<S, QueryName, QueryInput> => {
-    return this.getState(params).metadata as QueryMetadataFor<S, QueryName, QueryInput>;
   };
 
   public getError = (params: QueryParams): FormattedTQLServerError | null => {

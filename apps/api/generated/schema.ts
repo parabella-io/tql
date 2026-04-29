@@ -1,4 +1,4 @@
-// @schema-hash 21707e25b49faf21
+// @schema-hash 1127b3d17fce1a87
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -15,18 +15,19 @@
  *
  * Layout:
  *   1. <Model>Entity                    one per registered model, with `__model` brand
- *   2. SchemaEntities                   name -> entity lookup (mutation projection)
- *   3. <Model>Select / <Model>SelectMap selectable scalar projection input
- *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
- *   5. <Model>IncludeMap                map of relation-name -> named IncludeNode
- *   6. <Query>Input + QueryInputMap     per-query envelopes (`query`, `select`, `include?`) and aggregate map
- *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap }
- *   8. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
- *   9. MutationRegistry                 mutationName -> declared `changed` map
- *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
- *  11. MutationResponseMap / HandleMutationResponse aliases over shared helpers
- *  12. ClientSchema                     aggregate map consumed by @tql/client
- *  13. handleQuery / handleMutation     type-only stubs
+ *   2. <Model>ExternalFields            value types for external-only batch fields (own Zod per field)
+ *   3. SchemaEntities                   name -> entity lookup (mutation projection)
+ *   4. <Model>Select / <Model>SelectMap entity scalars + external scalars
+ *   5. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
+ *   6. <Model>IncludeMap                map of relation-name -> named IncludeNode
+ *   7. <Query>Input + QueryInputMap     per-query envelopes (`query`, `select`, `include?`) and aggregate map
+ *   8. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys, externalFields }
+ *   9. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
+ *  10. MutationRegistry                 mutationName -> declared `changed` map
+ *  11. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
+ *  12. MutationResponseMap / HandleMutationResponse aliases over shared helpers
+ *  13. ClientSchema                     aggregate map consumed by @tql/client
+ *  14. handleQuery / handleMutation     type-only stubs
  */
 
 import type {
@@ -165,6 +166,34 @@ export interface TicketListEntity {
 }
 
 // ===========================================================================
+// EXTERNAL FIELD VALUE TYPES (not part of Entity / model Zod schema)
+// ===========================================================================
+
+export type UserExternalFields = Record<never, never>;
+
+export type WorkspaceExternalFields = Record<never, never>;
+
+export type WorkspaceMemberExternalFields = Record<never, never>;
+
+export type WorkspaceTicketLabelExternalFields = Record<never, never>;
+
+export type WorkspaceMemberInviteExternalFields = Record<never, never>;
+
+export type TicketExternalFields = Record<never, never>;
+
+export type TicketAttachmentExternalFields = Record<never, never>;
+
+export type TicketCommentExternalFields = Record<never, never>;
+
+export type TicketLabelExternalFields = Record<never, never>;
+
+export type TicketAssigneeExternalFields = Record<never, never>;
+
+export type TicketReporterExternalFields = Record<never, never>;
+
+export type TicketListExternalFields = Record<never, never>;
+
+// ===========================================================================
 // ENTITY BY NAME (drives mutation response projection without distributing over a union)
 // ===========================================================================
 
@@ -184,43 +213,67 @@ export interface SchemaEntities {
 }
 
 // ===========================================================================
-// PER-MODEL SELECT SHAPES
+// PER-MODEL SELECT SHAPES (entity scalars + external field scalars)
 // ===========================================================================
 
-type UserSelectMap = { [K in Exclude<keyof UserEntity, '__model'>]?: true };
+type UserScalarSelectMap = { [K in Exclude<keyof UserEntity, '__model'>]?: true };
+type UserExternalSelectMap = { [K in keyof UserExternalFields]?: true };
+type UserSelectMap = UserScalarSelectMap & UserExternalSelectMap;
 type UserSelect = true | UserSelectMap;
 
-type WorkspaceSelectMap = { [K in Exclude<keyof WorkspaceEntity, '__model'>]?: true };
+type WorkspaceScalarSelectMap = { [K in Exclude<keyof WorkspaceEntity, '__model'>]?: true };
+type WorkspaceExternalSelectMap = { [K in keyof WorkspaceExternalFields]?: true };
+type WorkspaceSelectMap = WorkspaceScalarSelectMap & WorkspaceExternalSelectMap;
 type WorkspaceSelect = true | WorkspaceSelectMap;
 
-type WorkspaceMemberSelectMap = { [K in Exclude<keyof WorkspaceMemberEntity, '__model'>]?: true };
+type WorkspaceMemberScalarSelectMap = { [K in Exclude<keyof WorkspaceMemberEntity, '__model'>]?: true };
+type WorkspaceMemberExternalSelectMap = { [K in keyof WorkspaceMemberExternalFields]?: true };
+type WorkspaceMemberSelectMap = WorkspaceMemberScalarSelectMap & WorkspaceMemberExternalSelectMap;
 type WorkspaceMemberSelect = true | WorkspaceMemberSelectMap;
 
-type WorkspaceTicketLabelSelectMap = { [K in Exclude<keyof WorkspaceTicketLabelEntity, '__model'>]?: true };
+type WorkspaceTicketLabelScalarSelectMap = { [K in Exclude<keyof WorkspaceTicketLabelEntity, '__model'>]?: true };
+type WorkspaceTicketLabelExternalSelectMap = { [K in keyof WorkspaceTicketLabelExternalFields]?: true };
+type WorkspaceTicketLabelSelectMap = WorkspaceTicketLabelScalarSelectMap & WorkspaceTicketLabelExternalSelectMap;
 type WorkspaceTicketLabelSelect = true | WorkspaceTicketLabelSelectMap;
 
-type WorkspaceMemberInviteSelectMap = { [K in Exclude<keyof WorkspaceMemberInviteEntity, '__model'>]?: true };
+type WorkspaceMemberInviteScalarSelectMap = { [K in Exclude<keyof WorkspaceMemberInviteEntity, '__model'>]?: true };
+type WorkspaceMemberInviteExternalSelectMap = { [K in keyof WorkspaceMemberInviteExternalFields]?: true };
+type WorkspaceMemberInviteSelectMap = WorkspaceMemberInviteScalarSelectMap & WorkspaceMemberInviteExternalSelectMap;
 type WorkspaceMemberInviteSelect = true | WorkspaceMemberInviteSelectMap;
 
-type TicketSelectMap = { [K in Exclude<keyof TicketEntity, '__model'>]?: true };
+type TicketScalarSelectMap = { [K in Exclude<keyof TicketEntity, '__model'>]?: true };
+type TicketExternalSelectMap = { [K in keyof TicketExternalFields]?: true };
+type TicketSelectMap = TicketScalarSelectMap & TicketExternalSelectMap;
 type TicketSelect = true | TicketSelectMap;
 
-type TicketAttachmentSelectMap = { [K in Exclude<keyof TicketAttachmentEntity, '__model'>]?: true };
+type TicketAttachmentScalarSelectMap = { [K in Exclude<keyof TicketAttachmentEntity, '__model'>]?: true };
+type TicketAttachmentExternalSelectMap = { [K in keyof TicketAttachmentExternalFields]?: true };
+type TicketAttachmentSelectMap = TicketAttachmentScalarSelectMap & TicketAttachmentExternalSelectMap;
 type TicketAttachmentSelect = true | TicketAttachmentSelectMap;
 
-type TicketCommentSelectMap = { [K in Exclude<keyof TicketCommentEntity, '__model'>]?: true };
+type TicketCommentScalarSelectMap = { [K in Exclude<keyof TicketCommentEntity, '__model'>]?: true };
+type TicketCommentExternalSelectMap = { [K in keyof TicketCommentExternalFields]?: true };
+type TicketCommentSelectMap = TicketCommentScalarSelectMap & TicketCommentExternalSelectMap;
 type TicketCommentSelect = true | TicketCommentSelectMap;
 
-type TicketLabelSelectMap = { [K in Exclude<keyof TicketLabelEntity, '__model'>]?: true };
+type TicketLabelScalarSelectMap = { [K in Exclude<keyof TicketLabelEntity, '__model'>]?: true };
+type TicketLabelExternalSelectMap = { [K in keyof TicketLabelExternalFields]?: true };
+type TicketLabelSelectMap = TicketLabelScalarSelectMap & TicketLabelExternalSelectMap;
 type TicketLabelSelect = true | TicketLabelSelectMap;
 
-type TicketAssigneeSelectMap = { [K in Exclude<keyof TicketAssigneeEntity, '__model'>]?: true };
+type TicketAssigneeScalarSelectMap = { [K in Exclude<keyof TicketAssigneeEntity, '__model'>]?: true };
+type TicketAssigneeExternalSelectMap = { [K in keyof TicketAssigneeExternalFields]?: true };
+type TicketAssigneeSelectMap = TicketAssigneeScalarSelectMap & TicketAssigneeExternalSelectMap;
 type TicketAssigneeSelect = true | TicketAssigneeSelectMap;
 
-type TicketReporterSelectMap = { [K in Exclude<keyof TicketReporterEntity, '__model'>]?: true };
+type TicketReporterScalarSelectMap = { [K in Exclude<keyof TicketReporterEntity, '__model'>]?: true };
+type TicketReporterExternalSelectMap = { [K in keyof TicketReporterExternalFields]?: true };
+type TicketReporterSelectMap = TicketReporterScalarSelectMap & TicketReporterExternalSelectMap;
 type TicketReporterSelect = true | TicketReporterSelectMap;
 
-type TicketListSelectMap = { [K in Exclude<keyof TicketListEntity, '__model'>]?: true };
+type TicketListScalarSelectMap = { [K in Exclude<keyof TicketListEntity, '__model'>]?: true };
+type TicketListExternalSelectMap = { [K in keyof TicketListExternalFields]?: true };
+type TicketListSelectMap = TicketListScalarSelectMap & TicketListExternalSelectMap;
 type TicketListSelect = true | TicketListSelectMap;
 
 // ===========================================================================
@@ -522,32 +575,32 @@ export interface QueryInputMap {
 }
 
 // ===========================================================================
-// QUERY REGISTRY (entity + arity + nullability + parent include map)
+// QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys + externalFields)
 // ===========================================================================
 
 export interface QueryRegistry {
-  userById: { entity: UserEntity; kind: 'single'; nullable: false; includeMap: never };
-  workspaceById: { entity: WorkspaceEntity; kind: 'single'; nullable: false; includeMap: WorkspaceIncludeMap };
-  myWorkspaces: { entity: WorkspaceEntity; kind: 'many'; nullable: false; includeMap: WorkspaceIncludeMap };
-  workspaceMemberById: { entity: WorkspaceMemberEntity; kind: 'single'; nullable: false; includeMap: never };
-  workspaceMembers: { entity: WorkspaceMemberEntity; kind: 'many'; nullable: false; includeMap: never };
-  workspaceTicketLabelById: { entity: WorkspaceTicketLabelEntity; kind: 'single'; nullable: false; includeMap: never };
-  workspaceTicketLabels: { entity: WorkspaceTicketLabelEntity; kind: 'many'; nullable: false; includeMap: never };
-  workspaceMemberInviteById: { entity: WorkspaceMemberInviteEntity; kind: 'single'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap };
-  myWorkspaceInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap };
-  workspaceMemberInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap };
-  ticketById: { entity: TicketEntity; kind: 'single'; nullable: false; includeMap: TicketIncludeMap };
-  tickets: { entity: TicketEntity; kind: 'many'; nullable: false; includeMap: TicketIncludeMap };
-  ticketAttachmentById: { entity: TicketAttachmentEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketAttachments: { entity: TicketAttachmentEntity; kind: 'many'; nullable: false; includeMap: never };
-  ticketCommentById: { entity: TicketCommentEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketComments: { entity: TicketCommentEntity; kind: 'many'; nullable: false; includeMap: never };
-  ticketLabelById: { entity: TicketLabelEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketLabels: { entity: TicketLabelEntity; kind: 'many'; nullable: false; includeMap: never };
-  ticketAssigneeById: { entity: TicketAssigneeEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketReporterById: { entity: TicketReporterEntity; kind: 'single'; nullable: false; includeMap: never };
-  ticketListById: { entity: TicketListEntity; kind: 'single'; nullable: false; includeMap: TicketListIncludeMap };
-  ticketLists: { entity: TicketListEntity; kind: 'many'; nullable: false; includeMap: TicketListIncludeMap };
+  userById: { entity: UserEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: UserExternalFields };
+  workspaceById: { entity: WorkspaceEntity; kind: 'single'; nullable: false; includeMap: WorkspaceIncludeMap; externalFieldKeys: readonly []; externalFields: WorkspaceExternalFields };
+  myWorkspaces: { entity: WorkspaceEntity; kind: 'many'; nullable: false; includeMap: WorkspaceIncludeMap; externalFieldKeys: readonly []; externalFields: WorkspaceExternalFields };
+  workspaceMemberById: { entity: WorkspaceMemberEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: WorkspaceMemberExternalFields };
+  workspaceMembers: { entity: WorkspaceMemberEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: WorkspaceMemberExternalFields };
+  workspaceTicketLabelById: { entity: WorkspaceTicketLabelEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: WorkspaceTicketLabelExternalFields };
+  workspaceTicketLabels: { entity: WorkspaceTicketLabelEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: WorkspaceTicketLabelExternalFields };
+  workspaceMemberInviteById: { entity: WorkspaceMemberInviteEntity; kind: 'single'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly []; externalFields: WorkspaceMemberInviteExternalFields };
+  myWorkspaceInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly []; externalFields: WorkspaceMemberInviteExternalFields };
+  workspaceMemberInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly []; externalFields: WorkspaceMemberInviteExternalFields };
+  ticketById: { entity: TicketEntity; kind: 'single'; nullable: false; includeMap: TicketIncludeMap; externalFieldKeys: readonly []; externalFields: TicketExternalFields };
+  tickets: { entity: TicketEntity; kind: 'many'; nullable: false; includeMap: TicketIncludeMap; externalFieldKeys: readonly []; externalFields: TicketExternalFields };
+  ticketAttachmentById: { entity: TicketAttachmentEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: TicketAttachmentExternalFields };
+  ticketAttachments: { entity: TicketAttachmentEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: TicketAttachmentExternalFields };
+  ticketCommentById: { entity: TicketCommentEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: TicketCommentExternalFields };
+  ticketComments: { entity: TicketCommentEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: TicketCommentExternalFields };
+  ticketLabelById: { entity: TicketLabelEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: TicketLabelExternalFields };
+  ticketLabels: { entity: TicketLabelEntity; kind: 'many'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: TicketLabelExternalFields };
+  ticketAssigneeById: { entity: TicketAssigneeEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: TicketAssigneeExternalFields };
+  ticketReporterById: { entity: TicketReporterEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly []; externalFields: TicketReporterExternalFields };
+  ticketListById: { entity: TicketListEntity; kind: 'single'; nullable: false; includeMap: TicketListIncludeMap; externalFieldKeys: readonly []; externalFields: TicketListExternalFields };
+  ticketLists: { entity: TicketListEntity; kind: 'many'; nullable: false; includeMap: TicketListIncludeMap; externalFieldKeys: readonly []; externalFields: TicketListExternalFields };
 }
 
 // ===========================================================================

@@ -19,7 +19,6 @@ describe('Query Optimistic Update - get()', () => {
         },
       },
       error: null,
-      metadata: {},
     },
   });
 
@@ -50,7 +49,6 @@ describe('Query Optimistic Update - get()', () => {
         },
       ],
       error: null,
-      metadata: {},
     },
   });
 

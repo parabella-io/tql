@@ -2,10 +2,10 @@ import { z } from 'zod';
 
 import { ExtractEntityShape } from '../extract-entity-shape.js';
 
-type RelationEntity<
-  SchemaEntities extends Record<string, any>,
-  RelationName extends keyof SchemaEntities & string,
-> = ExtractEntityShape<SchemaEntities, RelationName>;
+type RelationEntity<SchemaEntities extends Record<string, any>, RelationName extends keyof SchemaEntities & string> = ExtractEntityShape<
+  SchemaEntities,
+  RelationName
+>;
 
 type ResolvedIncludeEntity<
   SchemaEntities extends Record<string, any>,

@@ -49,16 +49,6 @@ export type QueryResponse<S extends ClientSchema, QueryInput extends Record<stri
   [K in keyof QueryInput & keyof S['QueryResponseMap']]: S['QueryResponseMap'][K];
 };
 
-export type QueryMetadataFor<
-  S extends ClientSchema,
-  QueryName extends QueryNameFor<S>,
-  _QueryInput extends QueryInputFor<S, QueryName>,
-> = QueryName extends keyof S['QueryResponseMap']
-  ? S['QueryResponseMap'][QueryName] extends { metadata: infer Metadata }
-    ? Metadata
-    : never
-  : never;
-
 export type QueryOptions<
   S extends ClientSchema,
   QueryName extends QueryNameFor<S>,

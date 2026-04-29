@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ClientSchema } from '@tql/server/test-schema';
 import { Query } from '../../src/core/query/query';
-import { QueryDataFor, QueryMetadataFor } from '../../src/core/query/query.types';
+import { QueryDataFor } from '../../src/core/query/query.types';
 import { createQueryStore, QueryStore } from '../../src/core/query/query-store';
 
 type Schema = ClientSchema;
@@ -12,9 +12,10 @@ describe('Query', () => {
       Object.keys(query).map((queryName) => [
         queryName,
         {
-          data: null,
+          // Truthy placeholder so `execute` / `checkIfStale` paths do not reject;
+          // individual tests override state via `updateState` where needed.
+          data: {},
           error: null,
-          metadata: {},
         },
       ]),
     ),
@@ -79,80 +80,6 @@ describe('Query', () => {
     expect(updatedData!.name).toEqual(data!.name);
     expect(updatedData!.hobbies).toEqual(data!.hobbies);
     expect(updatedData!.address).toEqual(data!.address);
-  });
-
-  it('should be able to register profile query with metadata and be typesafe', async () => {
-    const queryKey = 'profile';
-
-    type ProfileQueryParams = {
-      name: string | null;
-    };
-
-    type ProfileQueryInput = {
-      query: { name: string | null };
-      select: true;
-      metadata: {
-        totalCount: true;
-      };
-    };
-
-    type ProfileData = QueryDataFor<Schema, 'profile', ProfileQueryInput>;
-
-    type ProfileMetadata = QueryMetadataFor<Schema, 'profile', ProfileQueryInput>;
-
-    const params: ProfileQueryParams = {
-      name: 'John Doe',
-    };
-
-    const query = new Query<Schema, 'profile', ProfileQueryInput, ProfileQueryParams>({
-      queryHandler: handleQuery,
-      store: store,
-      queryName: queryKey,
-      queryUpdateHooks: {},
-      queryOptions: {
-        queryKey,
-        query: (params) => ({
-          query: { name: params.name },
-          select: true,
-          metadata: {
-            totalCount: true,
-          },
-        }),
-      },
-    });
-
-    query.register(params);
-
-    const data = {
-      id: '1',
-      name: 'John Doe',
-      hobbies: [],
-      address: {
-        street: '123 Main St',
-        city: 'Anytown',
-        state: 'CA',
-        zip: '12345',
-      },
-      __model: 'profile',
-    } as unknown as ProfileData;
-
-    const metadata = {
-      totalCount: 1,
-    } as ProfileMetadata;
-
-    query.updateState(params, (state) => {
-      state.data = data;
-      state.metadata = metadata;
-      return state;
-    });
-
-    const updatedData = query.getData(params);
-    expect(updatedData!.id).toEqual(data!.id);
-    expect(updatedData!.name).toEqual(data!.name);
-    expect(updatedData!.hobbies).toEqual(data!.hobbies);
-    expect(updatedData!.address).toEqual(data!.address);
-    const updatedMetadata = query.getMetadata(params);
-    expect(updatedMetadata!.totalCount).toEqual(metadata!.totalCount);
   });
 
   it('should be able to register posts query and be typesafe', async () => {
@@ -352,7 +279,6 @@ describe('Query', () => {
           __model: 'profile',
         },
         error: null,
-        metadata: {},
       },
     };
 

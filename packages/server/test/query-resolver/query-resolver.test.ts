@@ -118,31 +118,6 @@ describe('QueryResolver QuerySingle- Success', () => {
     expect(response.profile.data?.name).toBe(profile.name);
     expect(response.profile.data?.__model).toBe('profile');
   });
-
-  test('should resolve query metadata successfully', async () => {
-    const profile = profileEntities[0];
-
-    const response = await queryResolver.handle({
-      context: {
-        userId: '1',
-        database: database,
-        isAuthenticated: true,
-      },
-      query: {
-        profile: {
-          query: { name: profile.name },
-          select: true,
-          metadata: {
-            totalCount: true,
-          },
-        },
-      },
-    });
-
-    expect(response.profile.metadata.totalCount).toBe(profileEntities.length);
-
-    expect(response.profile.data?.__model).toBe('profile');
-  });
 });
 
 describe('QueryResolver QueryMany- Success', () => {
@@ -164,7 +139,7 @@ describe('QueryResolver QueryMany- Success', () => {
     profileEntities = data.profileEntities;
   });
 
-  test('should resolve query metadata successfully', async () => {
+  test('should resolve profiles list successfully', async () => {
     const response = await queryResolver.handle({
       context: {
         userId: '1',
@@ -175,14 +150,11 @@ describe('QueryResolver QueryMany- Success', () => {
         profiles: {
           query: { cursor: null, limit: 10, order: 'desc' },
           select: true,
-          metadata: {
-            totalCount: true,
-          },
         },
       },
     });
 
-    expect(response.profiles.metadata.totalCount).toBe(profileEntities.length);
+    expect(response.profiles.data).toHaveLength(10);
     for (const profile of response.profiles.data!) {
       expect(profile.__model).toBe('profile');
     }
@@ -996,5 +968,128 @@ describe('QueryResolver QueryMany - Errors', () => {
 
     expect(response.profiles.data).toBeNull();
     expect(response.profiles.error?.type).toEqual(TQLServerErrorType.QueryNotAllowedError);
+  });
+});
+
+describe('QueryResolver externalField (commentsCount)', () => {
+  let database: Database.Database;
+
+  let postEntities: Post[] = [];
+
+  let profileEntities: Profile[] = [];
+
+  beforeEach(async () => {
+    if (database) {
+      database.close();
+    }
+
+    const data = await create({
+      profileCount: 3,
+      postCount: 3,
+      commentCount: 10,
+    });
+
+    database = data.db;
+
+    postEntities = data.postEntities;
+
+    profileEntities = data.profileEntities;
+  });
+
+  test('batch-resolves commentsCount when selected', async () => {
+    const post = postEntities[0];
+
+    const probe = { n: 0 };
+
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+        __commentsCountResolveCalls: probe,
+      },
+      query: {
+        postById: {
+          query: { id: post.id },
+          select: {
+            title: true,
+            commentsCount: true,
+          },
+        },
+      },
+    });
+
+    expect(probe.n).toBe(1);
+
+    expect(response.postById.data?.commentsCount).toBe(10);
+
+    expect(response.postById.data?.title).toBe(post.title);
+  });
+
+  test('does not invoke commentsCount resolve when not selected', async () => {
+    const post = postEntities[0];
+
+    const probe = { n: 0 };
+
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+        __commentsCountResolveCalls: probe,
+      },
+      query: {
+        postById: {
+          query: { id: post.id },
+          select: {
+            title: true,
+          },
+        },
+      },
+    });
+
+    expect(probe.n).toBe(0);
+
+    expect(response.postById.data?.title).toBe(post.title);
+
+    expect((response.postById.data as { commentsCount?: number }).commentsCount).toBeUndefined();
+  });
+
+  test('runs external field resolve in parallel with include', async () => {
+    const post = postEntities[0];
+
+    const profile = profileEntities.find((p) => p.id === post.profileId);
+
+    const probe = { n: 0 };
+
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+        __commentsCountResolveCalls: probe,
+      },
+      query: {
+        postById: {
+          query: { id: post.id },
+          select: {
+            title: true,
+            commentsCount: true,
+          },
+          include: {
+            profile: {
+              query: { comment: null },
+              select: { name: true },
+            },
+          },
+        },
+      },
+    });
+
+    expect(probe.n).toBe(1);
+
+    expect(response.postById.data?.commentsCount).toBe(10);
+
+    expect(response.postById.data?.profile?.name).toBe(profile?.name);
   });
 });

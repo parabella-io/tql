@@ -8,18 +8,22 @@ import { Schema } from '../schema.js';
 import { FormattedTQLServerError, TQLServerError, TQLServerErrorType } from '../errors.js';
 import { selectFields } from './select-fields.js';
 import { ExtractEntityShape } from '../extract-entity-shape.js';
-import type { ClientSchema } from '../client-schema.js';
+import type { ClientSchema } from '../shared/client-schema.js';
+import type { QueryDataFromRegistry } from '../shared/query-projection.js';
 
 export type QueryResolverOptions = {
   schema: Schema<any, any>;
 };
 
 /**
- * Project the full {@link QueryResponseMap} down to just the keys present in
- * a given query input `Q`. This is the per-call return type for `handle`.
+ * Per-call `handle` response: only requested query keys, with `data` projected
+ * from the actual input `Q[K]` (not the full {@link ClientSchema} input map).
  */
-export type ApplyQueryResponseMap<QueryResponseMap, Q> = {
-  [K in keyof Q & keyof QueryResponseMap]: QueryResponseMap[K];
+export type ApplyQueryResponseMap<S extends ClientSchema, Q extends Partial<S['QueryInputMap']>> = {
+  [K in keyof Q & keyof S['QueryResponseMap']]: {
+    data: QueryDataFromRegistry<S['QueryRegistry'], K & keyof S['QueryRegistry'], Q[K]> | null;
+    error: FormattedTQLServerError | null;
+  };
 };
 
 /**
@@ -47,13 +51,13 @@ export class QueryResolver<S extends ClientSchema> {
 
   private readonly schema: Schema<any, any>;
 
-  private readonly models: Record<string, Model<any, any, any, any, any, any, any>> = {};
+  private readonly models: Record<string, Model<any, any, any, any, any, any, any, any>> = {};
 
   private readonly queryTypes: Record<string, 'single' | 'many'> = {};
 
-  private readonly querySingles: Record<string, QuerySingle<any, any, any, any, any, any>> = {};
+  private readonly querySingles: Record<string, QuerySingle<any, any, any, any, any>> = {};
 
-  private readonly queryManys: Record<string, QueryMany<any, any, any, any, any>> = {};
+  private readonly queryManys: Record<string, QueryMany<any, any, any, any>> = {};
 
   private readonly includeQueryTypes: Record<string, 'includeSingle' | 'includeMany'> = {};
 
@@ -67,7 +71,7 @@ export class QueryResolver<S extends ClientSchema> {
     this.schema = options.schema;
 
     for (const modelName of Object.keys(this.schema.models)) {
-      const model = this.schema.models[modelName] as Model<any, any, any, any, any, any, any>;
+      const model = this.schema.models[modelName] as Model<any, any, any, any, any, any, any, any>;
 
       this.models[modelName] = model;
 
@@ -102,7 +106,7 @@ export class QueryResolver<S extends ClientSchema> {
   public async handle<const Q extends Partial<S['QueryInputMap']>>(options: {
     context: any;
     query: Q;
-  }): Promise<ApplyQueryResponseMap<S['QueryResponseMap'], Q>> {
+  }): Promise<ApplyQueryResponseMap<S, Q>> {
     const { context, query: queryInput } = options;
 
     this.invokeCount = 0;
@@ -116,7 +120,6 @@ export class QueryResolver<S extends ClientSchema> {
     const requests: Promise<{
       queryName: string;
       data: Record<string, any> | Array<Record<string, any>> | null;
-      metadata: Record<string, any>;
       error: FormattedTQLServerError | null;
     }>[] = [];
 
@@ -136,7 +139,6 @@ export class QueryResolver<S extends ClientSchema> {
       response[result.queryName] = {
         data: result.data,
         error: result.error,
-        metadata: result.metadata,
       };
     }
 
@@ -146,7 +148,7 @@ export class QueryResolver<S extends ClientSchema> {
   public async handleBatch<const QS extends Record<string, Partial<S['QueryInputMap']>>>(options: {
     context: any;
     queries: QS;
-  }): Promise<{ [K in keyof QS]: ApplyQueryResponseMap<S['QueryResponseMap'], QS[K]> }> {
+  }): Promise<{ [K in keyof QS]: ApplyQueryResponseMap<S, QS[K]> }> {
     const { context, queries } = options;
 
     const entries = Object.entries(queries) as Array<[keyof QS & string, QS[keyof QS]]>;
@@ -173,13 +175,11 @@ export class QueryResolver<S extends ClientSchema> {
     queryName: keyof Q & string;
     data: Record<string, any> | null;
     error: FormattedTQLServerError | null;
-    metadata: Record<string, any>;
   }> {
     const { context, queryInput, queryName } = options;
 
     let data: Record<string, any> | null = null;
     let formattedError: FormattedTQLServerError | null = null;
-    let metadata: Record<string, any> = {};
 
     try {
       const { data: parsedQuery, error: parsedError } = HandleQuerySingleInputSchema.safeParse(queryInput[queryName]);
@@ -235,64 +235,75 @@ export class QueryResolver<S extends ClientSchema> {
         __model: z.string(modelName).default(modelName),
       });
 
-      const parsedResult = isNullable ? schemaWithModel.nullable().safeParse(entity) : schemaWithModel.safeParse(entity);
+      let includeData: IncludedDataMap | null = null;
 
-      if (parsedResult.error) {
-        throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, { queryName, message: parsedResult.error.message });
-      }
+      let externalBatches: Array<{ name: string; values: any[] }> = [];
 
-      data = selectFields(parsedResult.data, parsedQuery.select);
+      if (isNullable) {
+        const working = entity === null ? null : { ...entity };
 
-      if (parsedQuery.include) {
-        const includeData = await this.handleInclude({
+        if (working !== null) {
+          const side = await this.resolveIncludesAndExternalBatches({
+            context,
+            queryName,
+            model,
+            modelName,
+            workingEntities: [working],
+            select: parsedQuery.select,
+            parentInclude: parsedQuery.include,
+          });
+          includeData = side.includeData;
+          externalBatches = side.externalBatches;
+        }
+
+        const parsedResult = schemaWithModel.nullable().safeParse(working);
+
+        if (parsedResult.error) {
+          throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, { queryName, message: parsedResult.error.message });
+        }
+
+        const enriched = attachExternalBatchesToParsed(parsedResult.data, externalBatches);
+
+        data = selectFields(enriched, parsedQuery.select);
+
+        if (includeData) {
+          data = mergeIncludeData(data, includeData);
+        }
+      } else {
+        const working = { ...(entity as Record<string, any>) };
+
+        const side = await this.resolveIncludesAndExternalBatches({
           context,
-          parentEntities: [entity],
-          parentPath: queryName,
-          parentModelName: modelName,
+          queryName,
+          model,
+          modelName,
+          workingEntities: [working],
+          select: parsedQuery.select,
           parentInclude: parsedQuery.include,
         });
+        includeData = side.includeData;
+        externalBatches = side.externalBatches;
 
-        data = mergeIncludeData(data, includeData);
-      }
+        const parsedResult = schemaWithModel.safeParse(working);
 
-      const metaOptions = (querySingle as any).getMetadataOptions?.() as
-        | Record<string, { schema: z.ZodTypeAny; resolve: (options: any) => any }>
-        | undefined;
+        if (parsedResult.error) {
+          throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, { queryName, message: parsedResult.error.message });
+        }
 
-      const requestedMeta = (queryInput[queryName] as any)?.metadata;
+        const enriched = attachExternalBatchesToParsed(parsedResult.data, externalBatches);
 
-      if (metaOptions && requestedMeta && typeof requestedMeta === 'object') {
-        metadata = {};
-        for (const key of Object.keys(requestedMeta)) {
-          if (requestedMeta[key] !== true) continue;
-          const def = metaOptions[key];
-          if (!def) {
-            throw new TQLServerError(TQLServerErrorType.QueryMetadataSchemaValidationError, {
-              queryName,
-              message: `Unknown metadata key: ${key}`,
-              key,
-            });
-          }
-          const raw = await def.resolve({ context, query: parsedQuery.query });
-          const parsed = def.schema.safeParse(raw);
-          if (!parsed.success) {
-            throw new TQLServerError(TQLServerErrorType.QueryMetadataSchemaValidationError, {
-              queryName,
-              message: parsed.error.message,
-              key,
-            });
-          }
-          metadata[key] = parsed.data;
+        data = selectFields(enriched, parsedQuery.select);
+
+        if (includeData) {
+          data = mergeIncludeData(data, includeData);
         }
       }
     } catch (error) {
       if (error instanceof TQLServerError) {
         data = null;
-        metadata = {};
         formattedError = error.getFormattedError();
       } else {
         data = null;
-        metadata = {};
         formattedError = new TQLServerError(TQLServerErrorType.QueryError, {
           queryName,
           error,
@@ -306,7 +317,6 @@ export class QueryResolver<S extends ClientSchema> {
       queryName,
       data,
       error: formattedError,
-      metadata,
     };
   }
 
@@ -318,15 +328,12 @@ export class QueryResolver<S extends ClientSchema> {
     queryName: keyof Q & string;
     data: Array<Record<string, any>> | null;
     error: FormattedTQLServerError | null;
-    metadata: Record<string, any>;
   }> {
     const { context, queryInput, queryName } = options;
 
     let data: Array<Record<string, any>> | null = null;
 
     let formattedError: FormattedTQLServerError | null = null;
-
-    let metadata: Record<string, any> = {};
 
     try {
       const queryMany = this.queryManys[queryName];
@@ -364,6 +371,18 @@ export class QueryResolver<S extends ClientSchema> {
 
       const entities = await resolve({ context, query: parsedQuery.query });
 
+      const working = (entities as Array<Record<string, any>>).map((e) => ({ ...e }));
+
+      const { includeData, externalBatches } = await this.resolveIncludesAndExternalBatches({
+        context,
+        queryName,
+        model,
+        modelName,
+        workingEntities: working,
+        select: parsedQuery.select,
+        parentInclude: parsedQuery.include,
+      });
+
       const schema = model.getSchema();
 
       const schemaWithModel = z.array(
@@ -372,7 +391,7 @@ export class QueryResolver<S extends ClientSchema> {
         }),
       );
 
-      const parsedResult = schemaWithModel.safeParse(entities);
+      const parsedResult = schemaWithModel.safeParse(working);
 
       if (parsedResult.error) {
         throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, {
@@ -382,65 +401,19 @@ export class QueryResolver<S extends ClientSchema> {
         });
       }
 
-      data = selectFields(parsedResult.data, parsedQuery.select) as Array<Record<string, any>>;
+      const enriched = attachExternalBatchesToParsed(parsedResult.data, externalBatches);
 
-      if (parsedQuery.include) {
-        const includeData = await this.handleInclude({
-          context,
-          parentEntities: entities,
-          parentPath: queryName,
-          parentModelName: modelName,
-          parentInclude: parsedQuery.include,
-        });
+      data = selectFields(enriched, parsedQuery.select) as Array<Record<string, any>>;
 
+      if (includeData) {
         data = mergeIncludeData(data, includeData);
-      }
-
-      const metaDataOptions = queryMany.getMetadataOptions();
-
-      const requestedMeta = (queryInput[queryName] as any)?.metadata;
-
-      if (metaDataOptions && requestedMeta && typeof requestedMeta === 'object') {
-        metadata = {};
-
-        for (const key of Object.keys(requestedMeta)) {
-          if (requestedMeta[key] !== true) continue;
-
-          const def = (metaDataOptions as any)[key] as { schema: z.ZodTypeAny; resolve: (options: any) => any } | undefined;
-
-          if (!def) {
-            throw new TQLServerError(TQLServerErrorType.QueryMetadataSchemaValidationError, {
-              queryName,
-              message: `Unknown metadata key: ${key}`,
-            });
-          }
-
-          const resolvedMetadata = await def.resolve({
-            context,
-            query: parsedQuery.query,
-          });
-
-          const parsed = def.schema.safeParse(resolvedMetadata);
-
-          if (!parsed.success) {
-            throw new TQLServerError(TQLServerErrorType.QueryMetadataSchemaValidationError, {
-              queryName,
-              message: parsed.error.message,
-              key,
-            });
-          }
-
-          metadata[key] = parsed.data;
-        }
       }
     } catch (error) {
       if (error instanceof TQLServerError) {
         data = null;
-        metadata = {};
         formattedError = error.getFormattedError();
       } else {
         data = null;
-        metadata = {};
         formattedError = new TQLServerError(TQLServerErrorType.QueryError, {
           queryName,
           error,
@@ -454,7 +427,6 @@ export class QueryResolver<S extends ClientSchema> {
       queryName,
       data,
       error: formattedError,
-      metadata,
     };
   }
 
@@ -775,20 +747,136 @@ export class QueryResolver<S extends ClientSchema> {
 
     return data;
   }
+
+  /**
+   * Runs root `include` resolution (if any) in parallel with selected external
+   * field batch resolvers. Values are validated with each field's own Zod
+   * `schema` but not merged onto rows until after the root entity `safeParse`.
+   * External resolvers and includes must not rely on each other's side effects
+   * for the same parent batch.
+   */
+  private async resolveIncludesAndExternalBatches(options: {
+    context: any;
+    queryName: string;
+    model: Model<any, any, any, any, any, any, any, any>;
+    modelName: string;
+    workingEntities: any[];
+    select: unknown;
+    parentInclude: any | undefined;
+  }): Promise<{
+    includeData: IncludedDataMap | null;
+    externalBatches: Array<{ name: string; values: any[] }>;
+  }> {
+    const { context, queryName, model, modelName, workingEntities, select, parentInclude } = options;
+
+    const extKeys = model.getExternalFieldKeys();
+    const selectedExt = selectedExternalFieldNames(select, extKeys);
+    const extMap = model.getExternalFields();
+
+    const includePromise = parentInclude
+      ? this.handleInclude({
+          context,
+          parentEntities: workingEntities,
+          parentPath: queryName,
+          parentModelName: modelName,
+          parentInclude,
+        })
+      : Promise.resolve(null as IncludedDataMap | null);
+
+    const extPromises = selectedExt.map((name) => {
+      const def = extMap[name];
+
+      if (!def) {
+        return Promise.resolve(null as { name: string; values: any[] } | null);
+      }
+
+      return (async () => {
+        const values = await def.resolve({ context, entities: workingEntities });
+
+        if (!Array.isArray(values) || values.length !== workingEntities.length) {
+          throw new TQLServerError(TQLServerErrorType.QueryError, {
+            queryName,
+            message: `externalField "${name}" must return an array of length ${workingEntities.length}`,
+          });
+        }
+
+        const sch = def.getOptions().schema;
+
+        const validated = values.map((v, i) => {
+          const parsed = sch.safeParse(v);
+
+          if (!parsed.success) {
+            throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, {
+              queryName,
+              message: `externalField "${name}" at index ${i}: ${parsed.error.message}`,
+            });
+          }
+
+          return parsed.data;
+        });
+
+        return { name, values: validated };
+      })();
+    });
+
+    const results = await Promise.all([includePromise, ...extPromises]);
+
+    const includeData = (results[0] ?? null) as IncludedDataMap | null;
+
+    const externalBatches = results.slice(1).filter((x): x is { name: string; values: any[] } => x !== null);
+
+    return { includeData, externalBatches };
+  }
 }
+
+const attachExternalBatchesToParsed = (parsed: any, batches: Array<{ name: string; values: any[] }>): any => {
+  if (batches.length === 0) {
+    return parsed;
+  }
+
+  if (parsed === null || parsed === undefined) {
+    return parsed;
+  }
+
+  if (Array.isArray(parsed)) {
+    return parsed.map((row, i) => {
+      const next = { ...row };
+
+      for (const b of batches) {
+        next[b.name] = b.values[i];
+      }
+
+      return next;
+    });
+  }
+
+  const next = { ...parsed };
+
+  for (const b of batches) {
+    next[b.name] = b.values[0];
+  }
+
+  return next;
+};
+
+const selectedExternalFieldNames = (select: unknown, definedKeys: string[]): string[] => {
+  if (definedKeys.length === 0) return [];
+  if (select === true) return [...definedKeys];
+  if (!select || typeof select !== 'object') return [];
+  const o = select as Record<string, unknown>;
+  return definedKeys.filter((k) => o[k] === true);
+};
 
 const HandleQuerySingleInputSchema = z.object({
   query: z.any(),
   select: z.any(),
   include: z.any(),
-  metadata: z.any().optional(),
 });
 
 const HandleQueryManyInputSchema = z.object({
   query: z.any(),
   select: z.any(),
   include: z.any(),
-  metadata: z.any().optional(),
 });
 
 const HandleIncludeSingleInputSchema = z.object({

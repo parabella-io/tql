@@ -107,7 +107,6 @@ describe('Mutation', () => {
       [postsQueryName]: {
         data: posts,
         error: null,
-        metadata: {},
       },
     });
 
@@ -323,7 +322,6 @@ describe('Mutation', () => {
       [postsQueryName]: {
         data: posts,
         error: null,
-        metadata: {},
       },
     });
 
@@ -480,7 +478,6 @@ describe('Mutation', () => {
       [postsQueryName]: {
         data: posts,
         error: null,
-        metadata: {},
       },
     });
 

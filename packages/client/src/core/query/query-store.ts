@@ -7,8 +7,6 @@ import type { FormattedTQLServerError } from '@tql/server/shared';
 
 type QueryData = Record<string, any> | Array<Record<string, any>> | null;
 
-type QueryMetadata = Record<string, any> | null;
-
 type QueryError = FormattedTQLServerError | null;
 
 export type QueryState = {
@@ -18,7 +16,6 @@ export type QueryState = {
   query: any;
   data: QueryData;
   params: Record<string, any>;
-  metadata: QueryMetadata;
   error: QueryError;
   isEnabled: boolean;
   isLoading: boolean;
@@ -39,7 +36,6 @@ export type QueryActions = {
   setStates: (states: Record<QueryHashKey, QueryState>) => void;
   setData: (keys: QueryHashKey[] | QueryHashKey, updator: (prevData: any) => any) => void;
   setLoading: (keys: QueryHashKey[] | QueryHashKey, isLoading: boolean) => void;
-  setMetadata: (keys: QueryHashKey[] | QueryHashKey, updator: (prevMetadata: any) => any) => void;
   updateState: (keys: QueryHashKey[] | QueryHashKey, updator: (prevState: QueryState) => QueryState | void) => void;
   getData: (hashKey: QueryHashKey) => QueryData | null;
   reset: () => void;
@@ -89,23 +85,6 @@ export const createQueryStore = (): QueryStore => {
             for (const key of keysArray) {
               if (state.state[key]) {
                 state.state[key].data = produce(state.state[key].data ?? {}, (draft: QueryData) => {
-                  const result = updator(draft);
-                  if (typeof result !== 'undefined') {
-                    return result;
-                  }
-                });
-              }
-            }
-          }),
-        ),
-      setMetadata: (keys: string[] | string, updator: (prevMetadata: QueryMetadata) => QueryMetadata) =>
-        set(
-          produce((state) => {
-            const keysArray = Array.isArray(keys) ? keys : [keys];
-
-            for (const key of keysArray) {
-              if (state.state[key] && 'metadata' in state.state[key]) {
-                state.state[key].metadata = produce(state.state[key].metadata ?? {}, (draft: QueryMetadata) => {
                   const result = updator(draft);
                   if (typeof result !== 'undefined') {
                     return result;

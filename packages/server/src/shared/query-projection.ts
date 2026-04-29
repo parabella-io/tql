@@ -1,7 +1,14 @@
 import type { FormattedTQLServerError } from '../errors.js';
 
-import type { ClientSchema } from './client-schema.js';
-import type { ExtractInclude, ExtractSelect, IncludeKind, IncludeProjection, Remove__Model, Selected } from './projection.js';
+import type {
+  ExtractInclude,
+  ExtractSelect,
+  IncludeKind,
+  IncludeProjection,
+  Remove__Model,
+  Selected,
+  SelectedExternal,
+} from './projection.js';
 
 /**
  * Shape of a single entry in the codegen-emitted `QueryRegistry`. Carries
@@ -12,12 +19,18 @@ import type { ExtractInclude, ExtractSelect, IncludeKind, IncludeProjection, Rem
  *  - `nullable`   — whether a `single` query may resolve to `null`.
  *  - `includeMap` — the parent's per-relation include map, or `never` when
  *                   the model has no relations.
+ *  - `externalFieldKeys` — batch-resolved scalar keys (not on `entity` Zod).
+ *  - `externalFields` — value types for those keys (from each field's own Zod schema).
  */
 export type QueryRegistryEntry = {
   entity: object;
   kind: IncludeKind;
   nullable: boolean;
   includeMap: unknown;
+  /** Keys resolved by batch `externalField` resolvers when selected (not DB columns). */
+  externalFieldKeys?: readonly string[];
+  /** Per-key output types for external-only selects (not part of `entity`). */
+  externalFields: Record<string, unknown>;
 };
 
 /**
@@ -28,16 +41,26 @@ export type QueryRegistryEntry = {
  * codegen-emitted `QueryResponseMap` so resolver classes (and any
  * server-side runtime test harness) can still observe the brand.
  */
-export type QueryDataFromRegistry<Registry, QueryName extends keyof Registry, QueryInput> = Registry[QueryName] extends infer R
-  ? R extends QueryRegistryEntry
-    ? Selected<R['entity'], ExtractSelect<QueryInput>> & IncludeProjection<ExtractInclude<QueryInput>, R['includeMap']> extends infer Projection
-      ? R['kind'] extends 'many'
-        ? Projection[]
-        : R['nullable'] extends true
-          ? Projection | null
-          : Projection
-      : never
-    : never
+type ExternalFieldValuesOf<Registry extends Record<string, any>, QueryName extends keyof Registry> = Registry[
+  QueryName
+] extends { externalFields: infer Ext }
+  ? Ext
+  : Record<never, never>;
+
+export type QueryDataFromRegistry<
+  Registry extends Record<string, any>,
+  QueryName extends keyof Registry,
+  QueryInput,
+> = (
+  Selected<Registry[QueryName]['entity'], ExtractSelect<QueryInput>> &
+    SelectedExternal<ExternalFieldValuesOf<Registry, QueryName>, ExtractSelect<QueryInput>> &
+    IncludeProjection<ExtractInclude<QueryInput>, Registry[QueryName]['includeMap']>
+) extends infer Projection
+  ? Registry[QueryName]['kind'] extends 'many'
+    ? Projection[]
+    : Registry[QueryName]['nullable'] extends true
+      ? Projection | null
+      : Projection
   : never;
 
 /**
@@ -46,24 +69,25 @@ export type QueryDataFromRegistry<Registry, QueryName extends keyof Registry, Qu
  * derive per-call response data without exposing the codegen-only marker
  * to consumers.
  */
-export type QueryDataFor<S extends ClientSchema, QueryName extends keyof S['QueryRegistry'], QueryInput> = Remove__Model<
-  QueryDataFromRegistry<S['QueryRegistry'], QueryName, QueryInput>
->;
+export type QueryDataFor<
+  S extends { QueryRegistry: Record<string, any> },
+  QueryName extends keyof S['QueryRegistry'],
+  QueryInput,
+> = Remove__Model<QueryDataFromRegistry<S['QueryRegistry'], QueryName, QueryInput>>;
 
 /**
  * Per-call response shape returned by `Server.handleQuery` and the
  * codegen-emitted `handleQuery` stub. Each requested key carries the
- * projected `data`, an optional `error`, and a metadata bag.
+ * projected `data` and an optional `error`.
  *
  * Parameterized on `Registry` + `InputMap` directly so codegen can emit
  * `HandleQueryResponseFor<QueryRegistry, QueryInputMap, Q>` without
  * circling back through `ClientSchema`.
  */
-export type HandleQueryResponseFor<Registry, InputMap, Q extends Partial<InputMap>> = {
+export type HandleQueryResponseFor<Registry extends Record<string, any>, InputMap, Q extends Partial<InputMap>> = {
   [K in keyof Q & keyof Registry & keyof InputMap]: {
     data: (Q[K] extends InputMap[K] ? QueryDataFromRegistry<Registry, K, Q[K]> : never) | null;
     error: FormattedTQLServerError | null;
-    metadata: Record<string, unknown>;
   };
 };
 
@@ -72,10 +96,9 @@ export type HandleQueryResponseFor<Registry, InputMap, Q extends Partial<InputMa
  * shape (no select projection) so resolver classes can reference it
  * without paying the cost of per-call inference.
  */
-export type QueryResponseMapFor<Registry, InputMap> = {
+export type QueryResponseMapFor<Registry extends Record<string, any>, InputMap> = {
   [K in keyof InputMap & keyof Registry]: {
     data: QueryDataFromRegistry<Registry, K, InputMap[K]> | null;
     error: FormattedTQLServerError | null;
-    metadata: Record<string, unknown>;
   };
 };

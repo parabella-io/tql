@@ -42,16 +42,17 @@ const HASH_MARKER = '// @schema-hash';
  * Layout:
  *   1. Core helpers                     query + mutation projection helpers
  *   2. Entity interfaces                one per registered model
- *   3. EntityByName                     name -> entity lookup (mutation projection)
- *   4. <Model>Select / SelectMap        per-model scalar selection input
- *   5. Include nodes                    one named interface per (parent, include)
- *   6. <Model>IncludeMap                map of relation -> include node
- *   7. <Query>Input + QueryInputMap     per-query envelopes and aggregate map
- *   8. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap }
- *   9. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
- *  10. MutationRegistry                 mutationName -> declared `changed` map
- *  11. ClientSchema                     aggregate map consumed by @tql/client
- *  12. Projection + handle stubs        cheap mapped types + type-only entry points
+ *   3. ExternalFields types             per-model value map for batch external fields
+ *   4. EntityByName                     name -> entity lookup (mutation projection)
+ *   5. <Model>Select / SelectMap        entity scalars + external scalars
+ *   6. Include nodes                    one named interface per (parent, include)
+ *   7. <Model>IncludeMap                map of relation -> include node
+ *   8. <Query>Input + QueryInputMap     per-query envelopes and aggregate map
+ *   9. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys, externalFields }
+ *  10. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
+ *  11. MutationRegistry                 mutationName -> declared `changed` map
+ *  12. ClientSchema                     aggregate map consumed by @tql/client
+ *  13. Projection + handle stubs        cheap mapped types + type-only entry points
  *
  * Recursion is by name so deep selections / mutation `changed` projections
  * resolve in roughly O(1) instead of walking the deep `FlattenedQueriesInput`
@@ -137,16 +138,12 @@ type ModelInfo = {
   modelName: string;
   pascalName: string;
   schema: ZodObject<any>;
-  querySingles: Array<{ queryName: string; querySingle: QuerySingle<any, any, any, any, any, any> }>;
-  queryManys: Array<{ queryName: string; queryMany: QueryMany<any, any, any, any, any> }>;
+  /** External-only keys with their own Zod schemas (not on `schema.shape`). */
+  externalFieldEntries: Array<{ name: string; schema: ZodTypeAny }>;
+  querySingles: Array<{ queryName: string; querySingle: QuerySingle<any, any, any, any, any> }>;
+  queryManys: Array<{ queryName: string; queryMany: QueryMany<any, any, any, any> }>;
   includeSingles: Array<{ includeName: string; includeSingle: IncludeSingle<any, any, any, any, any, any, any> }>;
   includeManys: Array<{ includeName: string; includeMany: IncludeMany<any, any, any, any, any, any> }>;
-};
-
-const getMetadataKeys = (queryNode: QuerySingle<any, any, any, any, any, any> | QueryMany<any, any, any, any, any>): string[] => {
-  const meta = queryNode.getMetadataOptions();
-  if (!meta || typeof meta !== 'object') return [];
-  return Object.keys(meta as Record<string, unknown>);
 };
 
 type ChangedDeclaration = Partial<Record<string, Partial<Record<MutationOpName, true>>>>;
@@ -164,12 +161,37 @@ const MUTATION_OPS: MutationOpName[] = ['inserts', 'updates', 'upserts', 'delete
 
 const collectModels = (schema: Schema<any, any>): ModelInfo[] => {
   return Object.keys(schema.models).map((modelName) => {
-    const model = schema.models[modelName] as Model<any, any, any, any, any, any, any>;
+    const model = schema.models[modelName] as Model<any, any, any, any, any, any, any, any>;
+    const zodSchema = model.getSchema() as ZodObject<any>;
+    const shapeKeys = new Set(Object.keys(zodSchema.shape));
+    const extMap = model.getExternalFields();
+    const externalFieldEntries: Array<{ name: string; schema: ZodTypeAny }> = [];
+
+    for (const key of Object.keys(extMap)) {
+      const def = extMap[key];
+      const sch = def.getOptions().schema;
+      if (shapeKeys.has(key)) {
+        throw new Error(
+          `[generateSchema] Model "${modelName}" externalField "${key}" must not reuse a key from the model Zod schema; external fields are defined only under externalFields + their own schema.`,
+        );
+      }
+      externalFieldEntries.push({ name: key, schema: sch as ZodTypeAny });
+    }
+
+    const fieldKeys = new Set(Object.keys(model.fields ?? {}));
+    for (const { name } of externalFieldEntries) {
+      if (fieldKeys.has(name)) {
+        throw new Error(
+          `[generateSchema] Model "${modelName}" externalField "${name}" duplicates a persisted field() key; use only one of fields / externalFields for this key.`,
+        );
+      }
+    }
 
     return {
       modelName,
       pascalName: toPascalCase(modelName),
-      schema: model.getSchema() as ZodObject<any>,
+      schema: zodSchema,
+      externalFieldEntries,
       querySingles: model.getQuerySingles().map((entry) => ({
         queryName: entry.queryName,
         querySingle: entry.querySingle,
@@ -215,6 +237,7 @@ const renderSchemaSource = (schema: Schema<any, any>): string => {
   const sections = [
     HEADER_COMMENT,
     renderEntitiesSection(models),
+    renderExternalFieldsTypesSection(models),
     renderEntityByName(models),
     renderSelectsSection(models),
     renderIncludeNodesSection(models),
@@ -244,6 +267,20 @@ const renderEntity = (model: ModelInfo): string => {
   return lines.join('\n');
 };
 
+const renderExternalFieldsTypesSection = (models: ModelInfo[]): string => {
+  const blocks = models.map((model) => {
+    if (model.externalFieldEntries.length === 0) {
+      return `export type ${model.pascalName}ExternalFields = Record<never, never>;`;
+    }
+    const lines = model.externalFieldEntries.map(
+      ({ name, schema }) => `  ${name}: ${zodToTs(schema, '  ')};`,
+    );
+    return [`export interface ${model.pascalName}ExternalFields {`, ...lines, `}`].join('\n');
+  });
+
+  return [bannerComment('EXTERNAL FIELD VALUE TYPES (not part of Entity / model Zod schema)'), ...blocks].join('\n\n');
+};
+
 const renderEntityByName = (models: ModelInfo[]): string => {
   const lines = ['export interface SchemaEntities {'];
   for (const model of models) {
@@ -258,12 +295,14 @@ const renderEntityByName = (models: ModelInfo[]): string => {
 
 const renderSelectsSection = (models: ModelInfo[]): string => {
   const blocks = models.map((model) => {
-    const selectMap = `type ${model.pascalName}SelectMap = { [K in Exclude<keyof ${model.pascalName}Entity, '__model'>]?: true };`;
+    const scalar = `type ${model.pascalName}ScalarSelectMap = { [K in Exclude<keyof ${model.pascalName}Entity, '__model'>]?: true };`;
+    const ext = `type ${model.pascalName}ExternalSelectMap = { [K in keyof ${model.pascalName}ExternalFields]?: true };`;
+    const selectMap = `type ${model.pascalName}SelectMap = ${model.pascalName}ScalarSelectMap & ${model.pascalName}ExternalSelectMap;`;
     const select = `type ${model.pascalName}Select = true | ${model.pascalName}SelectMap;`;
-    return `${selectMap}\n${select}`;
+    return [scalar, ext, selectMap, select].join('\n');
   });
 
-  return [bannerComment('PER-MODEL SELECT SHAPES'), ...blocks].join('\n\n');
+  return [bannerComment('PER-MODEL SELECT SHAPES (entity scalars + external field scalars)'), ...blocks].join('\n\n');
 };
 
 const renderIncludeNodesSection = (models: ModelInfo[]): string => {
@@ -362,14 +401,10 @@ const renderQueryInputsSection = (models: ModelInfo[]): string => {
     queryBlocks.push(`// ---- ${model.modelName} ----`);
 
     for (const { queryName, querySingle } of model.querySingles) {
-      queryBlocks.push(
-        renderQueryInput(queryName, model, querySingle.getOptions().query as ZodTypeAny | undefined, getMetadataKeys(querySingle)),
-      );
+      queryBlocks.push(renderQueryInput(queryName, model, querySingle.getOptions().query as ZodTypeAny | undefined));
     }
     for (const { queryName, queryMany } of model.queryManys) {
-      queryBlocks.push(
-        renderQueryInput(queryName, model, queryMany.getOptions().query as ZodTypeAny | undefined, getMetadataKeys(queryMany)),
-      );
+      queryBlocks.push(renderQueryInput(queryName, model, queryMany.getOptions().query as ZodTypeAny | undefined));
     }
 
     blocks.push(queryBlocks.join('\n\n'));
@@ -382,7 +417,7 @@ const renderQueryInputsSection = (models: ModelInfo[]): string => {
   return [bannerComment('PER-QUERY INPUT INTERFACES'), ...blocks].join('\n\n');
 };
 
-const renderQueryInput = (queryName: string, model: ModelInfo, querySchema: ZodTypeAny | undefined, metadataKeys: string[]): string => {
+const renderQueryInput = (queryName: string, model: ModelInfo, querySchema: ZodTypeAny | undefined): string => {
   const interfaceName = `${toPascalCase(queryName)}Input`;
   const queryType = querySchema ? zodToTs(querySchema, '  ') : '{}';
 
@@ -390,11 +425,6 @@ const renderQueryInput = (queryName: string, model: ModelInfo, querySchema: ZodT
 
   if (hasIncludes(model)) {
     lines.push(`  include?: ${model.pascalName}IncludeMap;`);
-  }
-
-  if (metadataKeys.length > 0) {
-    const metaFields = metadataKeys.map((key) => `${key}?: true`).join('; ');
-    lines.push(`  metadata?: { ${metaFields} };`);
   }
 
   lines.push(`}`);
@@ -417,25 +447,39 @@ const renderQueryInputMap = (models: ModelInfo[]): string => {
   return [bannerComment('AGGREGATE QUERY INPUT MAP'), body].join('\n\n');
 };
 
+const renderExternalFieldKeysLiteral = (keys: string[]): string => {
+  if (keys.length === 0) {
+    return 'readonly []';
+  }
+  return `readonly [${keys.map((k) => JSON.stringify(k)).join(', ')}]`;
+};
+
 const renderQueryRegistry = (models: ModelInfo[]): string => {
   const entries: string[] = [];
 
   for (const model of models) {
     const includeMapType = hasIncludes(model) ? `${model.pascalName}IncludeMap` : 'never';
+    const extKeys = model.externalFieldEntries.map((e) => e.name);
+    const externalFieldKeysType = renderExternalFieldKeysLiteral(extKeys);
 
     for (const { queryName, querySingle } of model.querySingles) {
       const nullable = querySingle.isNullable() ? 'true' : 'false';
       entries.push(
-        `  ${queryName}: { entity: ${model.pascalName}Entity; kind: 'single'; nullable: ${nullable}; includeMap: ${includeMapType} };`,
+        `  ${queryName}: { entity: ${model.pascalName}Entity; kind: 'single'; nullable: ${nullable}; includeMap: ${includeMapType}; externalFieldKeys: ${externalFieldKeysType}; externalFields: ${model.pascalName}ExternalFields };`,
       );
     }
     for (const { queryName } of model.queryManys) {
-      entries.push(`  ${queryName}: { entity: ${model.pascalName}Entity; kind: 'many'; nullable: false; includeMap: ${includeMapType} };`);
+      entries.push(
+        `  ${queryName}: { entity: ${model.pascalName}Entity; kind: 'many'; nullable: false; includeMap: ${includeMapType}; externalFieldKeys: ${externalFieldKeysType}; externalFields: ${model.pascalName}ExternalFields };`,
+      );
     }
   }
 
   const body = ['export interface QueryRegistry {', ...entries, '}'].join('\n');
-  return [bannerComment('QUERY REGISTRY (entity + arity + nullability + parent include map)'), body].join('\n\n');
+  return [
+    bannerComment('QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys + externalFields)'),
+    body,
+  ].join('\n\n');
 };
 
 const renderMutationInputsSection = (mutations: MutationInfo[]): string => {
@@ -622,18 +666,19 @@ const HEADER_COMMENT = `/**
  *
  * Layout:
  *   1. <Model>Entity                    one per registered model, with \`__model\` brand
- *   2. SchemaEntities                   name -> entity lookup (mutation projection)
- *   3. <Model>Select / <Model>SelectMap selectable scalar projection input
- *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
- *   5. <Model>IncludeMap                map of relation-name -> named IncludeNode
- *   6. <Query>Input + QueryInputMap     per-query envelopes and aggregate map
- *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap }
- *   8. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
- *   9. MutationRegistry                 mutationName -> declared \`changed\` map
- *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
- *  11. MutationResponseMap / HandleMutationResponse aliases over shared helpers
- *  12. ClientSchema                     aggregate map consumed by @tql/client
- *  13. handleQuery / handleMutation     type-only stubs
+ *   2. <Model>ExternalFields            value types for external-only batch fields (own Zod per field)
+ *   3. SchemaEntities                   name -> entity lookup (mutation projection)
+ *   4. <Model>Select / <Model>SelectMap entity scalars + external scalars
+ *   5. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
+ *   6. <Model>IncludeMap                map of relation-name -> named IncludeNode
+ *   7. <Query>Input + QueryInputMap     per-query envelopes (\`query\`, \`select\`, \`include?\`) and aggregate map
+ *   8. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys, externalFields }
+ *   9. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
+ *  10. MutationRegistry                 mutationName -> declared \`changed\` map
+ *  11. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
+ *  12. MutationResponseMap / HandleMutationResponse aliases over shared helpers
+ *  13. ClientSchema                     aggregate map consumed by @tql/client
+ *  14. handleQuery / handleMutation     type-only stubs
  */
 
 import type {
