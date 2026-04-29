@@ -7,7 +7,6 @@ import type {
   IncludeProjection,
   Remove__Model,
   Selected,
-  SelectedExternal,
 } from './projection.js';
 
 /**
@@ -19,18 +18,15 @@ import type {
  *  - `nullable`   — whether a `single` query may resolve to `null`.
  *  - `includeMap` — the parent's per-relation include map, or `never` when
  *                   the model has no relations.
- *  - `externalFieldKeys` — batch-resolved scalar keys (not on `entity` Zod).
- *  - `externalFields` — value types for those keys (from each field's own Zod schema).
+ *  - `externalFieldKeys` — batch-resolved scalar keys included on the entity.
  */
 export type QueryRegistryEntry = {
   entity: object;
   kind: IncludeKind;
   nullable: boolean;
   includeMap: unknown;
-  /** Keys resolved by batch `externalField` resolvers when selected (not DB columns). */
+  /** Keys resolved by batch `externalField` resolvers when selected. */
   externalFieldKeys?: readonly string[];
-  /** Per-key output types for external-only selects (not part of `entity`). */
-  externalFields: Record<string, unknown>;
 };
 
 /**
@@ -41,19 +37,12 @@ export type QueryRegistryEntry = {
  * codegen-emitted `QueryResponseMap` so resolver classes (and any
  * server-side runtime test harness) can still observe the brand.
  */
-type ExternalFieldValuesOf<Registry extends Record<string, any>, QueryName extends keyof Registry> = Registry[
-  QueryName
-] extends { externalFields: infer Ext }
-  ? Ext
-  : Record<never, never>;
-
 export type QueryDataFromRegistry<
   Registry extends Record<string, any>,
   QueryName extends keyof Registry,
   QueryInput,
 > = (
   Selected<Registry[QueryName]['entity'], ExtractSelect<QueryInput>> &
-    SelectedExternal<ExternalFieldValuesOf<Registry, QueryName>, ExtractSelect<QueryInput>> &
     IncludeProjection<ExtractInclude<QueryInput>, Registry[QueryName]['includeMap']>
 ) extends infer Projection
   ? Registry[QueryName]['kind'] extends 'many'

@@ -36,18 +36,6 @@ export type Selected<Entity, Sel> = [Sel] extends [true]
     ? { [K in (Extract<keyof Sel, keyof Entity> | 'id' | '__model') & keyof Entity]: Entity[K] }
     : Entity;
 
-/**
- * Project keys declared only on `externalFields` (not on the persisted
- * {@link Selected} entity) when they appear in the user's `select` tree.
- */
-export type SelectedExternal<ExtMap, Sel> = [Sel] extends [true]
-  ? ExtMap
-  : [Sel] extends [Record<string, any>]
-    ? [keyof ExtMap] extends [never]
-      ? {}
-      : { [K in Extract<keyof Sel, keyof ExtMap> & keyof ExtMap]: ExtMap[K] }
-    : {};
-
 export type IncludeProjection<UserInc, ParentMap> = [UserInc] extends [Record<string, any>]
   ? [ParentMap] extends [Record<string, any>]
     ? { [K in keyof UserInc & keyof ParentMap]: ResolveIncludeNode<UserInc[K], NonNullable<ParentMap[K]>> }

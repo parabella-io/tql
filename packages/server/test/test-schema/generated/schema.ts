@@ -1,4 +1,4 @@
-// @schema-hash 6bd495e09f4f0ce0
+// @schema-hash 16b443c67fe70dfd
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -15,19 +15,18 @@
  *
  * Layout:
  *   1. <Model>Entity                    one per registered model, with `__model` brand
- *   2. <Model>ExternalFields            value types for external-only batch fields (own Zod per field)
- *   3. SchemaEntities                   name -> entity lookup (mutation projection)
- *   4. <Model>Select / <Model>SelectMap entity scalars + external scalars
- *   5. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
- *   6. <Model>IncludeMap                map of relation-name -> named IncludeNode
- *   7. <Query>Input + QueryInputMap     per-query envelopes (`query`, `select`, `include?`) and aggregate map
- *   8. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys, externalFields }
- *   9. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
- *  10. MutationRegistry                 mutationName -> declared `changed` map
- *  11. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
- *  12. MutationResponseMap / HandleMutationResponse aliases over shared helpers
- *  13. ClientSchema                     aggregate map consumed by @tql/client
- *  14. handleQuery / handleMutation     type-only stubs
+ *   2. SchemaEntities                   name -> entity lookup (mutation projection)
+ *   3. <Model>Select / <Model>SelectMap entity scalars
+ *   4. <Parent>_<Include>_IncludeNode   one named interface per (parent, include) pair
+ *   5. <Model>IncludeMap                map of relation-name -> named IncludeNode
+ *   6. <Query>Input + QueryInputMap     per-query envelopes (`query`, `select`, `include?`) and aggregate map
+ *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys }
+ *   8. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
+ *   9. MutationRegistry                 mutationName -> declared `changed` map
+ *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
+ *  11. MutationResponseMap / HandleMutationResponse aliases over shared helpers
+ *  12. ClientSchema                     aggregate map consumed by @tql/client
+ *  13. handleQuery / handleMutation     type-only stubs
  */
 
 import type {
@@ -64,6 +63,7 @@ export interface PostEntity {
   title: string;
   content: string;
   profileId: string;
+  commentsCount: number;
   __model: 'post';
 }
 
@@ -76,18 +76,6 @@ export interface CommentEntity {
 }
 
 // ===========================================================================
-// EXTERNAL FIELD VALUE TYPES (not part of Entity / model Zod schema)
-// ===========================================================================
-
-export type ProfileExternalFields = Record<never, never>;
-
-export interface PostExternalFields {
-  commentsCount: number;
-}
-
-export type CommentExternalFields = Record<never, never>;
-
-// ===========================================================================
 // ENTITY BY NAME (drives mutation response projection without distributing over a union)
 // ===========================================================================
 
@@ -98,22 +86,16 @@ export interface SchemaEntities {
 }
 
 // ===========================================================================
-// PER-MODEL SELECT SHAPES (entity scalars + external field scalars)
+// PER-MODEL SELECT SHAPES
 // ===========================================================================
 
-type ProfileScalarSelectMap = { [K in Exclude<keyof ProfileEntity, '__model'>]?: true };
-type ProfileExternalSelectMap = { [K in keyof ProfileExternalFields]?: true };
-type ProfileSelectMap = ProfileScalarSelectMap & ProfileExternalSelectMap;
+type ProfileSelectMap = { [K in Exclude<keyof ProfileEntity, '__model'>]?: true };
 type ProfileSelect = true | ProfileSelectMap;
 
-type PostScalarSelectMap = { [K in Exclude<keyof PostEntity, '__model'>]?: true };
-type PostExternalSelectMap = { [K in keyof PostExternalFields]?: true };
-type PostSelectMap = PostScalarSelectMap & PostExternalSelectMap;
+type PostSelectMap = { [K in Exclude<keyof PostEntity, '__model'>]?: true };
 type PostSelect = true | PostSelectMap;
 
-type CommentScalarSelectMap = { [K in Exclude<keyof CommentEntity, '__model'>]?: true };
-type CommentExternalSelectMap = { [K in keyof CommentExternalFields]?: true };
-type CommentSelectMap = CommentScalarSelectMap & CommentExternalSelectMap;
+type CommentSelectMap = { [K in Exclude<keyof CommentEntity, '__model'>]?: true };
 type CommentSelect = true | CommentSelectMap;
 
 // ===========================================================================
@@ -285,18 +267,18 @@ export interface QueryInputMap {
 }
 
 // ===========================================================================
-// QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys + externalFields)
+// QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys)
 // ===========================================================================
 
 export interface QueryRegistry {
-  profileById: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly []; externalFields: ProfileExternalFields };
-  profile: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly []; externalFields: ProfileExternalFields };
-  profileNullable: { entity: ProfileEntity; kind: 'single'; nullable: true; includeMap: ProfileIncludeMap; externalFieldKeys: readonly []; externalFields: ProfileExternalFields };
-  profiles: { entity: ProfileEntity; kind: 'many'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly []; externalFields: ProfileExternalFields };
-  postById: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"]; externalFields: PostExternalFields };
-  post: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"]; externalFields: PostExternalFields };
-  posts: { entity: PostEntity; kind: 'many'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"]; externalFields: PostExternalFields };
-  commentById: { entity: CommentEntity; kind: 'single'; nullable: false; includeMap: CommentIncludeMap; externalFieldKeys: readonly []; externalFields: CommentExternalFields };
+  profileById: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  profile: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  profileNullable: { entity: ProfileEntity; kind: 'single'; nullable: true; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  profiles: { entity: ProfileEntity; kind: 'many'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  postById: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  post: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  posts: { entity: PostEntity; kind: 'many'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  commentById: { entity: CommentEntity; kind: 'single'; nullable: false; includeMap: CommentIncludeMap; externalFieldKeys: readonly [] };
 }
 
 // ===========================================================================
