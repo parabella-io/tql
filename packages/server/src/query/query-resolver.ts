@@ -3,13 +3,13 @@ import { Model } from './model.js';
 import { IncludeSingle } from './include-single.js';
 import { IncludeMany } from './include-many.js';
 import { QuerySingle } from './query-single.js';
-import { QueryMany } from './query-many.js';
+import { QueryMany, type ResolvedPagingInfo, type WithPagingConfig } from './query-many.js';
 import { Schema } from '../schema.js';
 import { FormattedTQLServerError, TQLServerError, TQLServerErrorType } from '../errors.js';
 import { selectFields } from './select-fields.js';
 import { ExtractEntityShape } from '../extract-entity-shape.js';
 import type { ClientSchema } from '../shared/client-schema.js';
-import type { QueryDataFromRegistry } from '../shared/query-projection.js';
+import type { QueryDataFromRegistry, QueryPagingInfoFromRegistry } from '../shared/query-projection.js';
 
 export type QueryResolverOptions = {
   schema: Schema<any, any>;
@@ -23,6 +23,7 @@ export type ApplyQueryResponseMap<S extends ClientSchema, Q extends Partial<S['Q
   [K in keyof Q & keyof S['QueryResponseMap']]: {
     data: QueryDataFromRegistry<S['QueryRegistry'], K & keyof S['QueryRegistry'], Q[K]> | null;
     error: FormattedTQLServerError | null;
+    pagingInfo: QueryPagingInfoFromRegistry<S['QueryRegistry'], K & keyof S['QueryRegistry']>;
   };
 };
 
@@ -121,6 +122,7 @@ export class QueryResolver<S extends ClientSchema> {
       queryName: string;
       data: Record<string, any> | Array<Record<string, any>> | null;
       error: FormattedTQLServerError | null;
+      pagingInfo: ResolvedPagingInfo | null;
     }>[] = [];
 
     for (const queryName of Object.keys(queryInput as Record<string, unknown>) as Array<keyof Q & string>) {
@@ -139,6 +141,7 @@ export class QueryResolver<S extends ClientSchema> {
       response[result.queryName] = {
         data: result.data,
         error: result.error,
+        pagingInfo: result.pagingInfo,
       };
     }
 
@@ -175,6 +178,7 @@ export class QueryResolver<S extends ClientSchema> {
     queryName: keyof Q & string;
     data: Record<string, any> | null;
     error: FormattedTQLServerError | null;
+    pagingInfo: null;
   }> {
     const { context, queryInput, queryName } = options;
 
@@ -317,6 +321,7 @@ export class QueryResolver<S extends ClientSchema> {
       queryName,
       data,
       error: formattedError,
+      pagingInfo: null,
     };
   }
 
@@ -328,10 +333,13 @@ export class QueryResolver<S extends ClientSchema> {
     queryName: keyof Q & string;
     data: Array<Record<string, any>> | null;
     error: FormattedTQLServerError | null;
+    pagingInfo: ResolvedPagingInfo | null;
   }> {
     const { context, queryInput, queryName } = options;
 
     let data: Array<Record<string, any>> | null = null;
+
+    let pagingInfo: ResolvedPagingInfo | null = null;
 
     let formattedError: FormattedTQLServerError | null = null;
 
@@ -369,51 +377,114 @@ export class QueryResolver<S extends ClientSchema> {
         });
       }
 
-      const entities = await resolve({ context, query: parsedQuery.query });
+      const finishManyEntities = async (entities: Array<Record<string, any>>) => {
+        const working = entities.map((e) => ({ ...e }));
 
-      const working = (entities as Array<Record<string, any>>).map((e) => ({ ...e }));
-
-      const { includeData, externalBatches } = await this.resolveIncludesAndExternalBatches({
-        context,
-        queryName,
-        model,
-        modelName,
-        workingEntities: working,
-        select: parsedQuery.select,
-        parentInclude: parsedQuery.include,
-      });
-
-      const schema = model.getSchema();
-
-      const schemaWithModel = z.array(
-        schema.extend({
-          __model: z.literal(modelName).default(modelName),
-        }),
-      );
-
-      const parsedResult = schemaWithModel.safeParse(working);
-
-      if (parsedResult.error) {
-        throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, {
+        const { includeData, externalBatches } = await this.resolveIncludesAndExternalBatches({
+          context,
           queryName,
-          message: parsedResult.error.message,
-          parsedQuery,
+          model,
+          modelName,
+          workingEntities: working,
+          select: parsedQuery.select,
+          parentInclude: parsedQuery.include,
         });
-      }
 
-      const enriched = attachExternalBatchesToParsed(parsedResult.data, externalBatches);
+        const schema = model.getSchema();
 
-      data = selectFields(enriched, parsedQuery.select) as Array<Record<string, any>>;
+        const schemaWithModel = z.array(
+          schema.extend({
+            __model: z.literal(modelName).default(modelName),
+          }),
+        );
 
-      if (includeData) {
-        data = mergeIncludeData(data, includeData);
+        const parsedResult = schemaWithModel.safeParse(working);
+
+        if (parsedResult.error) {
+          throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, {
+            queryName,
+            message: parsedResult.error.message,
+            parsedQuery,
+          });
+        }
+
+        const enriched = attachExternalBatchesToParsed(parsedResult.data, externalBatches);
+
+        let selected = selectFields(enriched, parsedQuery.select) as Array<Record<string, any>>;
+
+        if (includeData) {
+          selected = mergeIncludeData(selected, includeData);
+        }
+
+        return selected;
+      };
+
+      if (queryMany.isPaginated()) {
+        if (parsedQuery.pagingInfo === undefined) {
+          throw new TQLServerError(TQLServerErrorType.QueryInputSchemaValidationError, {
+            queryName,
+            message: 'Expected pagingInfo for paginated queryMany.',
+          });
+        }
+
+        const pagingParsed = queryMany.getPagingInputSchema().safeParse(parsedQuery.pagingInfo);
+
+        if (!pagingParsed.success) {
+          throw new TQLServerError(TQLServerErrorType.QueryInputSchemaValidationError, {
+            queryName,
+            message: pagingParsed.error.message,
+          });
+        }
+
+        assertPagingTakeInBounds(queryMany.getWithPaging(), (pagingParsed.data as { take: number }).take, queryName);
+
+        const resolvedMany: unknown = await (resolve as any)({
+          context,
+          query: parsedQuery.query,
+          pagingInfo: pagingParsed.data,
+        });
+
+        if (!resolvedMany || typeof resolvedMany !== 'object' || !Array.isArray((resolvedMany as { entities?: unknown }).entities)) {
+          throw new TQLServerError(TQLServerErrorType.QueryError, {
+            queryName,
+            error: new Error('Paginated queryMany resolve must return { entities: Entity[], pagingInfo: {...} }'),
+          });
+        }
+
+        const pagingOutParsed = ResolvedPagingInfoSchema.safeParse((resolvedMany as { pagingInfo?: unknown }).pagingInfo);
+
+        if (!pagingOutParsed.success) {
+          throw new TQLServerError(TQLServerErrorType.QueryEntitySchemaValidationError, {
+            queryName,
+            message: pagingOutParsed.error.message,
+            parsedQuery,
+          });
+        }
+
+        const entities = (resolvedMany as { entities: Array<Record<string, any>> }).entities;
+
+        data = await finishManyEntities(entities);
+        pagingInfo = pagingOutParsed.data;
+      } else {
+        if (parsedQuery.pagingInfo !== undefined) {
+          throw new TQLServerError(TQLServerErrorType.QueryInputSchemaValidationError, {
+            queryName,
+            message: 'pagingInfo is not allowed for non-paginated queryMany.',
+          });
+        }
+
+        const entities = await (resolve as any)({ context, query: parsedQuery.query });
+
+        data = await finishManyEntities(entities as Array<Record<string, any>>);
       }
     } catch (error) {
       if (error instanceof TQLServerError) {
         data = null;
+        pagingInfo = null;
         formattedError = error.getFormattedError();
       } else {
         data = null;
+        pagingInfo = null;
         formattedError = new TQLServerError(TQLServerErrorType.QueryError, {
           queryName,
           error,
@@ -427,6 +498,7 @@ export class QueryResolver<S extends ClientSchema> {
       queryName,
       data,
       error: formattedError,
+      pagingInfo,
     };
   }
 
@@ -871,6 +943,29 @@ const SelectInputSchema = z.custom<Record<string, unknown>>(
   { message: 'Expected select to be an object map.' },
 );
 
+const ResolvedPagingInfoSchema = z.object({
+  hasNextPage: z.boolean(),
+  hasPreviousPage: z.boolean(),
+  startCursor: z.string().nullable(),
+  endCursor: z.string().nullable(),
+});
+
+const assertPagingTakeInBounds = (withPaging: WithPagingConfig | undefined, take: number, queryName: string): void => {
+  if (!withPaging) return;
+  if (withPaging.minTakeSize !== undefined && take < withPaging.minTakeSize) {
+    throw new TQLServerError(TQLServerErrorType.QueryInputSchemaValidationError, {
+      queryName,
+      message: `take must be >= ${withPaging.minTakeSize}`,
+    });
+  }
+  if (withPaging.maxTakeSize !== undefined && take > withPaging.maxTakeSize) {
+    throw new TQLServerError(TQLServerErrorType.QueryInputSchemaValidationError, {
+      queryName,
+      message: `take must be <= ${withPaging.maxTakeSize}`,
+    });
+  }
+};
+
 const HandleQuerySingleInputSchema = z.object({
   query: z.any(),
   select: SelectInputSchema,
@@ -881,6 +976,7 @@ const HandleQueryManyInputSchema = z.object({
   query: z.any(),
   select: SelectInputSchema,
   include: z.any(),
+  pagingInfo: z.any().optional(),
 });
 
 const HandleIncludeSingleInputSchema = z.object({

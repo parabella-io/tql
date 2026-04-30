@@ -103,9 +103,17 @@ describe('Mutation', () => {
       },
     ];
 
+    const postsPagingInfo = {
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: posts[0]!.id,
+      endCursor: posts[posts.length - 1]!.id,
+    };
+
     const postsQueryResponse = vi.fn().mockResolvedValue({
       [postsQueryName]: {
         data: posts,
+        pagingInfo: postsPagingInfo,
         error: null,
       },
     });
@@ -124,6 +132,9 @@ describe('Mutation', () => {
         query: (params) => ({
           query: {
             title: params.title,
+          },
+          pagingInfo: {
+            take: 10,
           },
           select: {
             title: true,
@@ -220,9 +231,9 @@ describe('Mutation', () => {
 
           if (updatedPost) {
             posts.update((draft: any) => {
-              const indexOf = draft?.findIndex((post) => post.id === updatedPost.id);
+              const indexOf = draft?.findIndex((post: any) => post.id === updatedPost.id);
 
-              if (indexOf !== undefined) {
+              if (indexOf !== undefined && indexOf !== -1) {
                 draft![indexOf] = {
                   id: updatedPost.id,
                   title: updatedPost.title,
@@ -240,9 +251,9 @@ describe('Mutation', () => {
 
           if (deletedPost) {
             posts.update((draft: any) => {
-              const indexOf = draft?.findIndex((post) => post.id === deletedPost.id);
+              const indexOf = draft?.findIndex((post: any) => post.id === deletedPost.id);
 
-              if (indexOf !== undefined) {
+              if (indexOf !== undefined && indexOf !== -1) {
                 draft!.splice(indexOf, 1);
               }
             });
@@ -255,14 +266,14 @@ describe('Mutation', () => {
 
           if (upsertedPost) {
             posts.update((draft: any) => {
-              const indexOf = draft?.findIndex((post) => post.id === upsertedPost.id);
+              const indexOf = draft?.findIndex((post: any) => post.id === upsertedPost.id);
 
               if (indexOf === -1) {
                 draft?.push(upsertedPost);
                 return;
               }
 
-              if (indexOf !== undefined) {
+              if (indexOf !== undefined && indexOf !== -1) {
                 draft![indexOf] = upsertedPost;
               }
             });
@@ -278,7 +289,7 @@ describe('Mutation', () => {
       profileId: '1',
     });
 
-    const updatedPosts = postsQuery.getData(postsQueryParams);
+    const updatedPosts = postsQuery.getData(postsQueryParams) as any;
 
     expect(updatedPosts).toEqual([
       {
@@ -322,9 +333,17 @@ describe('Mutation', () => {
       },
     ];
 
+    const postsPagingInfo = {
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: posts[0]!.id,
+      endCursor: posts[posts.length - 1]!.id,
+    };
+
     const postsQueryResponse = vi.fn().mockResolvedValue({
       [postsQueryName]: {
         data: posts,
+        pagingInfo: postsPagingInfo,
         error: null,
       },
     });
@@ -344,6 +363,9 @@ describe('Mutation', () => {
           query: {
             title: params.title,
           },
+          pagingInfo: {
+            take: 10,
+          },
           select: {
             title: true,
             content: true,
@@ -355,25 +377,25 @@ describe('Mutation', () => {
 
     postsQuery.updateOnChange('post', {
       onInsert: ({ draft, change }) => {
-        let _draft = draft as any[];
+        const _draft = draft as any[];
 
         _draft?.push(change);
       },
       onUpdate: ({ draft, change }) => {
-        let _draft = draft as any[];
+        const _draft = draft as any[];
 
         const indexOf = _draft?.findIndex((post) => post.id === change.id);
 
-        if (indexOf !== undefined) {
+        if (indexOf !== undefined && indexOf !== -1) {
           _draft![indexOf] = change;
         }
       },
       onDelete: ({ draft, change }) => {
-        let _draft = draft as any[];
+        const _draft = draft as any[];
 
         const indexOf = _draft?.findIndex((post) => post.id === change.id);
 
-        if (indexOf !== undefined) {
+        if (indexOf !== undefined && indexOf !== -1) {
           _draft!.splice(indexOf, 1);
         }
       },
@@ -383,7 +405,11 @@ describe('Mutation', () => {
 
     expect(response.posts.data).toEqual(posts);
 
+    expect(response.posts.pagingInfo).toEqual(postsPagingInfo);
+
     expect(postsQuery.getState(postsQueryParams).data).toEqual(posts);
+
+    expect(postsQuery.getState(postsQueryParams).pagingInfo).toEqual(postsPagingInfo);
 
     const mutationName = 'createPost';
 
@@ -444,7 +470,7 @@ describe('Mutation', () => {
       profileId: '1',
     });
 
-    const updatedPosts = postsQuery.getData(postsQueryParams);
+    const updatedPosts = postsQuery.getData(postsQueryParams) as any;
 
     expect(updatedPosts).toEqual([
       {
@@ -482,9 +508,17 @@ describe('Mutation', () => {
       },
     ];
 
+    const postsPagingInfo = {
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: posts[0]!.id,
+      endCursor: posts[posts.length - 1]!.id,
+    };
+
     const postsQueryResponse = vi.fn().mockResolvedValue({
       [postsQueryName]: {
         data: posts,
+        pagingInfo: postsPagingInfo,
         error: null,
       },
     });
@@ -503,6 +537,9 @@ describe('Mutation', () => {
         query: (params) => ({
           query: {
             title: params.title,
+          },
+          pagingInfo: {
+            take: 10,
           },
           select: {
             title: true,
@@ -581,7 +618,7 @@ describe('Mutation', () => {
       profileId: '3',
     });
 
-    expect(postsQuery.getData(postsQueryParams)).toEqual([
+    expect((postsQuery.getData(postsQueryParams) as any)).toEqual([
       {
         id: '1',
         title: 'Test Title (UPSERTED)',

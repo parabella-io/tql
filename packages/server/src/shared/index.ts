@@ -35,8 +35,10 @@ export type {
 
 export type {
   QueryRegistryEntry,
+  ResolvedPagingInfoShape,
   QueryDataFor,
   QueryDataFromRegistry,
+  QueryPagingInfoFromRegistry,
   HandleQueryResponseFor,
   QueryResponseMapFor,
 } from './query-projection.js';

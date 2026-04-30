@@ -28,6 +28,7 @@ describe('Query', () => {
           // individual tests override state via `updateState` where needed.
           data: {},
           error: null,
+          pagingInfo: null,
         },
       ]),
     ),
@@ -102,8 +103,9 @@ describe('Query', () => {
     };
 
     type PostsQueryInput = {
-      query: { title: string | null; cursor: { id: string } | null; limit: number; order: 'asc' | 'desc' };
+      query: { title: string | null; orderBy?: 'asc' | 'desc' };
       select: typeof postSelect;
+      pagingInfo: { take?: number; before?: string | null; after?: string | null };
     };
 
     type PostsData = QueryDataFor<Schema, 'posts', PostsQueryInput>;
@@ -122,9 +124,10 @@ describe('Query', () => {
         query: (params) => ({
           query: {
             title: params.title,
-            cursor: null,
-            limit: 10,
-            order: 'asc',
+            orderBy: 'asc',
+          },
+          pagingInfo: {
+            take: 10,
           },
           select: postSelect,
         }),
@@ -133,7 +136,7 @@ describe('Query', () => {
 
     query.register(params);
 
-    const data = [
+    const entities = [
       {
         id: '1',
         title: 'Post Title',
@@ -146,22 +149,34 @@ describe('Query', () => {
         content: 'Post Content 2',
         profileId: '2',
       },
-    ] as PostsData;
+    ];
+
+    const postsPagingInfo = {
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: '1',
+      endCursor: '2',
+    };
+
+    const data = entities as PostsData;
 
     query.updateState(params, (state) => {
       state.data = data;
+      state.pagingInfo = postsPagingInfo;
       return state;
     });
 
     const updatedData = query.getData(params);
 
     for (const post of updatedData!) {
-      const expectedPost = data!.find((p) => p.id === post.id);
+      const expectedPost = entities.find((p) => p.id === post.id);
       expect(post.id).toEqual(expectedPost!.id);
       expect(post.title).toEqual(expectedPost!.title);
       expect(post.content).toEqual(expectedPost!.content);
       expect(post.profileId).toEqual(expectedPost!.profileId);
     }
+
+    expect(query.getState(params).pagingInfo).toEqual(postsPagingInfo);
   });
 
   it('should be able to register post query and be typesafe', async () => {
@@ -291,6 +306,7 @@ describe('Query', () => {
           __model: 'profile',
         },
         error: null,
+        pagingInfo: null,
       },
     };
 
@@ -356,6 +372,7 @@ describe('Query', () => {
           __model: 'profile',
         },
         error: null,
+        pagingInfo: null,
       },
     };
 

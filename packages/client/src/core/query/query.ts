@@ -1,4 +1,4 @@
-import type { FormattedTQLServerError } from '@tql/server/shared';
+import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@tql/server/shared';
 import { createQueryHashKey, QueryHashKey, QueryState, QueryStore } from './query-store';
 
 import type {
@@ -75,6 +75,7 @@ export class Query<
       params,
       error: null,
       data: null,
+      pagingInfo: null,
       isEnabled: this.queryOptions.isEnabled ?? true,
       isLoading: false,
       isStale: true,
@@ -136,7 +137,11 @@ export class Query<
 
         if (!response) throw new Error(`Query [${this.queryName}]: invalid response`);
 
-        const queryResponse = response[state.queryName];
+        const queryResponse = response[state.queryName] as {
+          data: unknown;
+          error: FormattedTQLServerError | null;
+          pagingInfo?: ResolvedPagingInfoShape | null;
+        };
 
         const { data, error } = queryResponse;
 
@@ -144,9 +149,12 @@ export class Query<
 
         if (error) throw error;
 
+        const pagingInfo = queryResponse.pagingInfo ?? null;
+
         this.patchState(hashKey, {
           data,
           error,
+          pagingInfo,
           isStale: false,
           isLoading: false,
           staleAtTimestamp,
@@ -158,6 +166,7 @@ export class Query<
 
         this.patchState(hashKey, {
           error: formattedError,
+          pagingInfo: null,
           isLoading: false,
           staleAtTimestamp,
         });
@@ -213,6 +222,10 @@ export class Query<
 
   public getError = (params: QueryParams): FormattedTQLServerError | null => {
     return this.getState(params).error as FormattedTQLServerError | null;
+  };
+
+  public getPagingInfo = (params: QueryParams): ResolvedPagingInfoShape | null => {
+    return this.getState(params).pagingInfo;
   };
 
   public getHashKey = (params: QueryParams) => {

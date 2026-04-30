@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import stableStringify from 'fast-json-stable-stringify';
 import md5 from 'md5';
 import { produce } from 'immer';
-import type { FormattedTQLServerError } from '@tql/server/shared';
+import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@tql/server/shared';
 import { subscribeWithSelector } from 'zustand/middleware';
 
 type QueryData = Record<string, any> | Array<Record<string, any>> | null;
@@ -22,6 +22,8 @@ export type QueryState = {
   queryHashKey: QueryHashKey;
   query: any;
   data: QueryData;
+  /** Present for paginated `queryMany` responses; `null` otherwise. */
+  pagingInfo: ResolvedPagingInfoShape | null;
   params: Record<string, any>;
   error: QueryError;
   isEnabled: boolean;

@@ -1,4 +1,4 @@
-// @schema-hash ab5067a0dc1219c6
+// @schema-hash c18a22602ec3b286
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -228,14 +228,26 @@ export interface PostInput {
 export interface PostsInput {
   query: {
     title: string | null;
-    cursor: {
-      id: string;
-    } | null;
-    limit: number;
-    order: 'asc' | 'desc';
+    orderBy?: 'asc' | 'desc';
   };
   select: PostSelect;
   include?: PostIncludeMap;
+  pagingInfo: {
+    take?: number;
+    before?: string | null;
+    after?: string | null;
+  };
+}
+
+export interface PostsPagingBadOutputInput {
+  query: {};
+  select: PostSelect;
+  include?: PostIncludeMap;
+  pagingInfo: {
+    take: number;
+    before?: string | null;
+    after?: string | null;
+  };
 }
 
 // ---- comment ----
@@ -260,21 +272,23 @@ export interface QueryInputMap {
   postById: PostByIdInput;
   post: PostInput;
   posts: PostsInput;
+  postsPagingBadOutput: PostsPagingBadOutputInput;
   commentById: CommentByIdInput;
 }
 
 // ===========================================================================
-// QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys)
+// QUERY REGISTRY (entity + arity + nullability + paginated + include map + externalFieldKeys)
 // ===========================================================================
 
 export interface QueryRegistry {
   profileById: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
   profile: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
   profileNullable: { entity: ProfileEntity; kind: 'single'; nullable: true; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
-  profiles: { entity: ProfileEntity; kind: 'many'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
+  profiles: { entity: ProfileEntity; kind: 'many'; nullable: false; paginated: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
   postById: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
   post: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
-  posts: { entity: PostEntity; kind: 'many'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  posts: { entity: PostEntity; kind: 'many'; nullable: false; paginated: true; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  postsPagingBadOutput: { entity: PostEntity; kind: 'many'; nullable: false; paginated: true; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
   commentById: { entity: CommentEntity; kind: 'single'; nullable: false; includeMap: CommentIncludeMap; externalFieldKeys: readonly [] };
 }
 
