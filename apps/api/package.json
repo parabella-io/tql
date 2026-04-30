@@ -13,7 +13,7 @@
     "dev": "dotenv -e .env -- tsx --watch src/server.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
-    "db:seed": "tsx prisma/seed/index.ts",
+    "db:seed": "dotenv -e .env -- tsx prisma/seed/index.ts",
     "test": "pnpm db:seed && vitest --maxWorkers 1"
   },
   "keywords": [],
@@ -42,6 +42,8 @@
   "devDependencies": {
     "@tql/ts-config": "workspace:*",
     "@types/supertest": "^6.0.3",
+    "dotenv": "^17.4.2",
+    "dotenv-cli": "^11.0.0",
     "supertest": "^7.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

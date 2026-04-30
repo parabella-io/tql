@@ -1,8 +1,8 @@
-import { useMutation, useQuery } from "@tql/client"
+import { useMutation, usePagedQuery } from "@tql/client"
 import { ErrorCenter } from "@/shared/components/error/error-center"
 import { LoadingCenter } from "@/shared/components/loading/loading-center"
 import { Card, CardAction, CardContent, CardFooter } from "@/shared/components/ui/card"
-import { workspaceMemberInvitesQuery } from "@/api/workspaces/queries/workspace-member-invites.query"
+import { workspaceMemberInvitesQuery, WORKSPACE_MEMBER_INVITES_PAGE_SIZE } from "@/api/workspaces/queries/workspace-member-invites.query"
 import { removeInviteWorkspaceMemberMutation } from "@/api/workspaces/mutations/remove-invite-workspace-member.mutation"
 import { WorkspaceMemberInviteEntity } from "node_modules/@tql/api/src/schema"
 import { Button } from "@/shared/components/ui/button"
@@ -10,7 +10,14 @@ import { Spinner } from "@/shared/components/ui/spinner"
 import { IconTrash } from "@tabler/icons-react"
 import { ConfirmActionDialog } from "@/shared/components/dialogs/ConfirmActionDialog"
 import { toast } from "sonner"
-import { useEffect } from "react"
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/shared/components/ui/pagination"
+import { cn } from "@/shared/lib/utils"
 
 type MemberInvitesListProps = {
     workspaceId: string
@@ -18,39 +25,76 @@ type MemberInvitesListProps = {
 
 export const MemberInvitesList = ({ workspaceId }: MemberInvitesListProps) => {
 
-    const { data: invites, error } = useQuery({
+    const {
+        data: invites,
+        error,
+        isLoading,
+        hasNextPage,
+        hasPreviousPage,
+        loadNextPage,
+        loadPreviousPage,
+        reset,
+    } = usePagedQuery({
         query: workspaceMemberInvitesQuery,
-        params: {
-            workspaceId,
-        },
+        params: { workspaceId },
+        pageSize: WORKSPACE_MEMBER_INVITES_PAGE_SIZE,
     })
 
     if (error) {
-        return <ErrorCenter message="Failed to load members." />
+        return <ErrorCenter message="Failed to load invites." />
     }
 
-    if (!invites) {
+    if (isLoading && invites.length === 0) {
         return <LoadingCenter />
     }
 
     return (
-        <ul className="gap-4 flex flex-col">
-            {invites.length === 0 ? (
-                <li className="py-2 text-muted-foreground">No invites found.</li>
-            ) : (
-                invites.map((invite: any) => (
-                    <MemberInviteItem key={invite.id} invite={invite} />
-                ))
-            )}
-        </ul>
+        <div className="flex flex-col gap-4">
+            <ul className="gap-4 flex flex-col">
+                {invites.length === 0 ? (
+                    <li className="py-2 text-muted-foreground">No invites found.</li>
+                ) : (
+                    invites.map((invite: WorkspaceMemberInviteEntity) => (
+                        <MemberInviteItem key={invite.id} invite={invite} onRemoved={reset} />
+                    ))
+                )}
+            </ul>
+            <Pagination>
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious
+                            href="#"
+                            text="Previous"
+                            className={cn((!hasPreviousPage || isLoading) && 'pointer-events-none opacity-50')}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                loadPreviousPage()
+                            }}
+                        />
+                    </PaginationItem>
+                    <PaginationItem>
+                        <PaginationNext
+                            href="#"
+                            text="Next"
+                            className={cn((!hasNextPage || isLoading) && 'pointer-events-none opacity-50')}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                loadNextPage()
+                            }}
+                        />
+                    </PaginationItem>
+                </PaginationContent>
+            </Pagination>
+        </div>
     )
 }
 
 type MemberInviteItemProps = {
     invite: WorkspaceMemberInviteEntity
+    onRemoved: () => void
 }
 
-const MemberInviteItem = ({ invite }: MemberInviteItemProps) => {
+const MemberInviteItem = ({ invite, onRemoved }: MemberInviteItemProps) => {
     const removeInvite = useMutation({
         mutation: removeInviteWorkspaceMemberMutation,
     })
@@ -63,6 +107,7 @@ const MemberInviteItem = ({ invite }: MemberInviteItemProps) => {
             })
 
             toast.success('Invite removed successfully', { position: 'top-center' })
+            onRemoved()
         } catch (error) {
             toast.error('Failed to remove invite', { position: 'top-center' })
             throw error;
@@ -99,4 +144,3 @@ const MemberInviteItem = ({ invite }: MemberInviteItemProps) => {
         </li>
     )
 }
-

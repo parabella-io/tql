@@ -5,7 +5,7 @@ import { ExternalField, externalField } from './external-field.js';
 import { QuerySingle } from './query-single.js';
 import type { QuerySingleOptions } from './query-single.js';
 import { QueryMany } from './query-many.js';
-import type { QueryManyOptions } from './query-many.js';
+import type { QueryManyOptions, QueryManyOptionsNonPaginated, QueryManyOptionsPaginated } from './query-many.js';
 import { ExtractEntityShape } from '../extract-entity-shape.js';
 import { IncludeSingle, IncludeSingleOptions } from './include-single.js';
 import { IncludeMany, IncludeManyOptions } from './include-many.js';
@@ -30,7 +30,11 @@ type QueryManyFn<
   ModelName extends keyof SchemaEntities,
 > = {
   <QueryArgs extends Record<string, any>>(
-    options: QueryManyOptions<SchemaContext, SchemaEntities, ModelName, QueryArgs>,
+    options: QueryManyOptionsPaginated<SchemaContext, SchemaEntities, ModelName, QueryArgs>,
+  ): QueryMany<SchemaContext, SchemaEntities, ModelName, QueryArgs>;
+
+  <QueryArgs extends Record<string, any>>(
+    options: QueryManyOptionsNonPaginated<SchemaContext, SchemaEntities, ModelName, QueryArgs>,
   ): QueryMany<SchemaContext, SchemaEntities, ModelName, QueryArgs>;
 };
 

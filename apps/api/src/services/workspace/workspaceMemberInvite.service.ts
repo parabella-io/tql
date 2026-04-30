@@ -1,4 +1,4 @@
-import { User, WorkspaceMember, WorkspaceMemberInvite } from '@server/database';
+import { WorkspaceMemberInvite } from '@server/database';
 import { PrismaClient } from '../../database';
 import { UserContext, WorkspaceEntity, WorkspaceMemberEntity, WorkspaceMemberInviteEntity } from '../../schema/schema';
 import { v7 } from 'uuid';
@@ -29,12 +29,24 @@ type GetWorkspaceMemberInviteByIdArgs = {
   inviteId: string;
 };
 
-type QueryMyWorkspaceInvitesArgs = {
+type QueryWorkspaceMemberInvitesArgs = {
   workspaceId: string;
 };
 
-type QueryWorkspaceMemberInvitesArgs = {
-  workspaceId: string;
+type PagingCursor = {
+  take: number;
+  before: string | null;
+  after: string | null;
+};
+
+export type WorkspaceMemberInvitePaged = {
+  entities: WorkspaceMemberInviteEntity[];
+  pagingInfo: {
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startCursor: string | null;
+    endCursor: string | null;
+  };
 };
 
 export class WorkspaceMemberInviteService {
@@ -150,6 +162,124 @@ export class WorkspaceMemberInviteService {
     });
 
     return workspaceMemberInvites.map(WorkspaceMemberInviteService.toEntity);
+  }
+
+  async queryByWorkspaceIdPaged(
+    _user: UserContext,
+    args: QueryWorkspaceMemberInvitesArgs,
+    paging: PagingCursor,
+  ): Promise<WorkspaceMemberInvitePaged> {
+    const { workspaceId } = args;
+    const { take, before, after } = paging;
+
+    if (take <= 0) {
+      return {
+        entities: [],
+        pagingInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+          startCursor: null,
+          endCursor: null,
+        },
+      };
+    }
+
+    if (before !== null) {
+      const rows = await this.db.workspaceMemberInvite.findMany({
+        where: { workspaceId, id: { lt: before } },
+        orderBy: { id: 'desc' },
+        take: take + 1,
+      });
+      const hasPreviousPage = rows.length > take;
+      const sliceDesc = rows.slice(0, take);
+      const slice = [...sliceDesc].reverse();
+
+      if (slice.length === 0) {
+        return {
+          entities: [],
+          pagingInfo: {
+            hasNextPage: false,
+            hasPreviousPage: false,
+            startCursor: null,
+            endCursor: null,
+          },
+        };
+      }
+
+      return {
+        entities: slice.map(WorkspaceMemberInviteService.toEntity),
+        pagingInfo: {
+          hasPreviousPage,
+          hasNextPage: true,
+          startCursor: slice[0]!.id,
+          endCursor: slice[slice.length - 1]!.id,
+        },
+      };
+    }
+
+    if (after !== null) {
+      const rows = await this.db.workspaceMemberInvite.findMany({
+        where: { workspaceId },
+        cursor: { id: after },
+        skip: 1,
+        take: take + 1,
+        orderBy: { id: 'asc' },
+      });
+      const hasNextPage = rows.length > take;
+      const slice = rows.slice(0, take);
+
+      if (slice.length === 0) {
+        return {
+          entities: [],
+          pagingInfo: {
+            hasNextPage: false,
+            hasPreviousPage: true,
+            startCursor: null,
+            endCursor: null,
+          },
+        };
+      }
+
+      return {
+        entities: slice.map(WorkspaceMemberInviteService.toEntity),
+        pagingInfo: {
+          hasPreviousPage: true,
+          hasNextPage,
+          startCursor: slice[0]!.id,
+          endCursor: slice[slice.length - 1]!.id,
+        },
+      };
+    }
+
+    const rows = await this.db.workspaceMemberInvite.findMany({
+      where: { workspaceId },
+      orderBy: { id: 'asc' },
+      take: take + 1,
+    });
+    const hasNextPage = rows.length > take;
+    const slice = rows.slice(0, take);
+
+    if (slice.length === 0) {
+      return {
+        entities: [],
+        pagingInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+          startCursor: null,
+          endCursor: null,
+        },
+      };
+    }
+
+    return {
+      entities: slice.map(WorkspaceMemberInviteService.toEntity),
+      pagingInfo: {
+        hasPreviousPage: false,
+        hasNextPage,
+        startCursor: slice[0]!.id,
+        endCursor: slice[slice.length - 1]!.id,
+      },
+    };
   }
 
   async queryByWorkspaceId(user: UserContext, args: QueryWorkspaceMemberInvitesArgs): Promise<WorkspaceMemberInviteEntity[]> {

@@ -47,7 +47,7 @@ const HASH_MARKER = '// @schema-hash';
  *   5. Include nodes                    one named interface per (parent, include)
  *   6. <Model>IncludeMap                map of relation -> include node
  *   7. <Query>Input + QueryInputMap     per-query envelopes and aggregate map
- *   8. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys }
+ *   8. QueryRegistry                    queryName -> { entity, kind, nullable, paginated?, includeMap, externalFieldKeys }
  *   9. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
  *  10. MutationRegistry                 mutationName -> declared `changed` map
  *  11. ClientSchema                     aggregate map consumed by @tql/client
@@ -389,10 +389,10 @@ const renderQueryInputsSection = (models: ModelInfo[]): string => {
     queryBlocks.push(`// ---- ${model.modelName} ----`);
 
     for (const { queryName, querySingle } of model.querySingles) {
-      queryBlocks.push(renderQueryInput(queryName, model, querySingle.getOptions().query as ZodTypeAny | undefined));
+      queryBlocks.push(renderQueryInput(queryName, model, querySingle.getOptions().query as ZodTypeAny | undefined, undefined));
     }
     for (const { queryName, queryMany } of model.queryManys) {
-      queryBlocks.push(renderQueryInput(queryName, model, queryMany.getOptions().query as ZodTypeAny | undefined));
+      queryBlocks.push(renderQueryInput(queryName, model, queryMany.getOptions().query as ZodTypeAny | undefined, queryMany));
     }
 
     blocks.push(queryBlocks.join('\n\n'));
@@ -405,7 +405,12 @@ const renderQueryInputsSection = (models: ModelInfo[]): string => {
   return [bannerComment('PER-QUERY INPUT INTERFACES'), ...blocks].join('\n\n');
 };
 
-const renderQueryInput = (queryName: string, model: ModelInfo, querySchema: ZodTypeAny | undefined): string => {
+const renderQueryInput = (
+  queryName: string,
+  model: ModelInfo,
+  querySchema: ZodTypeAny | undefined,
+  queryManyInstance?: QueryMany<any, any, any, any>,
+): string => {
   const interfaceName = `${toPascalCase(queryName)}Input`;
   const queryType = querySchema ? zodToTs(querySchema, '  ') : '{}';
 
@@ -413,6 +418,15 @@ const renderQueryInput = (queryName: string, model: ModelInfo, querySchema: ZodT
 
   if (hasIncludes(model)) {
     lines.push(`  include?: ${model.pascalName}IncludeMap;`);
+  }
+
+  if (queryManyInstance?.isPaginated()) {
+    const takeOptional = queryManyInstance.getWithPaging()?.defaultTakeSize !== undefined;
+    lines.push(`  pagingInfo: {`);
+    lines.push(`    take${takeOptional ? '?' : ''}: number;`);
+    lines.push(`    before?: string | null;`);
+    lines.push(`    after?: string | null;`);
+    lines.push(`  };`);
   }
 
   lines.push(`}`);
@@ -456,15 +470,16 @@ const renderQueryRegistry = (models: ModelInfo[]): string => {
         `  ${queryName}: { entity: ${model.pascalName}Entity; kind: 'single'; nullable: ${nullable}; includeMap: ${includeMapType}; externalFieldKeys: ${externalFieldKeysType} };`,
       );
     }
-    for (const { queryName } of model.queryManys) {
+    for (const { queryName, queryMany } of model.queryManys) {
+      const paginated = queryMany.isPaginated();
       entries.push(
-        `  ${queryName}: { entity: ${model.pascalName}Entity; kind: 'many'; nullable: false; includeMap: ${includeMapType}; externalFieldKeys: ${externalFieldKeysType} };`,
+        `  ${queryName}: { entity: ${model.pascalName}Entity; kind: 'many'; nullable: false; paginated: ${paginated}; includeMap: ${includeMapType}; externalFieldKeys: ${externalFieldKeysType} };`,
       );
     }
   }
 
   const body = ['export interface QueryRegistry {', ...entries, '}'].join('\n');
-  return [bannerComment('QUERY REGISTRY (entity + arity + nullability + include map + externalFieldKeys)'), body].join(
+  return [bannerComment('QUERY REGISTRY (entity + arity + nullability + paginated + include map + externalFieldKeys)'), body].join(
     '\n\n',
   );
 };

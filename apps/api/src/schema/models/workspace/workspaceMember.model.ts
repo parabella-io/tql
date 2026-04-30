@@ -45,10 +45,19 @@ export const workspaceMember = schema.model('workspaceMember', {
       query: z.object({
         workspaceId: z.string(),
       }),
-      resolve: async ({ context, query }) => {
-        return context.workspaceMemberService.queryByWorkspaceId(context.user, {
-          workspaceId: query.workspaceId,
-        });
+      withPaging: {
+        defaultTakeSize: 10,
+        maxTakeSize: 100,
+        minTakeSize: 1,
+      },
+      resolve: async ({ context, query, pagingInfo }) => {
+        return context.workspaceMemberService.queryByWorkspaceIdPaged(
+          context.user,
+          {
+            workspaceId: query.workspaceId,
+          },
+          pagingInfo,
+        );
       },
     }),
   }),

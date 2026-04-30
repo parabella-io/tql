@@ -15,6 +15,22 @@ type QueryByWorkspaceIdArgs = {
   workspaceId: string;
 };
 
+export type WorkspaceMemberPaged = {
+  entities: WorkspaceMemberEntity[];
+  pagingInfo: {
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startCursor: string | null;
+    endCursor: string | null;
+  };
+};
+
+type PagingCursor = {
+  take: number;
+  before: string | null;
+  after: string | null;
+};
+
 type QueryOwnersByWorkspaceIdsArgs = {
   workspaceIds: string[];
 };
@@ -64,6 +80,102 @@ export class WorkspaceMemberService {
     const workspaceMember: WorkspaceMemberEntity = WorkspaceMemberService.toEntity(foundWorkspaceMember);
 
     return workspaceMember;
+  }
+
+  async queryByWorkspaceIdPaged(_user: UserContext, args: QueryByWorkspaceIdArgs, paging: PagingCursor): Promise<WorkspaceMemberPaged> {
+    const { workspaceId } = args;
+
+    const { take, before, after } = paging;
+
+    if (before !== null) {
+      const rows = await this.db.workspaceMember.findMany({
+        where: { workspaceId, id: { lt: before } },
+        orderBy: { id: 'desc' },
+        take: take + 1,
+        include: { user: true },
+      });
+
+      const hasPreviousPage = rows.length > take;
+
+      const sliceDesc = rows.slice(0, take);
+
+      const slice = [...sliceDesc].reverse();
+
+      if (slice.length === 0) {
+        return {
+          entities: [],
+          pagingInfo: {
+            hasNextPage: false,
+            hasPreviousPage: false,
+            startCursor: null,
+            endCursor: null,
+          },
+        };
+      }
+
+      const hasNextPage =
+        (await this.db.workspaceMember.findFirst({
+          where: { workspaceId, id: { gt: before } },
+          orderBy: { id: 'asc' },
+          take: 1,
+        })) !== null;
+
+      return {
+        entities: slice.map(WorkspaceMemberService.toEntity),
+        pagingInfo: {
+          hasPreviousPage,
+          hasNextPage,
+          startCursor: slice[0]!.id,
+          endCursor: slice[slice.length - 1]!.id,
+        },
+      };
+    }
+
+    const rows = await this.db.workspaceMember.findMany({
+      where: { workspaceId },
+      cursor: after ? { id: after } : undefined,
+      skip: after ? 1 : 0,
+      take: take + 1,
+      orderBy: { id: 'asc' },
+      include: { user: true },
+    });
+
+    const hasNextPage = rows.length > take;
+
+    const slice = rows.slice(0, take);
+
+    if (slice.length === 0) {
+      return {
+        entities: [],
+        pagingInfo: {
+          hasNextPage: false,
+          hasPreviousPage: false,
+          startCursor: null,
+          endCursor: null,
+        },
+      };
+    }
+
+    let hasPreviousPage = false;
+
+    if (after !== null) {
+      hasPreviousPage =
+        (await this.db.workspaceMember.findFirst({
+          where: { workspaceId, id: { lt: after } },
+          orderBy: { id: 'desc' },
+          take: 1,
+        })) !== null;
+    }
+
+    return {
+      entities: slice.map(WorkspaceMemberService.toEntity),
+      pagingInfo: {
+        hasPreviousPage,
+        hasNextPage,
+        startCursor: slice[0]!.id,
+        endCursor: slice[slice.length - 1]!.id,
+      },
+    };
   }
 
   async queryByWorkspaceId(user: UserContext, args: QueryByWorkspaceIdArgs): Promise<WorkspaceMemberEntity[]> {

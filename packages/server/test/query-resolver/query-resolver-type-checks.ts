@@ -166,6 +166,26 @@ const typeCheck = async () => {
   const _includedCommentProfileHobbyName: string | undefined = included.postById.data?.comments?.[0]?.profile.hobbies[0]?.name;
   const _includedCommentProfileZip: string | undefined = included.postById.data?.comments?.[0]?.profile.address.zip;
 
+  const postsPaged = await queryResolver.handle({
+    context: {} as any,
+    query: {
+      posts: {
+        query: { title: null, orderBy: 'asc' },
+        select: postSelect,
+        pagingInfo: { take: 5 },
+      },
+    },
+  });
+
+  const _postEntityTitle: string | undefined = postsPaged.posts.data?.[0]?.title;
+  void _postEntityTitle;
+
+  const _hasNext: boolean | undefined = postsPaged.posts.pagingInfo?.hasNextPage;
+  void _hasNext;
+
+  // @ts-expect-error paginated many `data` is Entity[], not `{ entities }`
+  const _wrongPostsEntitiesAccess = postsPaged.posts.data?.entities;
+
   await queryResolver.handle({
     context: {} as any,
     query: {

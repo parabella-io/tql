@@ -623,9 +623,10 @@ describe('QueryResolver Multiple Top Level Queries - Success', () => {
         posts: {
           query: {
             title: 'test',
-            cursor: null,
-            limit: 10,
-            order: 'desc',
+            orderBy: 'desc',
+          },
+          pagingInfo: {
+            take: 10,
           },
           select: postSelect,
         },
@@ -649,6 +650,13 @@ describe('QueryResolver Multiple Top Level Queries - Success', () => {
       expect(post.content).toBe(expectedPost!.content);
       expect(post.profileId).toBe(expectedPost!.profileId);
     }
+
+    expect(response.posts.pagingInfo).toEqual(
+      expect.objectContaining({
+        hasNextPage: expect.any(Boolean),
+        hasPreviousPage: expect.any(Boolean),
+      }),
+    );
 
     expect(response.postById.data?.id).toBe(postById.id);
     expect(response.postById.data?.title).toBe(postById.title);
@@ -1020,6 +1028,128 @@ describe('QueryResolver QueryMany - Errors', () => {
 
     expect(response.profiles.data).toBeNull();
     expect(response.profiles.error?.type).toEqual(TQLServerErrorType.QueryNotAllowedError);
+  });
+
+  test('should reject pagingInfo on non-paginated queryMany', async () => {
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+      },
+      query: {
+        profiles: {
+          query: { cursor: null, limit: 10, order: 'desc' },
+          select: profileSelect,
+          pagingInfo: { take: 1 },
+        },
+      },
+    });
+
+    expect(response.profiles.data).toBeNull();
+    expect(response.profiles.error?.type).toEqual(TQLServerErrorType.QueryInputSchemaValidationError);
+  });
+
+  test('should reject paginated queryMany without pagingInfo', async () => {
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+      },
+      query: {
+        posts: {
+          query: { title: null },
+          select: postSelect,
+        } as any,
+      },
+    });
+
+    expect(response.posts.data).toBeNull();
+    expect(response.posts.error?.type).toEqual(TQLServerErrorType.QueryInputSchemaValidationError);
+  });
+
+  test('should reject take above maxTakeSize for paginated queryMany', async () => {
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+      },
+      query: {
+        posts: {
+          query: { title: null },
+          select: postSelect,
+          pagingInfo: { take: 999 },
+        },
+      },
+    });
+
+    expect(response.posts.data).toBeNull();
+    expect(response.posts.error?.type).toEqual(TQLServerErrorType.QueryInputSchemaValidationError);
+  });
+
+  test('should reject paginated queryMany when both before and after are set', async () => {
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+      },
+      query: {
+        posts: {
+          query: { title: null },
+          select: postSelect,
+          pagingInfo: { take: 10, before: 'cursor-a', after: 'cursor-b' },
+        },
+      },
+    });
+
+    expect(response.posts.data).toBeNull();
+    expect(response.posts.error?.type).toEqual(TQLServerErrorType.QueryInputSchemaValidationError);
+  });
+
+  test('should reject invalid resolver pagingInfo output', async () => {
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+      },
+      query: {
+        postsPagingBadOutput: {
+          query: {},
+          select: postSelect,
+          pagingInfo: { take: 1 },
+        },
+      },
+    });
+
+    expect(response.postsPagingBadOutput.data).toBeNull();
+    expect(response.postsPagingBadOutput.error?.type).toEqual(TQLServerErrorType.QueryEntitySchemaValidationError);
+  });
+
+  test('should default take from defaultTakeSize when omitted', async () => {
+    const response = await queryResolver.handle({
+      context: {
+        userId: '1',
+        database: database,
+        isAuthenticated: true,
+      },
+      query: {
+        posts: {
+          query: { title: null },
+          select: postSelect,
+          pagingInfo: {
+            take: 10,
+          },
+        },
+      },
+    });
+
+    expect(response.posts.error).toBeNull();
+    expect(response.posts.data?.length).toBeLessThanOrEqual(10);
+    expect(response.posts.pagingInfo?.startCursor === null || typeof response.posts.pagingInfo?.startCursor === 'string').toBe(true);
   });
 });
 

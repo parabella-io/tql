@@ -1,6 +1,5 @@
-import { workspaceMembersQuery } from "@/api/workspaces/queries/workspace-members.query"
-import { useMutation, useQuery } from "@tql/client"
-import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar"
+import { workspaceMembersQuery, WORKSPACE_MEMBERS_PAGE_SIZE } from "@/api/workspaces/queries/workspace-members.query"
+import { useMutation, usePagedQuery } from "@tql/client"
 import { ErrorCenter } from "@/shared/components/error/error-center"
 import { LoadingCenter } from "@/shared/components/loading/loading-center"
 import { Card, CardAction, CardContent, CardFooter } from "@/shared/components/ui/card"
@@ -11,45 +10,91 @@ import { Button } from "@/shared/components/ui/button"
 import { Spinner } from "@/shared/components/ui/spinner"
 import { IconTrash } from "@tabler/icons-react"
 import { toast } from "sonner"
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/shared/components/ui/pagination"
+import { cn } from "@/shared/lib/utils"
 
 type MemberListProps = {
     workspaceId: string
 }
 
 export const MemberList = ({ workspaceId }: MemberListProps) => {
-    const { data: members, error } = useQuery({
+    const {
+        data: members,
+        error,
+        isLoading,
+        hasNextPage,
+        hasPreviousPage,
+        loadNextPage,
+        loadPreviousPage,
+    } = usePagedQuery({
         query: workspaceMembersQuery,
-        params: {
-            workspaceId,
-        },
+        params: { workspaceId },
+        pageSize: WORKSPACE_MEMBERS_PAGE_SIZE,
     })
 
     if (error) {
         return <ErrorCenter message="Failed to load members." />
     }
 
-    if (!members) {
+    if (isLoading && members.length === 0) {
         return <LoadingCenter />
     }
 
     return (
-        <ul className="gap-4 flex flex-col">
-            {members.length === 0 ? (
-                <li className="py-2 text-muted-foreground">No members found.</li>
-            ) : (
-                members.map((member: any) => (
-                    <MemberItem key={member.id} member={member} />
-                ))
-            )}
-        </ul>
+        <div className="flex flex-col gap-4">
+
+            <ul className="gap-4 flex flex-col">
+                {members.length === 0 ? (
+                    <li className="py-2 text-muted-foreground">No members found.</li>
+                ) : (
+                    members.map((member: WorkspaceMemberEntity) => (
+                        <MemberItem key={member.id} member={member} onRemoved={() => { }} />
+                    ))
+                )}
+            </ul>
+
+            <Pagination>
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious
+                            href="#"
+                            text="Previous"
+                            className={cn((!hasPreviousPage || isLoading) && 'pointer-events-none opacity-50')}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                loadPreviousPage()
+                            }}
+                        />
+                    </PaginationItem>
+                    <PaginationItem>
+                        <PaginationNext
+                            href="#"
+                            text="Next"
+                            className={cn((!hasNextPage || isLoading) && 'pointer-events-none opacity-50')}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                loadNextPage()
+                            }}
+                        />
+                    </PaginationItem>
+                </PaginationContent>
+            </Pagination>
+        </div>
     )
 }
 
 type MemberItemProps = {
     member: WorkspaceMemberEntity
+    onRemoved: () => void
 }
 
-const MemberItem = ({ member }: MemberItemProps) => {
+const MemberItem = ({ member, onRemoved }: MemberItemProps) => {
     const removeMember = useMutation({
         mutation: removeWorkspaceMemberMutation,
     })
@@ -62,6 +107,7 @@ const MemberItem = ({ member }: MemberItemProps) => {
             })
 
             toast.success('Member removed successfully', { position: 'top-center' })
+            onRemoved()
         } catch (error) {
             toast.error('Failed to remove member', { position: 'top-center' })
             throw error;

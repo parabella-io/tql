@@ -253,25 +253,80 @@ export const post = schema.model('post', {
     posts: queryMany({
       query: z.object({
         title: z.string().nullable(),
-        cursor: z
-          .object({
-            id: z.string(),
-          })
-          .nullable(),
-        limit: z.number(),
-        order: z.enum(['asc', 'desc']),
+        orderBy: z.enum(['asc', 'desc']).optional(),
       }),
-      resolve: async ({ context, query }) => {
-        let posts: Post[] = [];
+      withPaging: {
+        maxTakeSize: 10,
+        defaultTakeSize: 10,
+        minTakeSize: 1,
+      },
+      resolve: async ({ context, query, pagingInfo }) => {
+        const orderSql = query.orderBy === 'desc' ? 'DESC' : 'ASC';
 
+        let rows: any[];
         if (query.title === undefined) {
-          posts = context.database.prepare('SELECT * FROM posts').all() as any[];
+          rows = context.database.prepare(`SELECT * FROM posts ORDER BY id ${orderSql}`).all() as any[];
         } else {
-          posts = context.database.prepare('SELECT * FROM posts WHERE title = ?').all(query.title) as any[];
+          rows = context.database.prepare(`SELECT * FROM posts WHERE title = ? ORDER BY id ${orderSql}`).all(query.title) as any[];
         }
 
-        return posts;
+        const allPosts: Post[] = rows.map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          content: row.content,
+          profileId: row.profileId,
+        }));
+
+        const take = pagingInfo.take;
+        const { before, after } = pagingInfo;
+
+        const len = allPosts.length;
+        let startIdx = 0;
+        let endIdxExclusive = len;
+
+        if (after !== null) {
+          const idx = allPosts.findIndex((p) => p.id === after);
+          startIdx = idx === -1 ? 0 : idx + 1;
+        } else if (before !== null) {
+          const idx = allPosts.findIndex((p) => p.id === before);
+          endIdxExclusive = idx === -1 ? len : idx;
+          startIdx = Math.max(0, endIdxExclusive - take);
+        }
+
+        const slice = allPosts.slice(startIdx, Math.min(startIdx + take, endIdxExclusive));
+
+        const hasPreviousPage = startIdx > 0;
+        const hasNextPage = startIdx + slice.length < endIdxExclusive;
+
+        const startCursor = slice.length > 0 ? slice[0]!.id : null;
+        const endCursor = slice.length > 0 ? slice[slice.length - 1]!.id : null;
+
+        return {
+          entities: slice,
+          pagingInfo: {
+            hasNextPage,
+            hasPreviousPage,
+            startCursor,
+            endCursor,
+          },
+        };
       },
+    }),
+
+    /** Test-only: invalid resolver pagingInfo to exercise output validation. */
+    postsPagingBadOutput: queryMany({
+      query: z.object({}),
+      withPaging: { maxTakeSize: 10 },
+      resolve: async () =>
+        ({
+          entities: [],
+          pagingInfo: {
+            hasNextPage: 'not-a-boolean',
+            hasPreviousPage: false,
+            startCursor: null,
+            endCursor: null,
+          },
+        }) as any,
     }),
   }),
 

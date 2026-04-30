@@ -18,12 +18,24 @@ import type {
  *  - `nullable`   — whether a `single` query may resolve to `null`.
  *  - `includeMap` — the parent's per-relation include map, or `never` when
  *                   the model has no relations.
+ *  - `paginated` — when `kind` is `'many'`, whether the public query response
+ *                  includes response-level `pagingInfo` (cursor paging). `data`
+ *                  is still the projected entity array.
  *  - `externalFieldKeys` — batch-resolved scalar keys included on the entity.
  */
+export type ResolvedPagingInfoShape = {
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  startCursor: string | null;
+  endCursor: string | null;
+};
+
 export type QueryRegistryEntry = {
   entity: object;
   kind: IncludeKind;
   nullable: boolean;
+  /** Present on `kind: 'many'` entries emitted by codegen. */
+  paginated?: boolean;
   includeMap: unknown;
   /** Keys resolved by batch `externalField` resolvers when selected. */
   externalFieldKeys?: readonly string[];
@@ -51,6 +63,14 @@ export type QueryDataFromRegistry<
       : Projection
   : never;
 
+/** Response-level paging metadata for paginated `queryMany` entries; `null` for all other queries. */
+export type QueryPagingInfoFromRegistry<
+  Registry extends Record<string, any>,
+  QueryName extends keyof Registry,
+> = Registry[QueryName] extends { kind: 'many'; paginated: true }
+  ? ResolvedPagingInfoShape | null
+  : null;
+
 /**
  * Client-facing convenience wrapper around {@link QueryDataFromRegistry}
  * that derives per-call response data for `@tql/client`.
@@ -74,6 +94,7 @@ export type HandleQueryResponseFor<Registry extends Record<string, any>, InputMa
   [K in keyof Q & keyof Registry & keyof InputMap]: {
     data: (Q[K] extends InputMap[K] ? QueryDataFromRegistry<Registry, K, Q[K]> : never) | null;
     error: FormattedTQLServerError | null;
+    pagingInfo: QueryPagingInfoFromRegistry<Registry, K>;
   };
 };
 
@@ -86,5 +107,6 @@ export type QueryResponseMapFor<Registry extends Record<string, any>, InputMap> 
   [K in keyof InputMap & keyof Registry]: {
     data: QueryDataFromRegistry<Registry, K, InputMap[K]> | null;
     error: FormattedTQLServerError | null;
+    pagingInfo: QueryPagingInfoFromRegistry<Registry, K>;
   };
 };
