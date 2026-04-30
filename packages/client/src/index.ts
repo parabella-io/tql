@@ -3,6 +3,8 @@ export type { ClientOptions } from './core/client/client';
 export { Query } from './core/query/query';
 export { createQueryStore } from './core/query/query-store';
 export { useMutation } from './react/use-mutation';
+export { useInfinitePagedQuery } from './react/use-infinite-paged-query';
+export type { UseInfinitePagedQueryResult } from './react/use-infinite-paged-query';
 export { usePagedQuery } from './react/use-paged-query';
 export type { UsePagedQueryResult } from './react/use-paged-query';
 export { useQuery } from './react/use-query';

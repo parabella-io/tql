@@ -1,4 +1,4 @@
-// @schema-hash 375883411a42d7d7
+// @schema-hash 676b81b1936fc053
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -329,6 +329,11 @@ export interface WorkspaceMembersInput {
     workspaceId: string;
   };
   select: WorkspaceMemberSelect;
+  pagingInfo: {
+    take?: number;
+    before?: string | null;
+    after?: string | null;
+  };
 }
 
 // ---- workspaceTicketLabel ----
@@ -369,6 +374,11 @@ export interface WorkspaceMemberInvitesInput {
   };
   select: WorkspaceMemberInviteSelect;
   include?: WorkspaceMemberInviteIncludeMap;
+  pagingInfo: {
+    take?: number;
+    before?: string | null;
+    after?: string | null;
+  };
 }
 
 // ---- ticket ----
@@ -518,12 +528,12 @@ export interface QueryRegistry {
   workspaceById: { entity: WorkspaceEntity; kind: 'single'; nullable: false; includeMap: WorkspaceIncludeMap; externalFieldKeys: readonly [] };
   myWorkspaces: { entity: WorkspaceEntity; kind: 'many'; nullable: false; paginated: false; includeMap: WorkspaceIncludeMap; externalFieldKeys: readonly [] };
   workspaceMemberById: { entity: WorkspaceMemberEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
-  workspaceMembers: { entity: WorkspaceMemberEntity; kind: 'many'; nullable: false; paginated: false; includeMap: never; externalFieldKeys: readonly [] };
+  workspaceMembers: { entity: WorkspaceMemberEntity; kind: 'many'; nullable: false; paginated: true; includeMap: never; externalFieldKeys: readonly [] };
   workspaceTicketLabelById: { entity: WorkspaceTicketLabelEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };
   workspaceTicketLabels: { entity: WorkspaceTicketLabelEntity; kind: 'many'; nullable: false; paginated: false; includeMap: never; externalFieldKeys: readonly [] };
   workspaceMemberInviteById: { entity: WorkspaceMemberInviteEntity; kind: 'single'; nullable: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly [] };
   myWorkspaceInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; paginated: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly [] };
-  workspaceMemberInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; paginated: false; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly [] };
+  workspaceMemberInvites: { entity: WorkspaceMemberInviteEntity; kind: 'many'; nullable: false; paginated: true; includeMap: WorkspaceMemberInviteIncludeMap; externalFieldKeys: readonly [] };
   ticketById: { entity: TicketEntity; kind: 'single'; nullable: false; includeMap: TicketIncludeMap; externalFieldKeys: readonly [] };
   tickets: { entity: TicketEntity; kind: 'many'; nullable: false; paginated: false; includeMap: TicketIncludeMap; externalFieldKeys: readonly [] };
   ticketAttachmentById: { entity: TicketAttachmentEntity; kind: 'single'; nullable: false; includeMap: never; externalFieldKeys: readonly [] };

@@ -37,7 +37,7 @@ export const workspaceMemberInvite = schema.model('workspaceMemberInvite', {
 
     myWorkspaceInvites: queryMany({
       query: z.object({}),
-      resolve: async ({ context, query }) => {
+      resolve: async ({ context }) => {
         return context.workspaceMemberInviteService.queryMyWorkspaceInvites(context.user);
       },
     }),
@@ -46,10 +46,15 @@ export const workspaceMemberInvite = schema.model('workspaceMemberInvite', {
       query: z.object({
         workspaceId: z.string(),
       }),
-      resolve: async ({ context, query }) => {
-        return context.workspaceMemberInviteService.queryByWorkspaceId(context.user, {
+      withPaging: {
+        defaultTakeSize: 10,
+        maxTakeSize: 100,
+        minTakeSize: 1,
+      },
+      resolve: async ({ context, query, pagingInfo }) => {
+        return context.workspaceMemberInviteService.queryByWorkspaceIdPaged(context.user, {
           workspaceId: query.workspaceId,
-        });
+        }, pagingInfo);
       },
     }),
   }),

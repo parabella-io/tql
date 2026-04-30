@@ -1,5 +1,5 @@
 import { assignTicketMemberMutation } from "@/api/tickets/mutations/assign-ticket-member.mutation"
-import { workspaceMembersQuery } from "@/api/workspaces/queries/workspace-members.query"
+import { workspaceMembersQuery, WORKSPACE_MEMBERS_MAX_TAKE } from "@/api/workspaces/queries/workspace-members.query"
 import { useAppForm } from "@/shared/components/form/form.hook"
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar"
 import { Button } from "@/shared/components/ui/button"
@@ -177,6 +177,9 @@ const AssignMemberPopover = ({ ticketId, workspaceId, assigneeId, disclosure, ch
         query: workspaceMembersQuery,
         params: {
             workspaceId: workspaceId,
+            pagingInfo: {
+                take: WORKSPACE_MEMBERS_MAX_TAKE,
+            },
         },
     })
 

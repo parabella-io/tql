@@ -1,14 +1,29 @@
+import type { WorkspaceMemberInvitesInput } from '@tql/api'
+
 import { tql } from '@/shared/lib/tql'
 
-export const workspaceMemberInvitesQuery = tql.createQuery(
+export const WORKSPACE_MEMBER_INVITES_PAGE_SIZE = 10
+
+export type WorkspaceMemberInvitesQueryParams = { workspaceId: string } & Pick<
+  WorkspaceMemberInvitesInput,
+  'pagingInfo'
+>
+
+export const workspaceMemberInvitesQuery = tql.createQuery<
+  'workspaceMemberInvites',
+  WorkspaceMemberInvitesInput,
+  WorkspaceMemberInvitesQueryParams
+>(
   'workspaceMemberInvites',
   {
     queryKey: 'workspaceMemberInvites',
-    query: (params: { workspaceId: string }) => ({
+    query: (params: WorkspaceMemberInvitesQueryParams) => ({
       query: {
         workspaceId: params.workspaceId,
       },
+      pagingInfo: params.pagingInfo,
       select: {
+        id: true,
         email: true,
         workspaceId: true,
         createdAt: true,
@@ -17,26 +32,3 @@ export const workspaceMemberInvitesQuery = tql.createQuery(
     }),
   },
 )
-
-workspaceMemberInvitesQuery.updateOnChange('workspaceMemberInvite', {
-  filter: ({ params, change }) => {
-    return params.workspaceId === change.workspaceId
-  },
-  onInsert: ({ draft, change }) => {
-    draft.push(change)
-  },
-  onUpdate: ({ draft, change }) => {
-    const index = draft.findIndex((item) => item.id === change.id)
-
-    if (index !== -1) {
-      draft[index] = change
-    }
-  },
-  onDelete: ({ draft, change }) => {
-    const index = draft.findIndex((item) => item.id === change.id)
-
-    if (index !== -1) {
-      draft.splice(index, 1)
-    }
-  },
-})

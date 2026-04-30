@@ -11,4 +11,6 @@ export type {
   TicketAttachmentEntity,
   TicketCommentEntity,
   TicketLabelEntity,
+  WorkspaceMembersInput,
+  WorkspaceMemberInvitesInput,
 } from '../__generated__/schema.d.ts';
