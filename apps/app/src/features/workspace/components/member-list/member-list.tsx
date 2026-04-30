@@ -11,11 +11,11 @@ import { Spinner } from "@/shared/components/ui/spinner"
 import { IconTrash } from "@tabler/icons-react"
 import { toast } from "sonner"
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationNext,
+    PaginationPrevious,
 } from "@/shared/components/ui/pagination"
 import { cn } from "@/shared/lib/utils"
 
@@ -49,6 +49,7 @@ export const MemberList = ({ workspaceId }: MemberListProps) => {
 
     return (
         <div className="flex flex-col gap-4">
+
             <ul className="gap-4 flex flex-col">
                 {members.length === 0 ? (
                     <li className="py-2 text-muted-foreground">No members found.</li>
@@ -58,6 +59,7 @@ export const MemberList = ({ workspaceId }: MemberListProps) => {
                     ))
                 )}
             </ul>
+
             <Pagination>
                 <PaginationContent>
                     <PaginationItem>

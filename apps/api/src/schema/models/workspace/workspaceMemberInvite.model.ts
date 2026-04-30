@@ -52,9 +52,13 @@ export const workspaceMemberInvite = schema.model('workspaceMemberInvite', {
         minTakeSize: 1,
       },
       resolve: async ({ context, query, pagingInfo }) => {
-        return context.workspaceMemberInviteService.queryByWorkspaceIdPaged(context.user, {
-          workspaceId: query.workspaceId,
-        }, pagingInfo);
+        return context.workspaceMemberInviteService.queryByWorkspaceIdPaged(
+          context.user,
+          {
+            workspaceId: query.workspaceId,
+          },
+          pagingInfo,
+        );
       },
     }),
   }),

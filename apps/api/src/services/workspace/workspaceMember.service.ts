@@ -87,10 +87,6 @@ export class WorkspaceMemberService {
 
     const { take, before, after } = paging;
 
-    if (before == null || after == null) {
-      throw new Error('Invalid paging cursor');
-    }
-
     if (before !== null) {
       const rows = await this.db.workspaceMember.findMany({
         where: { workspaceId, id: { lt: before } },
@@ -137,8 +133,8 @@ export class WorkspaceMemberService {
 
     const rows = await this.db.workspaceMember.findMany({
       where: { workspaceId },
-      cursor: { id: after },
-      skip: 1,
+      cursor: after ? { id: after } : undefined,
+      skip: after ? 1 : 0,
       take: take + 1,
       orderBy: { id: 'asc' },
       include: { user: true },
@@ -160,12 +156,16 @@ export class WorkspaceMemberService {
       };
     }
 
-    const hasPreviousPage =
-      (await this.db.workspaceMember.findFirst({
-        where: { workspaceId, id: { lt: after } },
-        orderBy: { id: 'desc' },
-        take: 1,
-      })) !== null;
+    let hasPreviousPage = false;
+
+    if (after !== null) {
+      hasPreviousPage =
+        (await this.db.workspaceMember.findFirst({
+          where: { workspaceId, id: { lt: after } },
+          orderBy: { id: 'desc' },
+          take: 1,
+        })) !== null;
+    }
 
     return {
       entities: slice.map(WorkspaceMemberService.toEntity),
