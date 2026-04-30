@@ -149,7 +149,7 @@ export class WorkspaceMemberService {
         entities: [],
         pagingInfo: {
           hasNextPage: false,
-          hasPreviousPage: true,
+          hasPreviousPage: false,
           startCursor: null,
           endCursor: null,
         },
