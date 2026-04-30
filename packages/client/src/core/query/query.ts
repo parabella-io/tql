@@ -60,6 +60,7 @@ export class Query<
 
   private ensureRegistered(params: QueryParams): { hashKey: QueryHashKey; state: QueryState; didRegister: boolean } {
     const hashKey = this.getHashKey(params);
+
     const existing = this.store.getState().state[hashKey] as QueryState | undefined;
 
     if (existing) {
@@ -67,6 +68,7 @@ export class Query<
     }
 
     const staleTimeInMs = this.queryOptions.staleTimeInMs ?? 0;
+
     const next: QueryState = {
       queryName: this.queryName,
       queryKey: this.queryKey,

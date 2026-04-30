@@ -32,7 +32,6 @@ export const MemberList = ({ workspaceId }: MemberListProps) => {
         hasPreviousPage,
         loadNextPage,
         loadPreviousPage,
-        reset,
     } = usePagedQuery({
         query: workspaceMembersQuery,
         params: { workspaceId },
@@ -55,7 +54,7 @@ export const MemberList = ({ workspaceId }: MemberListProps) => {
                     <li className="py-2 text-muted-foreground">No members found.</li>
                 ) : (
                     members.map((member: WorkspaceMemberEntity) => (
-                        <MemberItem key={member.id} member={member} onRemoved={reset} />
+                        <MemberItem key={member.id} member={member} onRemoved={() => { }} />
                     ))
                 )}
             </ul>

@@ -11,11 +11,11 @@ import { IconTrash } from "@tabler/icons-react"
 import { ConfirmActionDialog } from "@/shared/components/dialogs/ConfirmActionDialog"
 import { toast } from "sonner"
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationNext,
+    PaginationPrevious,
 } from "@/shared/components/ui/pagination"
 import { cn } from "@/shared/lib/utils"
 

@@ -13,22 +13,19 @@ export const workspaceMemberInvitesQuery = tql.createQuery<
   'workspaceMemberInvites',
   WorkspaceMemberInvitesInput,
   WorkspaceMemberInvitesQueryParams
->(
-  'workspaceMemberInvites',
-  {
-    queryKey: 'workspaceMemberInvites',
-    query: (params: WorkspaceMemberInvitesQueryParams) => ({
-      query: {
-        workspaceId: params.workspaceId,
-      },
-      pagingInfo: params.pagingInfo,
-      select: {
-        id: true,
-        email: true,
-        workspaceId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    }),
-  },
-)
+>('workspaceMemberInvites', {
+  queryKey: 'workspaceMemberInvites',
+  query: (params: WorkspaceMemberInvitesQueryParams) => ({
+    query: {
+      workspaceId: params.workspaceId,
+    },
+    pagingInfo: params.pagingInfo,
+    select: {
+      id: true,
+      email: true,
+      workspaceId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  }),
+})

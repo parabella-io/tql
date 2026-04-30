@@ -164,6 +164,7 @@ export const usePagedQuery = <QueryType extends AnyQuery>(options: {
   }, [pageSize]);
 
   const data = (currentChunk?.data ?? []) as PagedQueryEntity<QueryType>[];
+
   const pagingInfo = currentChunk?.pagingInfo ?? null;
 
   return useMemo(
