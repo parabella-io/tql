@@ -2,6 +2,37 @@ import { z } from 'zod';
 
 import { schema } from './schema.js';
 
+const profileOutput = z.object({
+  id: z.string(),
+  name: z.string(),
+  hobbies: z.array(
+    z.object({
+      level: z.number(),
+      name: z.string(),
+    }),
+  ),
+  address: z.object({
+    street: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zip: z.string(),
+  }),
+});
+
+const postOutput = z.object({
+  id: z.string(),
+  title: z.string(),
+  content: z.string(),
+  profileId: z.string(),
+});
+
+const commentOutput = z.object({
+  id: z.string(),
+  comment: z.string(),
+  postId: z.string(),
+  profileId: z.string(),
+});
+
 export const createProfile = schema.mutation('createProfile', {
   input: z.object({
     name: z.string(),
@@ -18,11 +49,9 @@ export const createProfile = schema.mutation('createProfile', {
       zip: z.string(),
     }),
   }),
-  changed: {
-    profile: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    profile: profileOutput,
+  }),
   allow: ({ context }) => {
     return context.isAuthenticated;
   },
@@ -35,14 +64,10 @@ export const createProfile = schema.mutation('createProfile', {
 
     return {
       profile: {
-        inserts: [
-          {
-            id,
-            name: input.name,
-            hobbies: input.hobbies,
-            address: input.address,
-          },
-        ],
+        id,
+        name: input.name,
+        hobbies: input.hobbies,
+        address: input.address,
       },
     };
   },
@@ -64,6 +89,7 @@ export const createProfileNoChanges = schema.mutation('createProfileNoChanges', 
       zip: z.string(),
     }),
   }),
+  output: z.object({}),
   allow: ({ context }) => {
     return context.isAuthenticated;
   },
@@ -73,6 +99,8 @@ export const createProfileNoChanges = schema.mutation('createProfileNoChanges', 
     context.database
       .prepare(`INSERT INTO profiles (id, name, hobbies, address) VALUES (?, ?, ?, ?)`)
       .run(id, input.name, JSON.stringify(input.hobbies), JSON.stringify(input.address));
+
+    return {};
   },
 });
 
@@ -92,11 +120,9 @@ export const createProfileUnauthorized = schema.mutation('createProfileUnauthori
       zip: z.string(),
     }),
   }),
-  changed: {
-    profile: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    profile: profileOutput,
+  }),
   allow: ({}) => {
     return false;
   },
@@ -109,14 +135,10 @@ export const createProfileUnauthorized = schema.mutation('createProfileUnauthori
 
     return {
       profile: {
-        inserts: [
-          {
-            id,
-            name: input.name,
-            hobbies: input.hobbies,
-            address: input.address,
-          },
-        ],
+        id,
+        name: input.name,
+        hobbies: input.hobbies,
+        address: input.address,
       },
     };
   },
@@ -138,11 +160,9 @@ export const createProfileMalformedResponse = schema.mutation('createProfileMalf
       zip: z.string(),
     }),
   }),
-  changed: {
-    profile: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    profile: profileOutput,
+  }),
   allow: ({}) => {
     return true;
   },
@@ -168,13 +188,11 @@ export const createPost = schema.mutation('createPost', {
     content: z.string(),
     profileId: z.string(),
   }),
+  output: z.object({
+    post: postOutput,
+  }),
   allow: ({ context }) => {
     return context.isAuthenticated;
-  },
-  changed: {
-    post: {
-      inserts: true,
-    },
   },
   resolve: async ({ input, context }) => {
     context.database
@@ -183,14 +201,10 @@ export const createPost = schema.mutation('createPost', {
 
     return {
       post: {
-        inserts: [
-          {
-            id: input.id,
-            content: input.content,
-            title: input.title,
-            profileId: input.profileId,
-          },
-        ],
+        id: input.id,
+        content: input.content,
+        title: input.title,
+        profileId: input.profileId,
       },
     };
   },
@@ -203,11 +217,9 @@ export const createComment = schema.mutation('createComment', {
     postId: z.string(),
     profileId: z.string(),
   }),
-  changed: {
-    comment: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    comment: commentOutput,
+  }),
   allow: ({}) => {
     return true;
   },
@@ -218,14 +230,10 @@ export const createComment = schema.mutation('createComment', {
 
     return {
       comment: {
-        inserts: [
-          {
-            id: input.id,
-            comment: input.comment,
-            postId: input.postId,
-            profileId: input.profileId,
-          },
-        ],
+        id: input.id,
+        comment: input.comment,
+        postId: input.postId,
+        profileId: input.profileId,
       },
     };
   },

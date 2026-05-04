@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { workspaceOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const deleteWorkspace = schema.mutation('deleteWorkspace', {
@@ -7,11 +8,9 @@ export const deleteWorkspace = schema.mutation('deleteWorkspace', {
     id: z.string().min(1),
   }),
 
-  changed: {
-    workspace: {
-      deletes: true,
-    },
-  },
+  output: z.object({
+    workspace: workspaceOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.id);
@@ -23,9 +22,7 @@ export const deleteWorkspace = schema.mutation('deleteWorkspace', {
     });
 
     return {
-      workspace: {
-        deletes: [workspace],
-      },
+      workspace,
     };
   },
 });

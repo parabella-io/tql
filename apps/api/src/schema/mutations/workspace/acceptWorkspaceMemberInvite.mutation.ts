@@ -1,5 +1,5 @@
 import z from 'zod';
-
+import { workspaceMemberInviteOutputSchema, workspaceMemberOutputSchema, workspaceOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const acceptWorkspaceMemberInvite = schema.mutation('acceptWorkspaceMemberInvite', {
@@ -8,17 +8,11 @@ export const acceptWorkspaceMemberInvite = schema.mutation('acceptWorkspaceMembe
     inviteId: z.string(),
   }),
 
-  changed: {
-    workspace: {
-      inserts: true,
-    },
-    workspaceMember: {
-      inserts: true,
-    },
-    workspaceMemberInvite: {
-      deletes: true,
-    },
-  },
+  output: z.object({
+    workspace: workspaceOutputSchema,
+    workspaceMember: workspaceMemberOutputSchema,
+    workspaceMemberInvite: workspaceMemberInviteOutputSchema,
+  }),
 
   allow: async ({ context, input }) => {
     const workspaceMemberInvite = await context.db.workspaceMemberInvite.findUniqueOrThrow({
@@ -45,15 +39,9 @@ export const acceptWorkspaceMemberInvite = schema.mutation('acceptWorkspaceMembe
     });
 
     return {
-      workspace: {
-        inserts: [workspace],
-      },
-      workspaceMember: {
-        inserts: [workspaceMember],
-      },
-      workspaceMemberInvite: {
-        deletes: [workspaceMemberInvite],
-      },
+      workspace,
+      workspaceMember,
+      workspaceMemberInvite,
     };
   },
 });

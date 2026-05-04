@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { workspaceMemberInviteOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const inviteWorkspaceMember = schema.mutation('inviteWorkspaceMember', {
@@ -8,11 +9,9 @@ export const inviteWorkspaceMember = schema.mutation('inviteWorkspaceMember', {
     email: z.email(),
   }),
 
-  changed: {
-    workspaceMemberInvite: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    workspaceMemberInvite: workspaceMemberInviteOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -25,9 +24,7 @@ export const inviteWorkspaceMember = schema.mutation('inviteWorkspaceMember', {
     });
 
     return {
-      workspaceMemberInvite: {
-        inserts: [workspaceMemberInvite],
-      },
+      workspaceMemberInvite,
     };
   },
 });

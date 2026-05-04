@@ -7,12 +7,8 @@ import type {
   QueryInputFor,
   QueryOptions,
   QueryDataFor,
-  QueryModelNameFor,
-  QueryModelUpdateHook,
-  QueryModelShapeFor,
   QueryResponse,
   SingleQueryRequestFor,
-  QueryUpdateHooksMap,
 } from './query.types';
 import { deepPartialMatch } from '../utils';
 import { ClientHandleQuery } from '../client/client';
@@ -27,7 +23,6 @@ export type QueryConstructor<
   queryName: QueryName;
   queryOptions: QueryOptions<S, QueryName, QueryInput, QueryParams>;
   queryHandler: ClientHandleQuery<S>;
-  queryUpdateHooks: QueryUpdateHooksMap;
 };
 
 export class Query<
@@ -42,12 +37,11 @@ export class Query<
   private readonly store: QueryStore;
 
   private readonly queryHandler: ClientHandleQuery<S>;
-  private readonly queryUpdateHooks: QueryUpdateHooksMap;
   private readonly setRegister: (hashKey: QueryHashKey, queryState: QueryState) => void;
   private readonly inFlightQueries: Map<QueryHashKey, Promise<any>> = new Map();
 
   constructor(readonly options: QueryConstructor<S, QueryName, QueryInput, QueryParams>) {
-    const { store, queryName, queryOptions, queryHandler, queryUpdateHooks } = options;
+    const { store, queryName, queryOptions, queryHandler } = options;
 
     this.queryKey = queryOptions.queryKey as any;
     this.queryName = queryName;
@@ -55,7 +49,6 @@ export class Query<
     this.queryHandler = queryHandler;
     this.store = store;
     this.setRegister = store.getState().setRegister;
-    this.queryUpdateHooks = queryUpdateHooks;
   }
 
   private ensureRegistered(params: QueryParams): { hashKey: QueryHashKey; state: QueryState; didRegister: boolean } {
@@ -275,24 +268,6 @@ export class Query<
     return queryHashKeys;
   };
 
-  public updateOnChange<ModelName extends QueryModelNameFor<S>>(
-    modelName: ModelName,
-    hooks: QueryModelUpdateHook<S, ModelName, QueryName, QueryModelShapeFor<S, ModelName>, QueryInput, QueryParams>,
-  ) {
-    if (this.queryUpdateHooks[modelName]?.[this.queryName]) {
-      throw new Error(`Query [${this.queryName}]: hook for model ${modelName} already added`);
-    }
-
-    const queryUpdateHooks = this.queryUpdateHooks[modelName] ?? {};
-
-    queryUpdateHooks[this.queryName] = {
-      queryName: this.queryName,
-      modelName,
-      hooks,
-    };
-
-    this.queryUpdateHooks[modelName] = queryUpdateHooks;
-  }
 }
 
 export const singleQueryInput = <K extends string, V>(key: K, value: V): { [P in K]: V } => {

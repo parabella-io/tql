@@ -15,7 +15,7 @@ export type ClientSchema = {
   QueryResponseMap: Record<string, any>;
   QueryRegistry: Record<string, any>;
   MutationInputMap: Record<string, any>;
+  MutationOutputMap: Record<string, any>;
   MutationResponseMap: Record<string, any>;
-  MutationRegistry: Record<string, any>;
   SchemaEntities: Record<string, any>;
 };

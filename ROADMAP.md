@@ -1,18 +1,19 @@
-### Roadmap
+### Roadmap for v1 release
 
-#### Upcoming Improvements
+- **Security Mechanisms**
+  - Implement mechanisms to safely prevent abuse, persisted queries, complexity, max depth, rate limiting.
 
-- **Async Effects After Mutations**
-  - Execute side effect logic automatically and asynchronously after mutation responses.
+- **Per query level caching**
+  - Implement built in query level ttl caching backed by ( InMemory / Redis ).
 
-- **Async Reactors via Message Buses**
-  - Decouple heavy/slow processing into reactors backed by message queues. (Redis, BullMQ)
-
-- **Real-Time Subscriptions**
-  - Allow clients to subscribe to specific entity updates with advanced filtering, ensuring users receive only relevant live updates. (Redis)
+- **Observability**
+  - Implment built in logging and observability.
 
 - **Comprehensive Testing**
-  - Implement full integration and end-to-end tests, plus strict type-checking, to enhance stability and code confidence.
+  - Implement full integration and end-to-end tests, integration tests, unit tests and strict type-checking.
 
-- **Entity-Level Caching with Redis**
-  - Explore implementing fine-grained caching for resolver entities (not just query responses), keyed by parent entities and params. (Redis) _Still evaluating technical feasibility._
+- **Prepare for v1 release**
+  - Implement production ready stable API, ensure server/client/react libraries are ready, setup npm publishing.
+
+- **V1 Documentation**
+  - Implement production ready documentation.

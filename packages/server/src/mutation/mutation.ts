@@ -1,96 +1,39 @@
 import { z } from 'zod';
 
-// Utility type to ensure { id: string } is present and rest are partial
-type WithId<T> = { id: string } & Omit<T, 'id'>;
-
-type MutationChangeOperation = 'inserts' | 'updates' | 'upserts' | 'deletes';
-
-type MutationChangeDeclaration = Partial<Record<MutationChangeOperation, true>>;
-
-export type MutationChangedMap<SchemaEntities extends Record<string, any>> = Partial<
-  Record<keyof SchemaEntities & string, MutationChangeDeclaration>
->;
-
-type MutationChangedInput = Partial<Record<string, MutationChangeDeclaration>>;
-
-type ExactChangeOperationKeys<Change extends Record<string, any>> =
-  Exclude<keyof Change, MutationChangeOperation> extends never ? Change : never;
-
-type ExactChangedKeys<SchemaEntities extends Record<string, any>, Changed extends Record<string, any>> =
-  Exclude<keyof Changed, keyof SchemaEntities & string> extends never
-    ? {
-        [K in keyof Changed]: Changed[K] extends Record<string, any> ? ExactChangeOperationKeys<Changed[K]> : never;
-      }
-    : never;
-
-export type NormalizeMutationChangedMap<SchemaEntities extends Record<string, any>, Changed extends MutationChangedInput> = {
-  [K in Extract<keyof Changed, keyof SchemaEntities & string>]: Changed[K] extends MutationChangeDeclaration
-    ? {
-        [O in Extract<keyof Changed[K], MutationChangeOperation>]: true;
-      }
-    : never;
-};
-
-type MutationChangeResult<Entity, Change> = (Change extends { inserts: true } ? { inserts?: WithId<Entity>[] } : {}) &
-  (Change extends { updates: true } ? { updates?: WithId<Entity>[] } : {}) &
-  (Change extends { upserts: true } ? { upserts?: WithId<Entity>[] } : {}) &
-  (Change extends { deletes: true } ? { deletes?: WithId<Entity>[] } : {});
-
-export type MutationResolveResult<SchemaEntities extends Record<string, any>, Changed extends MutationChangedInput> = {
-  [K in Extract<keyof Changed, keyof SchemaEntities & string>]: MutationChangeResult<SchemaEntities[K], Changed[K]>;
-};
-
-type StrictMutationResolveResult<SchemaEntities extends Record<string, any>, Changed extends MutationChangedInput> = MutationResolveResult<
-  SchemaEntities,
-  Changed
-> & {
-  [K in Exclude<keyof SchemaEntities & string, Extract<keyof Changed, keyof SchemaEntities & string>>]?: never;
-};
-
-export type MutationOptions<
-  SchemaContext,
-  SchemaEntities extends Record<string, any>,
-  Input extends z.ZodObject<z.ZodRawShape>,
-  Changed extends MutationChangedInput = {},
-> = {
+export type MutationOptions<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, Output extends z.ZodTypeAny> = {
   input: Input;
+  output: Output;
   allow: (options: { context: SchemaContext; input: z.infer<Input> }) => Promise<boolean> | boolean;
-  changed?: MutationChangedMap<SchemaEntities> & ExactChangedKeys<SchemaEntities, Changed>;
   resolve: (options: {
     input: z.infer<Input>;
     context: SchemaContext;
-  }) => Promise<StrictMutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, NoInfer<Changed>>> | void>;
+  }) => Promise<z.infer<Output>> | z.infer<Output>;
   resolveEffects?: (options: {
     input: z.infer<Input>;
     context: SchemaContext;
-    changes: MutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, NoInfer<Changed>>>;
+    output: z.infer<Output>;
   }) => Promise<void> | void;
 };
 
-export class Mutation<
-  SchemaContext,
-  SchemaEntities extends Record<string, any>,
-  Input extends z.ZodObject<z.ZodRawShape>,
-  Changed extends MutationChangedInput = {},
-> {
-  declare Changes: MutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, Changed>>;
+export class Mutation<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, Output extends z.ZodTypeAny> {
+  declare Output: z.infer<Output>;
 
   private readonly mutationName: string;
 
   private readonly input: Input;
 
-  private readonly changed?: Changed;
+  private readonly output: Output;
 
   private readonly allow: (options: { context: SchemaContext; input: z.infer<Input> }) => Promise<boolean> | boolean;
 
-  private readonly resolve: MutationOptions<SchemaContext, SchemaEntities, Input, Changed>['resolve'];
+  private readonly resolve: MutationOptions<SchemaContext, Input, Output>['resolve'];
 
-  private readonly resolveEffects?: MutationOptions<SchemaContext, SchemaEntities, Input, Changed>['resolveEffects'];
+  private readonly resolveEffects?: MutationOptions<SchemaContext, Input, Output>['resolveEffects'];
 
-  constructor(mutationName: string, options: MutationOptions<SchemaContext, SchemaEntities, Input, Changed>) {
+  constructor(mutationName: string, options: MutationOptions<SchemaContext, Input, Output>) {
     this.mutationName = mutationName;
     this.input = options.input;
-    this.changed = options.changed;
+    this.output = options.output;
     this.allow = options.allow;
     this.resolve = options.resolve;
     this.resolveEffects = options.resolveEffects;
@@ -100,12 +43,12 @@ export class Mutation<
     return this.mutationName;
   }
 
-  getChanged(): Changed | undefined {
-    return this.changed;
-  }
-
   getInputSchema(): z.ZodObject<z.ZodRawShape> {
     return this.input;
+  }
+
+  getOutputSchema(): Output {
+    return this.output;
   }
 
   getAllow(): (options: { context: SchemaContext; input: z.infer<Input> }) => Promise<boolean> | boolean {
@@ -115,7 +58,7 @@ export class Mutation<
   getResolve(): (options: {
     input: z.infer<Input>;
     context: SchemaContext;
-  }) => Promise<StrictMutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, Changed>> | void> {
+  }) => Promise<z.infer<Output>> | z.infer<Output> {
     return this.resolve;
   }
 
@@ -123,7 +66,7 @@ export class Mutation<
     | ((options: {
         input: z.infer<Input>;
         context: SchemaContext;
-        changes: MutationResolveResult<SchemaEntities, NormalizeMutationChangedMap<SchemaEntities, Changed>>;
+        output: z.infer<Output>;
       }) => Promise<void> | void)
     | undefined {
     return this.resolveEffects;

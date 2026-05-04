@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { workspaceTicketLabelOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const createWorkspaceTicketLabel = schema.mutation('createWorkspaceTicketLabel', {
@@ -8,11 +9,9 @@ export const createWorkspaceTicketLabel = schema.mutation('createWorkspaceTicket
     name: z.string().min(1),
   }),
 
-  changed: {
-    workspaceTicketLabel: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    workspaceTicketLabel: workspaceTicketLabelOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -25,9 +24,7 @@ export const createWorkspaceTicketLabel = schema.mutation('createWorkspaceTicket
     });
 
     return {
-      workspaceTicketLabel: {
-        inserts: [workspaceTicketLabel],
-      },
+      workspaceTicketLabel,
     };
   },
 });

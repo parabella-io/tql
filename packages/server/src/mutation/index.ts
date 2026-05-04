@@ -7,5 +7,3 @@ export {
   type MutationHandleResult,
   type PendingMutationEffect,
 } from './mutation-resolver.js';
-
-export type { MutationChangedMap, MutationResolveResult, NormalizeMutationChangedMap } from './mutation.js';

@@ -1,5 +1,7 @@
 import { tql } from '@/shared/lib/tql'
 
+import { ticketQuery } from '../queries/ticket.query'
+
 type AddTicketLabelParams = {
   workspaceId: string
   ticketId: string
@@ -13,4 +15,11 @@ export const addTicketLabelMutation = tql.createMutation('addTicketLabel', {
     ticketId: params.ticketId,
     labelId: params.labelId,
   }),
+  onSuccess: ({ store, output }) => {
+    store
+      .get(ticketQuery, { id: output.ticketLabel.ticketId })
+      .update((draft) => {
+        draft.labels.push(output.ticketLabel)
+      })
+  },
 })

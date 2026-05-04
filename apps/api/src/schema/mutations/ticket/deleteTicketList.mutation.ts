@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { ticketListOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const deleteTicketList = schema.mutation('deleteTicketList', {
@@ -7,11 +8,9 @@ export const deleteTicketList = schema.mutation('deleteTicketList', {
     id: z.string(),
   }),
 
-  changed: {
-    ticketList: {
-      deletes: true,
-    },
-  },
+  output: z.object({
+    ticketList: ticketListOutputSchema,
+  }),
 
   allow: async ({ context, input }) => {
     const ticketList = await context.db.ticketList.findUnique({
@@ -33,9 +32,7 @@ export const deleteTicketList = schema.mutation('deleteTicketList', {
     });
 
     return {
-      ticketList: {
-        deletes: [ticketList],
-      },
+      ticketList,
     };
   },
 });

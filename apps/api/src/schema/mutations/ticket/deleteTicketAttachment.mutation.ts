@@ -1,5 +1,5 @@
 import z from 'zod';
-
+import { ticketAttachmentOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const deleteTicketAttachment = schema.mutation('deleteTicketAttachment', {
@@ -9,11 +9,9 @@ export const deleteTicketAttachment = schema.mutation('deleteTicketAttachment', 
     attachmentId: z.string(),
   }),
 
-  changed: {
-    ticketAttachment: {
-      deletes: true,
-    },
-  },
+  output: z.object({
+    ticketAttachment: ticketAttachmentOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -29,9 +27,7 @@ export const deleteTicketAttachment = schema.mutation('deleteTicketAttachment', 
     await context.storageService.deleteFile(ticketAttachment.key).catch(console.log);
 
     return {
-      ticketAttachment: {
-        deletes: [ticketAttachment],
-      },
+      ticketAttachment,
     };
   },
 });

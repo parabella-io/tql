@@ -34,15 +34,3 @@ export const myWorkspaceInvitesQuery = tql.createQuery('myWorkspaceInvites', {
     },
   }),
 })
-
-myWorkspaceInvitesQuery.updateOnChange('workspaceMemberInvite', {
-  onInsert: ({}) => {},
-  onUpdate: ({}) => {},
-  onDelete: ({ draft, change }) => {
-    const index = draft.findIndex((item) => item.id === change.id)
-
-    if (index !== -1) {
-      draft.splice(index, 1)
-    }
-  },
-})

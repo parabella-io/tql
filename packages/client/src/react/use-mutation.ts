@@ -1,17 +1,18 @@
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { Mutation } from '../core/mutation/mutation';
-import type { SingleMutationChangesForName } from '../core/mutation/mutation.types';
+import type { MutationOutputFor } from '../core/mutation/mutation.types';
 import { MutationState } from '../core/mutation/mutation.store';
 
 type AnyMutation = Mutation<any, any, any, any>;
 
 type MutationParamsFor<MutationType extends AnyMutation> = MutationType extends Mutation<any, any, any, infer Params> ? Params : never;
 
-type MutationChangesFor<MutationType extends AnyMutation> =
-  MutationType extends Mutation<infer S, infer MutationName, any, any> ? SingleMutationChangesForName<S, MutationName> : never;
+type MutationOutputForMutation<MutationType extends AnyMutation> =
+  MutationType extends Mutation<infer S, infer MutationName, any, any> ? MutationOutputFor<S, MutationName> : never;
 
 type UseMutationResult<MutationType extends AnyMutation> = {
-  mutate: (params: MutationParamsFor<MutationType>) => Promise<MutationChangesFor<MutationType>>;
+  mutate: (params: MutationParamsFor<MutationType>) => Promise<MutationOutputForMutation<MutationType>>;
+  output: MutationOutputForMutation<MutationType> | null;
   mutationInput: MutationState['mutationInput'];
   error: MutationState['error'];
   isLoading: boolean;
@@ -54,6 +55,7 @@ export const useMutation = <MutationType extends AnyMutation>(options: { mutatio
     () =>
       ({
         mutate,
+        output: (state?.output ?? null) as MutationOutputForMutation<MutationType> | null,
         mutationInput: state?.mutationInput ?? null,
         error: state?.error ?? null,
         isLoading: state?.isLoading ?? false,

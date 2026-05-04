@@ -2,7 +2,6 @@ import { Mutation } from './mutation.js';
 import { Schema } from '../schema.js';
 import { FormattedTQLServerError, TQLServerError, TQLServerErrorType } from '../errors.js';
 import type { ClientSchema } from '../client-schema.js';
-import { z } from 'zod';
 
 export type MutationResolverOptions = {
   schema: Schema<any, any>;
@@ -56,19 +55,19 @@ export class MutationResolver<S extends ClientSchema> {
   declare $types: {
     MutationInput: Partial<S['MutationInputMap']>;
     MutationResponse: S['MutationResponseMap'];
-    MutationChanges: S['MutationResponseMap'] extends Record<string, { changes: infer C }> ? C : never;
+    MutationOutput: S['MutationOutputMap'];
     SchemaEntities: S['SchemaEntities'];
   };
 
-  private readonly mutations: Record<string, Mutation<any, any, any, any>> = {};
+  private readonly mutations: Record<string, Mutation<any, any, any>> = {};
 
   constructor(options: MutationResolverOptions) {
     for (const mutationName of Object.keys(options.schema.mutations)) {
-      this.mutations[mutationName] = options.schema.mutations[mutationName] as Mutation<any, any, any, any>;
+      this.mutations[mutationName] = options.schema.mutations[mutationName] as Mutation<any, any, any>;
     }
   }
 
-  public getMutations(): Record<string, Mutation<any, any, any, any>> {
+  public getMutations(): Record<string, Mutation<any, any, any>> {
     return this.mutations;
   }
 
@@ -81,7 +80,7 @@ export class MutationResolver<S extends ClientSchema> {
     const results = {} as Record<
       string,
       {
-        changes: Record<string, { inserts?: any[]; updates?: any[]; upserts?: any[]; deletes?: any[] }>;
+        data: unknown;
         error: FormattedTQLServerError | null;
       }
     >;
@@ -130,70 +129,28 @@ export class MutationResolver<S extends ClientSchema> {
           input: (mutationInput as any)[mutationName]?.input,
         });
 
-        const parsedResult = MutationResponseSchema.safeParse(result);
+        const outputSchema = mutation.getOutputSchema();
+        const parsedResult = outputSchema.safeParse(result);
 
         if (parsedResult.error) {
           throw new TQLServerError(TQLServerErrorType.MutationResponseMalformedError, { mutationName, result });
         }
 
-        const changed = mutation.getChanged() as
-          | Partial<Record<string, Partial<Record<'inserts' | 'updates' | 'upserts' | 'deletes', boolean>>>>
-          | undefined;
-
-        if (!changed || Object.keys(changed).length === 0) {
-          results[mutationName] = {
-            changes: {},
-            error: null,
-          };
-
-          this.collectEffect(effects, mutation, mutationName, context, input.data, {});
-          continue;
-        }
-
-        const payload = (parsedResult.data ?? {}) as Record<string, { inserts?: any[]; updates?: any[]; upserts?: any[]; deletes?: any[] }>;
-        const changes: Record<string, { inserts?: any[]; updates?: any[]; upserts?: any[]; deletes?: any[] }> = {};
-
-        for (const modelName of Object.keys(changed)) {
-          const declaredChanges = changed[modelName];
-
-          if (!declaredChanges) continue;
-
-          const change = payload[modelName] ?? {};
-
-          changes[modelName] = {};
-
-          if (declaredChanges.inserts) {
-            changes[modelName].inserts = [...((change as any).inserts ?? [])];
-          }
-
-          if (declaredChanges.updates) {
-            changes[modelName].updates = [...((change as any).updates ?? [])];
-          }
-
-          if (declaredChanges.upserts) {
-            changes[modelName].upserts = [...((change as any).upserts ?? [])];
-          }
-
-          if (declaredChanges.deletes) {
-            changes[modelName].deletes = [...((change as any).deletes ?? [])];
-          }
-        }
-
         results[mutationName] = {
-          changes,
+          data: parsedResult.data,
           error: null,
         };
 
-        this.collectEffect(effects, mutation, mutationName, context, input.data, changes);
+        this.collectEffect(effects, mutation, mutationName, context, input.data, parsedResult.data);
       } catch (error: unknown) {
         if (error instanceof TQLServerError) {
           results[mutationName] = {
-            changes: {},
+            data: null,
             error: error.getFormattedError(),
           };
         } else {
           results[mutationName] = {
-            changes: {},
+            data: null,
             error: new TQLServerError(TQLServerErrorType.MutationError, { mutationName, error }).getFormattedError(),
           };
         }
@@ -205,11 +162,11 @@ export class MutationResolver<S extends ClientSchema> {
 
   private collectEffect(
     sink: PendingMutationEffect[],
-    mutation: Mutation<any, any, any, any>,
+    mutation: Mutation<any, any, any>,
     mutationName: string,
     context: unknown,
     input: unknown,
-    changes: Record<string, { inserts?: any[]; updates?: any[]; upserts?: any[]; deletes?: any[] }>,
+    output: unknown,
   ): void {
     const resolveEffects = mutation.getResolveEffects();
 
@@ -220,56 +177,8 @@ export class MutationResolver<S extends ClientSchema> {
     sink.push({
       mutationName,
       run: async () => {
-        await resolveEffects({ context, input, changes } as any);
+        await resolveEffects({ context, input, output } as any);
       },
     });
   }
 }
-
-const MutationResponseSchema = z
-  .record(
-    z.string(),
-
-    z.object({
-      inserts: z
-        .array(
-          z
-            .object({
-              id: z.string(),
-            })
-            .catchall(z.any()),
-        )
-        .optional(),
-
-      updates: z
-        .array(
-          z
-            .object({
-              id: z.string(),
-            })
-            .catchall(z.any()),
-        )
-        .optional(),
-
-      upserts: z
-        .array(
-          z
-            .object({
-              id: z.string(),
-            })
-            .catchall(z.any()),
-        )
-        .optional(),
-
-      deletes: z
-        .array(
-          z
-            .object({
-              id: z.string(),
-            })
-            .catchall(z.any()),
-        )
-        .optional(),
-    }),
-  )
-  .optional();
