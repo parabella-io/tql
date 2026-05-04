@@ -16,8 +16,10 @@ export const addTicketLabelMutation = tql.createMutation('addTicketLabel', {
     labelId: params.labelId,
   }),
   onSuccess: ({ store, output }) => {
-    store.get(ticketQuery, { id: output.ticketLabel.ticketId }).update((draft) => {
-      draft?.labels.push(output.ticketLabel)
-    })
+    store
+      .get(ticketQuery, { id: output.ticketLabel.ticketId })
+      .update((draft) => {
+        draft.labels.push(output.ticketLabel)
+      })
   },
 })

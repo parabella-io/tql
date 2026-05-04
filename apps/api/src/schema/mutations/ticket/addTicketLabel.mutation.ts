@@ -1,5 +1,4 @@
 import z from 'zod';
-
 import { ticketLabelOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
