@@ -6,7 +6,8 @@
   "scripts": {
     "db:push": "turbo db:push && turbo db:generate",
     "build:package": "turbo build:package",
-    "dev": "turbo dev"
+    "dev": "turbo dev",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
@@ -15,5 +16,10 @@
   "dependencies": {
     "better-sqlite3": "^12.5.0",
     "turbo": "^2.9.6"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
+    "husky": "^9.1.7"
   }
 }

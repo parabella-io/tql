@@ -1,5 +1,8 @@
 ### Roadmap for v1 release
 
+- **Security Mechanisms**
+  - Implement mechanisms to safely prevent abuse, persisted queries, complexity, max depth, rate limiting.
+
 - **Per query level caching**
   - Implement built in query level ttl caching backed by ( InMemory / Redis ).
 
