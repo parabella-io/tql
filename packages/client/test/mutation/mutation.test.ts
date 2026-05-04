@@ -156,9 +156,117 @@ describe('Mutation', () => {
 
     await createPostMutation.execute(output.post);
 
-    expect(postsQuery.getData(postsQueryParams)).toEqual([
-      ...posts,
-      output.post,
-    ]);
+    expect(postsQuery.getData(postsQueryParams)).toEqual([...posts, output.post]);
+  });
+
+  it('does not roll back optimistic updates or fail the mutation when onSuccess throws', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const postsQueryName = 'posts';
+    const posts = [
+      {
+        id: '1',
+        title: 'Test Title',
+        content: 'Test Content',
+        profileId: '1',
+      },
+    ];
+
+    const postsQuery = new Query<any, any, any, any>({
+      store: queryStore,
+      queryHandler: vi.fn().mockResolvedValue({
+        [postsQueryName]: {
+          data: posts,
+          pagingInfo: null,
+          error: null,
+        },
+      }),
+      queryName: postsQueryName,
+      queryOptions: {
+        queryKey: postsQueryName,
+        query: (params) => ({
+          query: {
+            title: params.title,
+          },
+          select: {
+            title: true,
+            content: true,
+            profileId: true,
+          },
+        }),
+      },
+    });
+
+    const postsQueryParams = {
+      title: null,
+    };
+
+    await postsQuery.execute(postsQueryParams);
+
+    const mutationName = 'createPost';
+    const optimisticPost = {
+      id: 'optimistic',
+      title: 'Optimistic Title',
+      content: 'Optimistic Content',
+      profileId: '1',
+    };
+    const output = {
+      post: {
+        id: '2',
+        title: 'Persisted Title',
+        content: 'Persisted Content',
+        profileId: '1',
+      },
+    };
+
+    const createPostMutation = new Mutation<any, any, any, any>({
+      queryStore,
+      mutationStore,
+      mutationHandler: vi.fn().mockResolvedValue({
+        [mutationName]: {
+          data: output,
+          error: null,
+        },
+      }),
+      mutationName,
+      mutationOptions: {
+        mutationKey: mutationName,
+        mutation: (params) => ({
+          id: params.id,
+          title: params.title,
+          content: params.content,
+          profileId: params.profileId,
+        }),
+        onOptimisticUpdate: ({ store }) => {
+          store.get(postsQuery, postsQueryParams).update((draft: any) => {
+            draft?.push(optimisticPost);
+          });
+        },
+        onSuccess: ({ store, output }) => {
+          store.get(postsQuery, postsQueryParams).update((draft: any) => {
+            draft?.push(output.post);
+          });
+
+          throw new Error('onSuccess failed');
+        },
+      },
+    });
+
+    try {
+      await expect(createPostMutation.execute(output.post)).resolves.toEqual(output);
+
+      expect(postsQuery.getData(postsQueryParams)).toEqual([...posts, optimisticPost]);
+
+      const afterState = createPostMutation.getState(output.post);
+      expect(afterState.isLoading).toBe(false);
+      expect(afterState.isSuccess).toBe(true);
+      expect(afterState.isError).toBe(false);
+      expect(afterState.output).toEqual(output);
+      expect(afterState.error).toEqual(null);
+
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

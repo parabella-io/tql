@@ -139,24 +139,7 @@ export class Mutation<
         isError: false,
       });
 
-      if (this.onSuccess) {
-        const successStore = createOptimisticUpdate(this.queryStore);
-        const successStorePublic: OptimisticQueryStorePublic = {
-          getAll: successStore.getAll,
-          get: successStore.get,
-          where: successStore.where,
-        };
-
-        successStore.start();
-
-        await this.onSuccess({
-          store: successStorePublic,
-          input: mutationInput,
-          output,
-        });
-
-        successStore.commit();
-      }
+      await this.runOnSuccess(mutationInput, output);
 
       return output;
     } catch (error) {
@@ -233,6 +216,35 @@ export class Mutation<
   public getHashKey = (params: MutationParams) => {
     return createMutationHashKey(this.mutationKey, this.mutation(params));
   };
+
+  private async runOnSuccess(mutationInput: MutationInput, output: MutationOutputFor<S, MutationName>) {
+    if (!this.onSuccess) {
+      return;
+    }
+
+    const successStore = createOptimisticUpdate(this.queryStore);
+
+    const successStorePublic: OptimisticQueryStorePublic = {
+      getAll: successStore.getAll,
+      get: successStore.get,
+      where: successStore.where,
+    };
+
+    successStore.start();
+
+    try {
+      await this.onSuccess({
+        store: successStorePublic,
+        input: mutationInput,
+        output,
+      });
+
+      successStore.commit();
+    } catch (error) {
+      console.error(error);
+      successStore.rollback();
+    }
+  }
 }
 
 export const singleMutationInput = <K extends string, V>(key: K, value: V): { [P in K]: V } => {
