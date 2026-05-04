@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ExtractEntityShape } from '../extract-entity-shape.js';
+import type { QueryManyOptionsExtensions, SchemaContextExtensions } from '../plugins/extensions.js';
 
 export type WithPagingConfig = {
   maxTakeSize?: number;
@@ -34,9 +35,9 @@ export type QueryManyOptionsNonPaginated<
   QueryArgs extends Record<string, any>,
 > = {
   query?: z.ZodSchema<QueryArgs>;
-  allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
-  resolve: (args: { context: SchemaContext; query: QueryArgs }) => Promise<EntityRow<SchemaEntities, ModelName>>;
-};
+  allow?: (options: { context: SchemaContext & SchemaContextExtensions; query: QueryArgs }) => Promise<boolean> | boolean;
+  resolve: (args: { context: SchemaContext & SchemaContextExtensions; query: QueryArgs; signal?: AbortSignal }) => Promise<EntityRow<SchemaEntities, ModelName>>;
+} & QueryManyOptionsExtensions<QueryArgs>;
 
 export type QueryManyOptionsPaginated<
   SchemaContext extends Record<string, any>,
@@ -46,13 +47,14 @@ export type QueryManyOptionsPaginated<
 > = {
   query?: z.ZodSchema<QueryArgs>;
   withPaging: WithPagingConfig;
-  allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
+  allow?: (options: { context: SchemaContext & SchemaContextExtensions; query: QueryArgs }) => Promise<boolean> | boolean;
   resolve: (args: {
-    context: SchemaContext;
+    context: SchemaContext & SchemaContextExtensions;
     query: QueryArgs;
     pagingInfo: PagingInputArgs;
+    signal?: AbortSignal;
   }) => Promise<{ entities: EntityRow<SchemaEntities, ModelName>; pagingInfo: ResolvedPagingInfo }>;
-};
+} & QueryManyOptionsExtensions<QueryArgs, PagingInputArgs>;
 
 export type QueryManyOptions<
   SchemaContext extends Record<string, any>,
@@ -88,7 +90,7 @@ export class QueryMany<
     return this.options;
   }
 
-  public getAllow(): (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean {
+  public getAllow(): (options: { context: SchemaContext & SchemaContextExtensions; query: QueryArgs }) => Promise<boolean> | boolean {
     return this.options.allow ?? (async () => true);
   }
 
@@ -99,6 +101,10 @@ export class QueryMany<
   public getWithPaging(): WithPagingConfig | undefined {
     if (!this.isPaginated()) return undefined;
     return (this.options as QueryManyOptionsPaginated<SchemaContext, SchemaEntities, ModelName, QueryArgs>).withPaging;
+  }
+
+  public getExtensions(): QueryManyOptionsExtensions<QueryArgs, PagingInputArgs> {
+    return this.options as QueryManyOptionsExtensions<QueryArgs, PagingInputArgs>;
   }
 
   /**

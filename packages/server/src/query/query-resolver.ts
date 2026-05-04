@@ -11,6 +11,12 @@ import { ExtractEntityShape } from '../extract-entity-shape.js';
 import type { ClientSchema } from '../shared/client-schema.js';
 import type { QueryDataFromRegistry, QueryPagingInfoFromRegistry } from '../shared/query-projection.js';
 
+export type QueryExecutionOptions = {
+  signal?: AbortSignal;
+  resolverTimeouts?: Map<string, number>;
+  wrapQueryNode?: <T>(path: string, final: () => Promise<T>) => Promise<T>;
+};
+
 export type QueryResolverOptions = {
   schema: Schema<any, any>;
 };
@@ -107,8 +113,9 @@ export class QueryResolver<S extends ClientSchema> {
   public async handle<const Q extends Partial<S['QueryInputMap']>>(options: {
     context: any;
     query: Q;
+    execution?: QueryExecutionOptions;
   }): Promise<ApplyQueryResponseMap<S, Q>> {
-    const { context, query: queryInput } = options;
+    const { context, query: queryInput, execution } = options;
 
     this.invokeCount = 0;
 
@@ -127,11 +134,11 @@ export class QueryResolver<S extends ClientSchema> {
 
     for (const queryName of Object.keys(queryInput as Record<string, unknown>) as Array<keyof Q & string>) {
       if (this.queryTypes[queryName] === 'single') {
-        requests.push(this.handleQuerySingle({ context, queryInput, queryName }));
+        requests.push(this.handleQuerySingle({ context, queryInput, queryName, execution }));
       }
 
       if (this.queryTypes[queryName] === 'many') {
-        requests.push(this.handleQueryMany({ context, queryInput, queryName }));
+        requests.push(this.handleQueryMany({ context, queryInput, queryName, execution }));
       }
     }
 
@@ -174,19 +181,20 @@ export class QueryResolver<S extends ClientSchema> {
     context: any;
     queryInput: Q;
     queryName: keyof Q & string;
+    execution?: QueryExecutionOptions;
   }): Promise<{
     queryName: keyof Q & string;
     data: Record<string, any> | null;
     error: FormattedTQLServerError | null;
     pagingInfo: null;
   }> {
-    const { context, queryInput, queryName } = options;
+    const { context, queryInput, queryName, execution } = options;
 
     let data: Record<string, any> | null = null;
     let formattedError: FormattedTQLServerError | null = null;
 
     try {
-      const { data: parsedQuery, error: parsedError } = HandleQuerySingleInputSchema.safeParse(queryInput[queryName]);
+      const { data: parsedQueryInput, error: parsedError } = HandleQuerySingleInputSchema.safeParse(queryInput[queryName]);
 
       if (parsedError) {
         throw new TQLServerError(TQLServerErrorType.QueryInputSchemaValidationError, { queryName, message: parsedError.message });
@@ -198,6 +206,11 @@ export class QueryResolver<S extends ClientSchema> {
           queryName,
         });
       }
+
+      const parsedQuery = {
+        ...parsedQueryInput,
+        query: parseResolverQuery(querySingle.getOptions().query, parsedQueryInput.query, queryName),
+      };
 
       const modelName = querySingle.getModelName();
 
@@ -221,7 +234,11 @@ export class QueryResolver<S extends ClientSchema> {
 
       const isNullable = querySingle.isNullable();
 
-      const entity = await resolve({ context, query: parsedQuery.query });
+      const entity = await runResolver({
+        path: queryName,
+        execution,
+        task: (signal) => resolve({ context, query: parsedQuery.query, signal } as any),
+      });
 
       if (entity !== null) {
         const isAllowedForEntity = model.getAllowEach();
@@ -255,6 +272,7 @@ export class QueryResolver<S extends ClientSchema> {
             workingEntities: [working],
             select: parsedQuery.select,
             parentInclude: parsedQuery.include,
+            execution,
           });
           includeData = side.includeData;
           externalBatches = side.externalBatches;
@@ -284,6 +302,7 @@ export class QueryResolver<S extends ClientSchema> {
           workingEntities: [working],
           select: parsedQuery.select,
           parentInclude: parsedQuery.include,
+          execution,
         });
         includeData = side.includeData;
         externalBatches = side.externalBatches;
@@ -329,13 +348,14 @@ export class QueryResolver<S extends ClientSchema> {
     context: any;
     queryInput: Q;
     queryName: keyof Q & string;
+    execution?: QueryExecutionOptions;
   }): Promise<{
     queryName: keyof Q & string;
     data: Array<Record<string, any>> | null;
     error: FormattedTQLServerError | null;
     pagingInfo: ResolvedPagingInfo | null;
   }> {
-    const { context, queryInput, queryName } = options;
+    const { context, queryInput, queryName, execution } = options;
 
     let data: Array<Record<string, any>> | null = null;
 
@@ -345,7 +365,7 @@ export class QueryResolver<S extends ClientSchema> {
 
     try {
       const queryMany = this.queryManys[queryName];
-      const { data: parsedQuery, error: parsedError } = HandleQueryManyInputSchema.safeParse(queryInput[queryName]);
+      const { data: parsedQueryInput, error: parsedError } = HandleQueryManyInputSchema.safeParse(queryInput[queryName]);
 
       if (parsedError) {
         throw new TQLServerError(TQLServerErrorType.QueryInputSchemaValidationError, { queryName, message: parsedError.message });
@@ -358,6 +378,11 @@ export class QueryResolver<S extends ClientSchema> {
       }
 
       const modelName = queryMany.getModelName();
+
+      const parsedQuery = {
+        ...parsedQueryInput,
+        query: parseResolverQuery(queryMany.getOptions().query, parsedQueryInput.query, queryName),
+      };
 
       const model = this.models[modelName];
 
@@ -388,6 +413,7 @@ export class QueryResolver<S extends ClientSchema> {
           workingEntities: working,
           select: parsedQuery.select,
           parentInclude: parsedQuery.include,
+          execution,
         });
 
         const schema = model.getSchema();
@@ -438,10 +464,16 @@ export class QueryResolver<S extends ClientSchema> {
 
         assertPagingTakeInBounds(queryMany.getWithPaging(), (pagingParsed.data as { take: number }).take, queryName);
 
-        const resolvedMany: unknown = await (resolve as any)({
-          context,
-          query: parsedQuery.query,
-          pagingInfo: pagingParsed.data,
+        const resolvedMany: unknown = await runResolver({
+          path: queryName,
+          execution,
+          task: (signal) =>
+            (resolve as any)({
+              context,
+              query: parsedQuery.query,
+              pagingInfo: pagingParsed.data,
+              signal,
+            }),
         });
 
         if (!resolvedMany || typeof resolvedMany !== 'object' || !Array.isArray((resolvedMany as { entities?: unknown }).entities)) {
@@ -473,7 +505,11 @@ export class QueryResolver<S extends ClientSchema> {
           });
         }
 
-        const entities = await (resolve as any)({ context, query: parsedQuery.query });
+        const entities = await runResolver({
+          path: queryName,
+          execution,
+          task: (signal) => (resolve as any)({ context, query: parsedQuery.query, signal }),
+        });
 
         data = await finishManyEntities(entities as Array<Record<string, any>>);
       }
@@ -508,8 +544,9 @@ export class QueryResolver<S extends ClientSchema> {
     parentPath: string;
     parentModelName: string;
     parentInclude: any;
+    execution?: QueryExecutionOptions;
   }) {
-    const { context, parentEntities, parentPath, parentModelName, parentInclude } = options;
+    const { context, parentEntities, parentPath, parentModelName, parentInclude, execution } = options;
 
     const includeData: IncludedDataMap = {};
 
@@ -519,7 +556,7 @@ export class QueryResolver<S extends ClientSchema> {
       await Promise.all(
         includeNames.map(async (includeName) => {
           const includeInput = parentInclude[includeName];
-          const includePath = `${parentPath}.${includeName}`;
+          const includePath = `${parentPath}.include.${includeName}`;
           const includeType = this.includeQueryTypes[getIncludeQueryType(parentModelName, includeName)];
 
           if (includeType === 'includeSingle') {
@@ -537,6 +574,8 @@ export class QueryResolver<S extends ClientSchema> {
               modelName: includeModelName,
               includeName,
               includeInput,
+              resolverPath: includePath,
+              execution,
             });
 
             if (result.length === 0) {
@@ -574,6 +613,8 @@ export class QueryResolver<S extends ClientSchema> {
               modelName: includeModelName,
               includeName,
               includeInput,
+              resolverPath: includePath,
+              execution,
             });
 
             if (result.length === 0) {
@@ -610,6 +651,8 @@ export class QueryResolver<S extends ClientSchema> {
     modelName: string;
     includeName: string;
     includeInput: any;
+    resolverPath: string;
+    execution?: QueryExecutionOptions;
   }): Promise<
     Array<{
       parentId: string;
@@ -617,7 +660,7 @@ export class QueryResolver<S extends ClientSchema> {
       rawEntity: Record<string, any> | null;
     }>
   > {
-    const { context, parentEntities, modelName, includeName, includeInput } = options;
+    const { context, parentEntities, modelName, includeName, includeInput, resolverPath, execution } = options;
 
     const includeSingle = this.includeSingles[modelName][includeName];
 
@@ -655,10 +698,18 @@ export class QueryResolver<S extends ClientSchema> {
       });
     }
 
-    const result = await (resolve as any)({
-      context,
-      query: parsedQuery.query,
-      parents: parsedQuery.parents,
+    parsedQuery.query = parseResolverQuery(includeOptions.query, parsedQuery.query, resolverPath);
+
+    const result = await runResolver({
+      path: resolverPath,
+      execution,
+      task: (signal) =>
+        (resolve as any)({
+          context,
+          query: parsedQuery.query,
+          parents: parsedQuery.parents,
+          signal,
+        }),
     });
 
     const schema = model.getSchema();
@@ -716,6 +767,8 @@ export class QueryResolver<S extends ClientSchema> {
     modelName: string;
     includeName: string;
     includeInput: any;
+    resolverPath: string;
+    execution?: QueryExecutionOptions;
   }): Promise<
     Array<{
       parentId: string;
@@ -723,7 +776,7 @@ export class QueryResolver<S extends ClientSchema> {
       rawEntities: Array<Record<string, any>>;
     }>
   > {
-    const { context, parentEntities, modelName, includeName, includeInput } = options;
+    const { context, parentEntities, modelName, includeName, includeInput, resolverPath, execution } = options;
 
     const includeMany = this.includeManys[modelName][includeName];
 
@@ -761,10 +814,18 @@ export class QueryResolver<S extends ClientSchema> {
       });
     }
 
-    const result = await (resolve as any)({
-      context,
-      query: parsedQuery.query,
-      parents: parsedQuery.parents,
+    parsedQuery.query = parseResolverQuery(includeOptions.query, parsedQuery.query, resolverPath);
+
+    const result = await runResolver({
+      path: resolverPath,
+      execution,
+      task: (signal) =>
+        (resolve as any)({
+          context,
+          query: parsedQuery.query,
+          parents: parsedQuery.parents,
+          signal,
+        }),
     });
 
     const schema = model.getSchema();
@@ -835,11 +896,12 @@ export class QueryResolver<S extends ClientSchema> {
     workingEntities: any[];
     select: unknown;
     parentInclude: any | undefined;
+    execution?: QueryExecutionOptions;
   }): Promise<{
     includeData: IncludedDataMap | null;
     externalBatches: Array<{ name: string; values: any[] }>;
   }> {
-    const { context, queryName, model, modelName, workingEntities, select, parentInclude } = options;
+    const { context, queryName, model, modelName, workingEntities, select, parentInclude, execution } = options;
 
     const extKeys = model.getExternalFieldKeys();
     const selectedExt = selectedExternalFieldNames(select, extKeys);
@@ -852,6 +914,7 @@ export class QueryResolver<S extends ClientSchema> {
           parentPath: queryName,
           parentModelName: modelName,
           parentInclude,
+          execution,
         })
       : Promise.resolve(null as IncludedDataMap | null);
 
@@ -995,6 +1058,89 @@ const HandleIncludeManyInputSchema = z.object({
 
 const getIncludeQueryType = (modelName: string, includeName: string) => {
   return `${modelName}-${includeName}`;
+};
+
+const parseResolverQuery = (schema: z.ZodTypeAny | undefined, value: unknown, queryName: string): unknown => {
+  const parsed = (schema ?? z.object({})).safeParse(value ?? {});
+
+  if (!parsed.success) {
+    throw new TQLServerError(TQLServerErrorType.QueryInputSchemaValidationError, {
+      queryName,
+      message: parsed.error.message,
+    });
+  }
+
+  return parsed.data;
+};
+
+const runResolver = async <T>(options: {
+  path: string;
+  execution?: QueryExecutionOptions;
+  task: (signal: AbortSignal | undefined) => Promise<T> | T;
+}): Promise<T> => {
+  const timeoutMs = options.execution?.resolverTimeouts?.get(options.path);
+
+  const runTask = (signal: AbortSignal | undefined) => {
+    const final = () => Promise.resolve(options.task(signal));
+    return options.execution?.wrapQueryNode?.(options.path, final) ?? final();
+  };
+
+  if (timeoutMs === undefined && !options.execution?.signal) {
+    return runTask(undefined);
+  }
+
+  const controller = new AbortController();
+  const parentSignal = options.execution?.signal;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  const abortFromParent = () => {
+    controller.abort(parentSignal?.reason);
+  };
+
+  if (parentSignal?.aborted) {
+    controller.abort(parentSignal.reason);
+  } else {
+    parentSignal?.addEventListener('abort', abortFromParent, { once: true });
+  }
+
+  const task = Promise.resolve().then(() => runTask(controller.signal));
+
+  const abortPromise = new Promise<never>((_resolve, reject) => {
+    controller.signal.addEventListener(
+      'abort',
+      () => {
+        reject(
+          new TQLServerError(TQLServerErrorType.SecurityTimeoutError, {
+            path: options.path,
+            reason: 'aborted',
+          }),
+        );
+      },
+      { once: true },
+    );
+  });
+
+  const timeoutPromise =
+    timeoutMs === undefined
+      ? new Promise<never>(() => {})
+      : new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            controller.abort();
+            reject(
+              new TQLServerError(TQLServerErrorType.SecurityTimeoutError, {
+                path: options.path,
+                timeoutMs,
+              }),
+            );
+          }, timeoutMs);
+        });
+
+  try {
+    return await Promise.race([task, timeoutPromise, abortPromise]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    parentSignal?.removeEventListener('abort', abortFromParent);
+  }
 };
 
 export type IncludedDataMap = Record<

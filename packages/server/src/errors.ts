@@ -14,6 +14,17 @@ export enum TQLServerErrorType {
   QueryError = 'Query error',
   QueryNotAllowedError = 'Query not allowed',
 
+  SecurityRejectedError = 'Security rejected',
+  SecurityDepthExceededError = 'Security depth exceeded',
+  SecurityBreadthExceededError = 'Security breadth exceeded',
+  SecurityBatchExceededError = 'Security batch exceeded',
+  SecurityTakeExceededError = 'Security take exceeded',
+  SecurityTimeoutError = 'Security timeout',
+  SecurityComplexityExceededError = 'Security complexity exceeded',
+  SecurityRateLimitedError = 'Security rate limited',
+  SecurityShapeNotAllowedError = 'Security shape not allowed',
+  SecurityBodySizeExceededError = 'Security body size exceeded',
+
   DuplicateModelNameError = 'Duplicate model name',
 
   EntityNotFoundError = 'Entity not found',

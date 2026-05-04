@@ -17,6 +17,9 @@ export {
   type EffectTask,
 } from './effects/index.js';
 
+export * from './security/index.js';
+export * from './plugins/index.js';
+
 export * from './query/index.js';
 export * from './mutation/index.js';
 

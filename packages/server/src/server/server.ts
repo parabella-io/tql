@@ -6,6 +6,9 @@ import type { Schema } from '../schema.js';
 import type { HttpAdapter } from './adapters/http/http-adapter.js';
 import type { EffectMeta, EffectQueue } from '../effects/effect-queue.js';
 import { InMemoryEffectQueue, type EffectLogger } from '../effects/in-memory-effect-queue.js';
+import { TQLServerError } from '../errors.js';
+import { buildMutationPlan, buildQueryPlan, type IncludeNode, type MutationPlan, type QueryNode } from '../security/index.js';
+import { PluginRunner, type ServerContext, type ServerPlugin } from '../plugins/index.js';
 
 export type GenerateSchemaConfig = {
   enabled: boolean;
@@ -56,6 +59,7 @@ export type ServerOptions = {
    * Defaults to an in-memory `p-queue`.
    */
   effects?: EffectsConfig;
+  plugins?: ServerPlugin[];
 };
 
 export class Server<S extends ClientSchema> {
@@ -67,7 +71,12 @@ export class Server<S extends ClientSchema> {
 
   private readonly effectQueue: EffectQueue;
 
+  private readonly schema: Schema<any, any>;
+
+  private readonly pluginRunner: PluginRunner;
+
   constructor(options: ServerOptions) {
+    this.schema = options.schema;
     this.effectQueue = Server.createEffectQueue(options.effects);
 
     this.queryResolver = new QueryResolver<S>({ schema: options.schema });
@@ -77,6 +86,10 @@ export class Server<S extends ClientSchema> {
     });
 
     this.contextFactory = options.createContext;
+
+    this.pluginRunner = new PluginRunner({
+      plugins: options.plugins,
+    });
 
     this.runSchemaCodegen(options.schema, options.generateSchema);
   }
@@ -108,13 +121,48 @@ export class Server<S extends ClientSchema> {
   public async handleQuery<const Q extends Partial<S['QueryInputMap']>>(options: {
     request: any;
     query: Q;
+    body?: unknown;
   }): Promise<ApplyQueryResponseMap<S, Q>> {
     const context = await this.createContext({ request: options.request });
-
-    return this.queryResolver.handle({
-      context,
-      query: options.query,
+    const { serverContext, cleanup } = await this.createServerContext({
+      request: options.request,
+      body: options.body ?? options.query,
+      schemaContext: context,
     });
+
+    try {
+      const plan = buildQueryPlan({ schema: this.schema, query: options.query });
+
+      const nodesByPath = collectQueryNodes(plan.nodes);
+
+      await this.pluginRunner.beforeQuery(serverContext, plan);
+
+      const result = await this.queryResolver.handle({
+        context,
+        query: options.query,
+        execution: {
+          signal: serverContext.signal,
+          resolverTimeouts: serverContext.resolverTimeouts,
+          wrapQueryNode: (path, final) => {
+            const node = nodesByPath.get(path);
+
+            return node ? this.pluginRunner.wrapQueryNode(serverContext, node, final) : final();
+          },
+        },
+      });
+
+      await this.pluginRunner.afterQuery(serverContext, plan, serverContext.plugin.costs ?? {});
+
+      return result;
+    } catch (error) {
+      if (error instanceof TQLServerError) {
+        return formatQueryError(options.query, this.pluginRunner.transformError(serverContext, error)) as ApplyQueryResponseMap<S, Q>;
+      }
+
+      throw error;
+    } finally {
+      cleanup();
+    }
   }
 
   /**
@@ -126,13 +174,78 @@ export class Server<S extends ClientSchema> {
   public async handleMutation<const Q extends Partial<S['MutationInputMap']>>(options: {
     request: any;
     mutation: Q;
+    body?: unknown;
   }): Promise<MutationHandleResult<S, Q>> {
     const context = await this.createContext({ request: options.request });
-
-    return this.mutationResolver.handle({
-      context,
-      mutation: options.mutation,
+    const { serverContext, cleanup } = await this.createServerContext({
+      request: options.request,
+      body: options.body ?? options.mutation,
+      schemaContext: context,
     });
+
+    try {
+      const plan = buildMutationPlan({ schema: this.schema, mutation: options.mutation });
+      const entriesByName = new Map(plan.entries.map((entry) => [entry.mutationName, entry]));
+
+      await this.pluginRunner.beforeMutation(serverContext, plan);
+
+      const result = await this.mutationResolver.handle({
+        context,
+        mutation: options.mutation,
+        execution: {
+          signal: serverContext.signal,
+          resolverTimeouts: serverContext.resolverTimeouts,
+          wrapMutation: (mutationName, final) => {
+            const entry = entriesByName.get(mutationName);
+
+            return entry ? this.pluginRunner.wrapMutation(serverContext, entry, final) : final();
+          },
+        },
+      });
+
+      await this.pluginRunner.afterMutation(serverContext, plan, serverContext.plugin.costs ?? {});
+
+      return result;
+    } catch (error) {
+      if (error instanceof TQLServerError) {
+        return {
+          results: formatMutationError(options.mutation, this.pluginRunner.transformError(serverContext, error)) as any,
+          effects: [],
+        };
+      }
+
+      throw error;
+    } finally {
+      cleanup();
+    }
+  }
+
+  private async createServerContext(options: {
+    request: unknown;
+    body: unknown;
+    schemaContext: unknown;
+  }): Promise<{ serverContext: ServerContext; cleanup: () => void }> {
+    const controller = new AbortController();
+    const timeoutMs = this.pluginRunner.getRequestTimeoutMs();
+    const timeout =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            controller.abort();
+          }, timeoutMs);
+    const serverContext = await this.pluginRunner.createContext({
+      request: options.request,
+      body: options.body,
+      schemaContext: options.schemaContext,
+      signal: controller.signal,
+    });
+
+    return {
+      serverContext,
+      cleanup: () => {
+        if (timeout) clearTimeout(timeout);
+      },
+    };
   }
 
   /**
@@ -148,16 +261,20 @@ export class Server<S extends ClientSchema> {
 
   public attachHttp(adapter: HttpAdapter<any>): this {
     adapter.post('/query', async (request) => {
+      const body = adapter.getBody(request);
       return this.handleQuery({
         request,
-        query: adapter.getBody(request) as Partial<S['QueryInputMap']>,
+        body,
+        query: body as Partial<S['QueryInputMap']>,
       });
     });
 
     adapter.post('/mutation', async (request, hooks) => {
+      const body = adapter.getBody(request);
       const { results, effects } = await this.handleMutation({
         request,
-        mutation: adapter.getBody(request) as Partial<S['MutationInputMap']>,
+        body,
+        mutation: body as Partial<S['MutationInputMap']>,
       });
 
       if (effects.length > 0) {
@@ -188,3 +305,49 @@ export class Server<S extends ClientSchema> {
     );
   }
 }
+
+const formatQueryError = (query: unknown, error: TQLServerError): Record<string, unknown> => {
+  const input = query && typeof query === 'object' && !Array.isArray(query) ? (query as Record<string, unknown>) : {};
+
+  return Object.fromEntries(
+    Object.keys(input).map((queryName) => [
+      queryName,
+      {
+        data: null,
+        error: error.getFormattedError(),
+        pagingInfo: null,
+      },
+    ]),
+  );
+};
+
+const collectQueryNodes = (nodes: QueryNode[]): Map<string, QueryNode | IncludeNode> => {
+  const map = new Map<string, QueryNode | IncludeNode>();
+  const visit = (node: QueryNode | IncludeNode) => {
+    map.set(node.path, node);
+
+    for (const include of node.includes) {
+      visit(include);
+    }
+  };
+
+  for (const node of nodes) {
+    visit(node);
+  }
+
+  return map;
+};
+
+const formatMutationError = (mutation: unknown, error: TQLServerError): Record<string, unknown> => {
+  const input = mutation && typeof mutation === 'object' && !Array.isArray(mutation) ? (mutation as Record<string, unknown>) : {};
+
+  return Object.fromEntries(
+    Object.keys(input).map((mutationName) => [
+      mutationName,
+      {
+        data: null,
+        error: error.getFormattedError(),
+      },
+    ]),
+  );
+};

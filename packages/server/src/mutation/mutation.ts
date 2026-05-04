@@ -1,19 +1,21 @@
 import { z } from 'zod';
+import type { MutationOptionsExtensions, SchemaContextExtensions } from '../plugins/extensions.js';
 
 export type MutationOptions<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, Output extends z.ZodTypeAny> = {
   input: Input;
   output: Output;
-  allow: (options: { context: SchemaContext; input: z.infer<Input> }) => Promise<boolean> | boolean;
+  allow: (options: { context: SchemaContext & SchemaContextExtensions; input: z.infer<Input> }) => Promise<boolean> | boolean;
   resolve: (options: {
     input: z.infer<Input>;
-    context: SchemaContext;
+    context: SchemaContext & SchemaContextExtensions;
+    signal?: AbortSignal;
   }) => Promise<z.infer<Output>> | z.infer<Output>;
   resolveEffects?: (options: {
     input: z.infer<Input>;
-    context: SchemaContext;
+    context: SchemaContext & SchemaContextExtensions;
     output: z.infer<Output>;
   }) => Promise<void> | void;
-};
+} & MutationOptionsExtensions<z.infer<Input>>;
 
 export class Mutation<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, Output extends z.ZodTypeAny> {
   declare Output: z.infer<Output>;
@@ -24,13 +26,16 @@ export class Mutation<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, O
 
   private readonly output: Output;
 
-  private readonly allow: (options: { context: SchemaContext; input: z.infer<Input> }) => Promise<boolean> | boolean;
+  private readonly allow: (options: { context: SchemaContext & SchemaContextExtensions; input: z.infer<Input> }) => Promise<boolean> | boolean;
 
   private readonly resolve: MutationOptions<SchemaContext, Input, Output>['resolve'];
 
   private readonly resolveEffects?: MutationOptions<SchemaContext, Input, Output>['resolveEffects'];
 
+  private readonly options: MutationOptions<SchemaContext, Input, Output>;
+
   constructor(mutationName: string, options: MutationOptions<SchemaContext, Input, Output>) {
+    this.options = options;
     this.mutationName = mutationName;
     this.input = options.input;
     this.output = options.output;
@@ -51,21 +56,26 @@ export class Mutation<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, O
     return this.output;
   }
 
-  getAllow(): (options: { context: SchemaContext; input: z.infer<Input> }) => Promise<boolean> | boolean {
+  getAllow(): (options: { context: SchemaContext & SchemaContextExtensions; input: z.infer<Input> }) => Promise<boolean> | boolean {
     return this.allow;
   }
 
   getResolve(): (options: {
     input: z.infer<Input>;
-    context: SchemaContext;
+    context: SchemaContext & SchemaContextExtensions;
+    signal?: AbortSignal;
   }) => Promise<z.infer<Output>> | z.infer<Output> {
     return this.resolve;
+  }
+
+  getExtensions(): MutationOptionsExtensions<z.infer<Input>> {
+    return this.options;
   }
 
   getResolveEffects():
     | ((options: {
         input: z.infer<Input>;
-        context: SchemaContext;
+        context: SchemaContext & SchemaContextExtensions;
         output: z.infer<Output>;
       }) => Promise<void> | void)
     | undefined {

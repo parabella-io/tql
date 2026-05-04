@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ExtractEntityShape } from '../extract-entity-shape.js';
+import type { IncludeSingleOptionsExtensions, SchemaContextExtensions } from '../plugins/extensions.js';
 
 type RelationEntity<SchemaEntities extends Record<string, any>, RelationName extends keyof SchemaEntities & string> = ExtractEntityShape<
   SchemaEntities,
@@ -24,16 +25,18 @@ export type IncludeSingleOptions<
   query?: z.ZodSchema<QueryArgs>;
   nullable?: Nullable;
   matchKey: MatchKey;
-  allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
+  allow?: (options: { context: SchemaContext & SchemaContextExtensions; query: QueryArgs }) => Promise<boolean> | boolean;
   resolve: ({
     context,
     query,
+    signal,
   }: {
-    context: SchemaContext;
+    context: SchemaContext & SchemaContextExtensions;
     query: QueryArgs;
     parents: Array<ExtractEntityShape<SchemaEntities, ModelName>>;
+    signal?: AbortSignal;
   }) => Promise<Array<ResolvedIncludeEntity<SchemaEntities, RelationName, MatchKey>>>;
-};
+} & IncludeSingleOptionsExtensions<QueryArgs>;
 
 export class IncludeSingle<
   SchemaContext extends Record<string, any>,
@@ -78,5 +81,9 @@ export class IncludeSingle<
 
   public isNullable(): boolean {
     return this.options.nullable ?? false;
+  }
+
+  public getExtensions(): IncludeSingleOptionsExtensions<QueryArgs> {
+    return this.options;
   }
 }

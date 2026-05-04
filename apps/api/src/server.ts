@@ -5,6 +5,7 @@ import { schema, SchemaContext, UserContext } from './schema/index';
 import { auth } from './auth';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { InMemoryEffectQueue, Server as TQLServer, createFastifyHttpAdapter } from '@tql/server';
+import { createTqlPlugins } from './schema/security';
 import {
   workspaceService,
   ticketsService,
@@ -184,6 +185,7 @@ async function protectedRoutes(server: FastifyInstance) {
     effects: {
       queue: new InMemoryEffectQueue(),
     },
+    plugins: createTqlPlugins(),
   });
 
   tqlServer.attachHttp(createFastifyHttpAdapter(server));
