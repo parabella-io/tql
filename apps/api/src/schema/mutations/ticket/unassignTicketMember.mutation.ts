@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { ticketAssigneeOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const unassignTicketMember = schema.mutation('unassignTicketMember', {
@@ -8,11 +9,9 @@ export const unassignTicketMember = schema.mutation('unassignTicketMember', {
     ticketId: z.string(),
   }),
 
-  changed: {
-    ticketAssignee: {
-      deletes: true,
-    },
-  },
+  output: z.object({
+    ticketAssignee: ticketAssigneeOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -25,9 +24,7 @@ export const unassignTicketMember = schema.mutation('unassignTicketMember', {
     });
 
     return {
-      ticketAssignee: {
-        deletes: [ticketAssignee],
-      },
+      ticketAssignee,
     };
   },
 });

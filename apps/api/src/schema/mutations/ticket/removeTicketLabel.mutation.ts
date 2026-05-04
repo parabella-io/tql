@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { ticketLabelOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const removeTicketLabel = schema.mutation('removeTicketLabel', {
@@ -9,11 +10,9 @@ export const removeTicketLabel = schema.mutation('removeTicketLabel', {
     ticketId: z.string(),
   }),
 
-  changed: {
-    ticketLabel: {
-      deletes: true,
-    },
-  },
+  output: z.object({
+    ticketLabel: ticketLabelOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -27,9 +26,7 @@ export const removeTicketLabel = schema.mutation('removeTicketLabel', {
     });
 
     return {
-      ticketLabel: {
-        deletes: [ticketLabel],
-      },
+      ticketLabel,
     };
   },
 });

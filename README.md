@@ -3,17 +3,17 @@
 > [!WARNING]
 > **Experimental.** This repository is an early-stage prototype under active development. APIs, package boundaries, generated schema format and on-the-wire protocol are all subject to breaking changes without notice. Not recommended for production use.
 
-> A typed, end-to-end query layer that exposes your API directly as an ORM — schema, queries, mutations, change-events and React bindings included.
+> A typed, end-to-end query layer that exposes your API directly as an ORM — schema, queries, mutations and React bindings included.
 
 ## Why
 
 `tql` exists to merge the **behaviour of GraphQL** — a single typed graph, selectable fields, nested relational includes resolved in one round-trip — with the **developer experience of tRPC**: no SDL, no codegen step you have to run, no client-side query language, just plain TypeScript end-to-end with full inference from server to component.
 
-It also takes a deliberately different stance on client-side state management. Most libraries treat the cache as a global key-value store and hand you tools (invalidation, tag matching, manual refetch) to keep it correct. In `tql` **the query owns the logic for how it updates its own state**: every query declares per-entity `onInsert` / `onUpdate` / `onDelete` handlers and reacts to the typed change-events emitted by mutations. State stays consistent because the query — not the consumer — knows how to fold a change into its own shape.
+It also takes a deliberately different stance on client-side state management. Most libraries treat the cache as a global key-value store and hand you tools (invalidation, tag matching, manual refetch) to keep it correct. In `tql` **the mutation owns the logic for how successful writes affect cached queries**: mutations can optimistically update query state before the request and then reconcile it in `onSuccess` using the typed output returned by the server.
 
 ## How
 
-`tql` is built around a single idea: the network shouldn't be in the way. You declare your domain on the server (entities, models, queries, includes, mutations) and consume it on the client with the same shape you'd get from a local ORM. Mutations declare what they change, queries declare what they care about, and the client keeps itself in sync by listening to entity-level change events.
+`tql` is built around a single idea: the network shouldn't be in the way. You declare your domain on the server (entities, models, queries, includes, mutations) and consume it on the client with the same shape you'd get from a local ORM. Mutations declare their output shape and own the cache updates that should happen after they succeed.
 
 ---
 
@@ -38,13 +38,13 @@ The flow goes top-down: declare your domain on the server, expose it, then let t
 ### Server
 
 1. [Define schema entities and the schema context](#1-define-schema-entities-and-the-schema-context)
-2. [Define models, queries and includes; define mutations and what they changed](#2-define-models-queries-and-includes-define-mutations-and-what-they-changed)
+2. [Define models, queries and includes; define mutations and their outputs](#2-define-models-queries-and-includes-define-mutations-and-their-outputs)
 3. [Define the server, generate the schema for the client](#3-define-the-server-generate-the-schema-for-the-client)
 
 ### Client
 
 1. [Expose the API directly as an ORM](#4-expose-the-api-directly-as-an-orm)
-2. [Create queries; state updated by listening to CRUD events](#5-create-queries-state-updated-by-listening-to-crud-events)
+2. [Create queries](#5-create-queries)
 3. [Create mutations, with optional optimistic updates](#6-create-mutations-with-optional-optimistic-updates)
 4. [Consume queries and mutations in React](#7-consume-queries-and-mutations-in-react)
 
@@ -106,7 +106,7 @@ The context is constructed per-request and is what every resolver receives.
 
 ---
 
-### 2. Define models, queries and includes; define mutations and what they changed
+### 2. Define models, queries and includes; define mutations and their outputs
 
 #### Models, queries, includes
 
@@ -178,9 +178,9 @@ export const ticket = schema.model('ticket', {
 
 Includes are resolved as **batched** lookups (parents in, children out) so deep query trees don't fan out into N+1 round trips.
 
-#### Mutations declare what they `changed`
+#### Mutations declare their `output`
 
-A **mutation** has an input schema, an `allow` guard, a `resolve` function, *and* a `changed` map declaring which entities and which kinds of changes (`inserts`, `updates`, `deletes`) it can produce:
+A **mutation** has an input schema, an output schema, an `allow` guard, and a `resolve` function. The resolver can return whatever shape the mutation needs; that shape is validated at runtime and emitted into the generated client schema:
 
 ```5:35:apps/api/src/schema/mutations/ticket/createTicket.mutation.ts
 export const createTicket = schema.mutation('createTicket', {
@@ -190,11 +190,9 @@ export const createTicket = schema.mutation('createTicket', {
     title: z.string().min(1),
   }),
 
-  changed: {
-    ticket: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    ticket: z.any(),
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -208,15 +206,13 @@ export const createTicket = schema.mutation('createTicket', {
     });
 
     return {
-      ticket: {
-        inserts: [ticket],
-      },
+      ticket,
     };
   },
 });
 ```
 
-The `changed` declaration is what makes reactive client caches possible (see [§5](#5-create-queries-state-updated-by-listening-to-crud-events)). The resolver's return value is type-checked against this declaration.
+The output schema is the contract that client mutations receive in `onSuccess` and from `mutate(...)`.
 
 ---
 
@@ -293,9 +289,9 @@ From this point on, every query and mutation in the app is end-to-end typed agai
 
 ---
 
-### 5. Create queries; state updated by listening to CRUD events
+### 5. Create queries
 
-On the client, queries are first-class objects created via `tql.createQuery`. They define *what* to fetch (root query name + params + select + nested includes) and *how* to react to entity-level change events.
+On the client, queries are first-class objects created via `tql.createQuery`. They define *what* to fetch: root query name, params, selected fields and nested includes.
 
 ```1:39:apps/app/src/api/tickets/queries/ticket.query.ts
 import { tql } from '@/shared/lib/tql'
@@ -318,41 +314,13 @@ export const ticketQuery = tql.createQuery('ticketById', {
 })
 ```
 
-The query then registers `updateOnChange` handlers per-entity. When a mutation's `changed` payload arrives, the client iterates over registered queries and patches their cached state via Immer-style drafts:
-
-```41:90:apps/app/src/api/tickets/queries/ticket.query.ts
-ticketQuery.updateOnChange('ticket', {
-  onInsert() {},
-  onUpdate({ draft, change }) {
-    if (!draft || draft.id !== change.id) return
-    draft.title = change.title
-    draft.description = change.description
-  },
-  onDelete() {},
-})
-
-ticketQuery.updateOnChange('ticketAttachment', {
-  onInsert({ draft, change }) {
-    if (!draft || draft.id !== change.ticketId) return
-
-    draft.attachments.push(change)
-  },
-  onUpdate() {},
-  onDelete({ draft, change }) {
-    if (!draft) return
-
-    draft.attachments = draft.attachments.filter((att) => att.id !== change.id)
-  },
-})
-```
-
-Because invalidation is **entity-scoped** (not key-scoped), unrelated queries that happen to mention the same entity stay consistent without anyone wiring up `invalidateQueries`. Add a new query, add its handlers, done.
+Queries do not listen to entity CRUD events. Cached state is updated by the mutation that caused the write, using the same query-store API as optimistic updates.
 
 ---
 
 ### 6. Create mutations, with optional optimistic updates
 
-Mutations on the client mirror their server counterpart and may declare an `onOptimisticUpdate` callback that mutates cached query state immediately, before the server responds. If the request fails the change is rolled back; if it succeeds the authoritative `changed` payload reconciles state.
+Mutations on the client mirror their server counterpart. `onOptimisticUpdate` mutates cached query state immediately before the server responds; if the request fails that change is rolled back. `onSuccess` runs after the server succeeds and receives the typed mutation `output`.
 
 A simple mutation — no optimistic update needed:
 
@@ -364,6 +332,12 @@ export const createTicketMutation = tql.createMutation('createTicket', {
     ticketListId: params.ticketListId,
     title: params.title,
   }),
+  onSuccess: ({ store, output }) => {
+    store.getAll(ticketListsQuery).update((draft) => {
+      const list = draft?.find((item) => item.id === output.ticket.ticketListId)
+      list?.tickets.push(output.ticket)
+    })
+  },
 })
 ```
 
@@ -443,7 +417,7 @@ export const moveTicketMutation = tql.createMutation('moveTicket', {
     })
 ```
 
-When `createWorkspace.mutate(...)` resolves, the server's `changed` payload flows through every query subscribed to the `workspace` entity, `WorkspacesList` re-renders with the new row, and no one had to think about cache invalidation.
+When `createWorkspace.mutate(...)` resolves, its `onSuccess` hook patches the workspace queries that should reflect the new row, and `WorkspacesList` re-renders from the updated query state.
 
 ---
 

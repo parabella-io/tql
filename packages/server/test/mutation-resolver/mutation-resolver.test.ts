@@ -53,27 +53,10 @@ describe('MutationResolver - Success', () => {
 
     expect(result.createProfile.error).toBeNull();
 
-    /*
-        New response
-
-        {
-            [modelName]: {
-                inserts: [
-                ]
-                updates: [],
-                deletes: [
-                ]
-            },
-            errors
-        }
-        */
-
-    expect(result.createProfile.changes.profile.inserts?.length).toBe(1);
-    const insert = result.createProfile.changes.profile.inserts![0];
-    expect(insert.id).toBeDefined();
-    expect(insert.name).toBe(name);
-    expect(insert.hobbies).toBe(hobbies);
-    expect(insert.address).toBe(address);
+    expect(result.createProfile.data.profile.id).toBeDefined();
+    expect(result.createProfile.data.profile.name).toBe(name);
+    expect(result.createProfile.data.profile.hobbies).toEqual(hobbies);
+    expect(result.createProfile.data.profile.address).toEqual(address);
 
     const databaseProfile: any = database.prepare(`SELECT * FROM profiles WHERE id = ?`).get(userId);
     expect(databaseProfile.name).toBe(name);
@@ -133,25 +116,19 @@ describe('MutationResolver - Success', () => {
     expect(result.createPost.error).toBeNull();
     expect(result.createComment.error).toBeNull();
 
-    expect(result.createProfile.changes.profile.inserts?.length).toBe(1);
-    const insert = result.createProfile.changes.profile.inserts![0];
-    expect(insert.id).toBe(userId);
-    expect(insert.name).toBe(name);
-    expect(insert.hobbies).toBe(hobbies);
-    expect(insert.address).toBe(address);
+    expect(result.createProfile.data.profile.id).toBe(userId);
+    expect(result.createProfile.data.profile.name).toBe(name);
+    expect(result.createProfile.data.profile.hobbies).toEqual(hobbies);
+    expect(result.createProfile.data.profile.address).toEqual(address);
 
-    expect(result.createPost.changes.post.inserts?.length).toBe(1);
-    const postInsert = result.createPost.changes.post.inserts![0];
-    expect(postInsert.id).toBe(postId);
-    expect(postInsert.content).toBe('Test Post');
-    expect(postInsert.profileId).toBe(userId);
+    expect(result.createPost.data.post.id).toBe(postId);
+    expect(result.createPost.data.post.content).toBe('Test Post');
+    expect(result.createPost.data.post.profileId).toBe(userId);
 
-    expect(result.createComment.changes.comment.inserts?.length).toBe(1);
-    const commentInsert = result.createComment.changes.comment.inserts![0];
-    expect(commentInsert.id).toBe(commentId);
-    expect(commentInsert.comment).toBe(commentContent);
-    expect(commentInsert.postId).toBe(userId);
-    expect(commentInsert.profileId).toBe(userId);
+    expect(result.createComment.data.comment.id).toBe(commentId);
+    expect(result.createComment.data.comment.comment).toBe(commentContent);
+    expect(result.createComment.data.comment.postId).toBe(userId);
+    expect(result.createComment.data.comment.profileId).toBe(userId);
 
     const databasePost: Post = database.prepare(`SELECT * FROM posts WHERE id = ?`).get(postId) as Post;
     expect(databasePost.content).toBe(postContent);
@@ -188,7 +165,7 @@ describe('MutationResolver - Success', () => {
 
     expect(result.createProfileNoChanges.error).toBeNull();
 
-    expect(result.createProfileNoChanges.changes).toEqual({});
+    expect(result.createProfileNoChanges.data).toEqual({});
   });
 });
 
@@ -241,7 +218,7 @@ describe('MutationResolver - Errors', () => {
     const error = result.createProfileUnauthorized.error;
     expect(error?.type).toEqual(TQLServerErrorType.MutationNotAllowedError);
     expect(error?.details?.mutationName).toBe('createProfileUnauthorized');
-    expect(result.createProfileUnauthorized.changes).toEqual({});
+    expect(result.createProfileUnauthorized.data).toBeNull();
   });
 
   test(`should invoke createProfile mutation and return a MutationInputSchemaError error`, async () => {
@@ -268,7 +245,7 @@ describe('MutationResolver - Errors', () => {
 
     const error = result.createProfile.error;
     expect(error?.type).toEqual(TQLServerErrorType.MutationInputSchemaError);
-    expect(result.createProfile.changes).toEqual({});
+    expect(result.createProfile.data).toBeNull();
   });
 
   test(`should invoke createProfileMalformedResponse mutation and return a MutationResponseMalformed error`, async () => {
@@ -296,7 +273,7 @@ describe('MutationResolver - Errors', () => {
 
     const error = result.createProfileMalformedResponse.error;
     expect(error?.type).toEqual(TQLServerErrorType.MutationResponseMalformedError);
-    expect(result.createProfileMalformedResponse.changes).toEqual({});
+    expect(result.createProfileMalformedResponse.data).toBeNull();
   });
 
   test(`should invoke invalidMutation mutation and return a MutationNotFound error`, async () => {

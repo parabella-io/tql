@@ -2,8 +2,8 @@ import type {
   MutationInputFor,
   MutationNameFor,
   MutationOptions,
+  MutationOutputFor,
   MutationPayloadFor,
-  SingleMutationChangesForName,
 } from '../mutation/mutation.types';
 import { Query, singleQueryInput } from '../query/query';
 import {
@@ -13,7 +13,6 @@ import {
   QueryOptions,
   QueryResponse,
   SingleQueryRequestFor,
-  QueryUpdateHooksMap,
 } from '../query/query.types';
 import { createQueryStore, QueryStore } from '../query/query-store';
 import { Mutation, singleMutationInput } from '../mutation/mutation';
@@ -49,7 +48,6 @@ export type ClientOptions = {
 
 export class Client<S extends ClientSchema> {
   private readonly queryStore: QueryStore;
-  private readonly queryUpdateHooks: QueryUpdateHooksMap = {};
 
   private readonly mutationStore: MutationStore;
 
@@ -92,7 +90,6 @@ export class Client<S extends ClientSchema> {
       store: this.queryStore,
       queryName,
       queryOptions: options,
-      queryUpdateHooks: this.queryUpdateHooks,
       queryHandler: this.queryHandlerFor(options.transport),
     });
   }
@@ -103,7 +100,6 @@ export class Client<S extends ClientSchema> {
   ) {
     return new Mutation<S, MutationName, MutationPayloadFor<S, MutationName>, MutationParams>({
       queryStore: this.queryStore,
-      queryUpdateHooks: this.queryUpdateHooks,
       mutationHandler: this.mutationHandlerFor(options.transport),
       mutationStore: this.mutationStore,
       mutationName,
@@ -139,8 +135,8 @@ export class Client<S extends ClientSchema> {
         throw result.error;
       }
 
-      return result.changes;
-    }) as Promise<SingleMutationChangesForName<S, MutationName>>;
+      return result.data;
+    }) as Promise<MutationOutputFor<S, MutationName>>;
   }
 
   reset() {

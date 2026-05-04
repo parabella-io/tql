@@ -49,11 +49,11 @@ const HASH_MARKER = '// @schema-hash';
  *   7. <Query>Input + QueryInputMap     per-query envelopes and aggregate map
  *   8. QueryRegistry                    queryName -> { entity, kind, nullable, paginated?, includeMap, externalFieldKeys }
  *   9. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
- *  10. MutationRegistry                 mutationName -> declared `changed` map
+ *  10. <Mutation>Output + MutationOutputMap per-mutation payloads and aggregate map
  *  11. ClientSchema                     aggregate map consumed by @tql/client
  *  12. Projection + handle stubs        cheap mapped types + type-only entry points
  *
- * Recursion is by name so deep selections / mutation `changed` projections
+ * Recursion is by name so deep selections / mutation output projections
  * resolve in roughly O(1) instead of walking the deep `FlattenedQueriesInput`
  * / `FlattenedMutationsInput` generic chains at runtime.
  */
@@ -145,18 +145,12 @@ type ModelInfo = {
   includeManys: Array<{ includeName: string; includeMany: IncludeMany<any, any, any, any, any, any> }>;
 };
 
-type ChangedDeclaration = Partial<Record<string, Partial<Record<MutationOpName, true>>>>;
-
-type MutationOpName = 'inserts' | 'updates' | 'upserts' | 'deletes';
-
 type MutationInfo = {
   mutationName: string;
   pascalName: string;
   inputSchema: ZodObject<any>;
-  changed: ChangedDeclaration;
+  outputSchema: ZodTypeAny;
 };
-
-const MUTATION_OPS: MutationOpName[] = ['inserts', 'updates', 'upserts', 'deletes'];
 
 const collectModels = (schema: Schema<any, any>): ModelInfo[] => {
   return Object.keys(schema.models).map((modelName) => {
@@ -213,12 +207,12 @@ const collectModels = (schema: Schema<any, any>): ModelInfo[] => {
 
 const collectMutations = (schema: Schema<any, any>): MutationInfo[] => {
   return Object.keys(schema.mutations).map((mutationName) => {
-    const mutation = schema.mutations[mutationName] as Mutation<any, any, any, any>;
+    const mutation = schema.mutations[mutationName] as Mutation<any, any, any>;
     return {
       mutationName,
       pascalName: toPascalCase(mutationName),
       inputSchema: mutation.getInputSchema() as ZodObject<any>,
-      changed: (mutation.getChanged() ?? {}) as ChangedDeclaration,
+      outputSchema: mutation.getOutputSchema() as ZodTypeAny,
     };
   });
 };
@@ -245,7 +239,8 @@ const renderSchemaSource = (schema: Schema<any, any>): string => {
     renderQueryRegistry(models),
     renderMutationInputsSection(mutations),
     renderMutationInputMap(mutations),
-    renderMutationRegistry(mutations),
+    renderMutationOutputsSection(mutations),
+    renderMutationOutputMap(mutations),
     QUERY_PROJECTION_BLOCK,
     MUTATION_PROJECTION_BLOCK,
     CLIENT_SCHEMA_BLOCK,
@@ -510,26 +505,31 @@ const renderMutationInputMap = (mutations: MutationInfo[]): string => {
   return [bannerComment('AGGREGATE MUTATION INPUT MAP'), body].join('\n\n');
 };
 
-const renderMutationRegistry = (mutations: MutationInfo[]): string => {
+const renderMutationOutputsSection = (mutations: MutationInfo[]): string => {
   if (mutations.length === 0) return '';
 
-  const entries = mutations.map((mutation) => `  ${mutation.mutationName}: ${renderChangedLiteral(mutation.changed)};`);
-  const body = ['export interface MutationRegistry {', ...entries, '}'].join('\n');
-  return [bannerComment('MUTATION REGISTRY (literal `changed` map per mutation)'), body].join('\n\n');
+  const blocks = mutations.map((mutation) => renderMutationOutput(mutation));
+
+  return [bannerComment('PER-MUTATION OUTPUT INTERFACES'), ...blocks].join('\n\n');
 };
 
-const renderChangedLiteral = (changed: ChangedDeclaration): string => {
-  const modelKeys = Object.keys(changed);
-  if (modelKeys.length === 0) return '{}';
+const renderMutationOutput = (mutation: MutationInfo): string => {
+  const outputName = `${mutation.pascalName}Output`;
+  const def = getDef(mutation.outputSchema);
 
-  const parts: string[] = [];
-  for (const modelName of modelKeys) {
-    const ops = changed[modelName] ?? {};
-    const opEntries = MUTATION_OPS.filter((op) => ops[op] === true).map((op) => `${op}: true`);
-    parts.push(`${modelName}: { ${opEntries.join('; ')} }`);
+  if (def?.type === 'object') {
+    return [`export interface ${outputName} {`, ...renderObjectShapeLines(mutation.outputSchema as ZodObject<any>, '  '), `}`].join('\n');
   }
 
-  return `{ ${parts.join('; ')} }`;
+  return `export type ${outputName} = ${zodToTs(mutation.outputSchema, '')};`;
+};
+
+const renderMutationOutputMap = (mutations: MutationInfo[]): string => {
+  if (mutations.length === 0) return '';
+
+  const entries = mutations.map((mutation) => `  ${mutation.mutationName}: ${mutation.pascalName}Output;`);
+  const body = ['export interface MutationOutputMap {', ...entries, '}'].join('\n');
+  return [bannerComment('AGGREGATE MUTATION OUTPUT MAP'), body].join('\n\n');
 };
 
 // =============================================================================
@@ -660,11 +660,11 @@ const HEADER_COMMENT = `/**
  * resolves each query / mutation in near-O(1) instead of walking the deep
  * \`FlattenedQueriesInput\` / \`FlattenedMutationsInput\` generic chains.
  *
- * All projection helpers (\`Selected\`, \`IncludeProjection\`, \`MutationChanges\`,
- * etc.) live in \`@tql/server/shared\` so the codegen output, the server
+ * All projection helpers (\`Selected\`, \`IncludeProjection\`, etc.) live in
+ * \`@tql/server/shared\` so the codegen output, the server
  * runtime, and \`@tql/client\` all share a single source of truth. The file
  * below only emits schema-specific shapes (entities, selects, includes,
- * inputs, registries, and the aggregate \`ClientSchema\`).
+ * inputs, outputs, registries, and the aggregate \`ClientSchema\`).
  *
  * Layout:
  *   1. <Model>Entity                    one per registered model
@@ -675,7 +675,7 @@ const HEADER_COMMENT = `/**
  *   6. <Query>Input + QueryInputMap     per-query envelopes (\`query\`, \`select\`, \`include?\`) and aggregate map
  *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys }
  *   8. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
- *   9. MutationRegistry                 mutationName -> declared \`changed\` map
+ *   9. <Mutation>Output + MutationOutputMap per-mutation payloads and aggregate map
  *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
  *  11. MutationResponseMap / HandleMutationResponse aliases over shared helpers
  *  12. ClientSchema                     aggregate map consumed by @tql/client
@@ -705,16 +705,13 @@ export type HandleQueryResponse<Q extends Partial<QueryInputMap>> = HandleQueryR
 const MUTATION_PROJECTION_BLOCK = `${bannerComment('MUTATION PROJECTION + RESPONSE')}
 
 /**
- * Fixed per-mutation response map. Each key resolves to the full
- * \`MutationChangesFromRegistry<MutationRegistry, SchemaEntities, K>\` for
- * that mutation. Resolver classes use this for their bulk return type
- * while preserving per-key projection.
+ * Fixed per-mutation response map. Each key resolves to the mutation's output
+ * payload wrapped in the transport envelope.
  */
-export type MutationResponseMap = MutationResponseMapFor<MutationRegistry, SchemaEntities, MutationInputMap>;
+export type MutationResponseMap = MutationResponseMapFor<MutationOutputMap, MutationInputMap>;
 
 export type HandleMutationResponse<Q extends Partial<MutationInputMap>> = HandleMutationResponseFor<
-  MutationRegistry,
-  SchemaEntities,
+  MutationOutputMap,
   MutationInputMap,
   Q
 >;`;
@@ -724,7 +721,7 @@ const CLIENT_SCHEMA_BLOCK = `${bannerComment('CLIENT SCHEMA (single aggregate co
 /**
  * Aggregate type consumed by \`@tql/client\`. The client is parameterized by a
  * single \`ClientSchema\` so it can index every shape it needs — query inputs,
- * query responses, mutation inputs, mutation responses, entity shapes, and
+ * query responses, mutation inputs, mutation outputs, mutation responses, entity shapes, and
  * the per-query / per-mutation registries used to project response data from
  * the user's actual \`select\` / \`include\` shape — off one generic instead of
  * duck-typing a resolver class.
@@ -736,7 +733,7 @@ export interface ClientSchema extends ClientSchemaConstraint {
   QueryResponseMap: QueryResponseMap;
   QueryRegistry: QueryRegistry;
   MutationInputMap: MutationInputMap;
+  MutationOutputMap: MutationOutputMap;
   MutationResponseMap: MutationResponseMap;
-  MutationRegistry: MutationRegistry;
   SchemaEntities: SchemaEntities;
 }`;

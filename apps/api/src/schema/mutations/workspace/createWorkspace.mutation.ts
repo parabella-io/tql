@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { workspaceOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const createWorkspace = schema.mutation('createWorkspace', {
@@ -7,11 +8,9 @@ export const createWorkspace = schema.mutation('createWorkspace', {
     name: z.string().min(1),
   }),
 
-  changed: {
-    workspace: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    workspace: workspaceOutputSchema,
+  }),
 
   allow: ({ context }) => {
     return !!context.user.id;
@@ -23,9 +22,7 @@ export const createWorkspace = schema.mutation('createWorkspace', {
     });
 
     return {
-      workspace: {
-        inserts: [workspace],
-      },
+      workspace,
     };
   },
 });

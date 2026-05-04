@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { ticketAssigneeOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const assignTicketMember = schema.mutation('assignTicketMember', {
@@ -9,11 +10,9 @@ export const assignTicketMember = schema.mutation('assignTicketMember', {
     memberId: z.string(),
   }),
 
-  changed: {
-    ticketAssignee: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    ticketAssignee: ticketAssigneeOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -27,9 +26,7 @@ export const assignTicketMember = schema.mutation('assignTicketMember', {
     });
 
     return {
-      ticketAssignee: {
-        inserts: [ticketAssignee],
-      },
+      ticketAssignee,
     };
   },
 });

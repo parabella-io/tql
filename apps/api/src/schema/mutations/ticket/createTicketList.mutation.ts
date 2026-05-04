@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { ticketListOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const createTicketList = schema.mutation('createTicketList', {
@@ -8,11 +9,9 @@ export const createTicketList = schema.mutation('createTicketList', {
     name: z.string().min(1),
   }),
 
-  changed: {
-    ticketList: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    ticketList: ticketListOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -25,9 +24,7 @@ export const createTicketList = schema.mutation('createTicketList', {
     });
 
     return {
-      ticketList: {
-        inserts: [ticketList],
-      },
+      ticketList,
     };
   },
 });

@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { ticketOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const updateTicket = schema.mutation('updateTicket', {
@@ -9,11 +10,9 @@ export const updateTicket = schema.mutation('updateTicket', {
     title: z.string().min(1),
   }),
 
-  changed: {
-    ticket: {
-      updates: true,
-    },
-  },
+  output: z.object({
+    ticket: ticketOutputSchema,
+  }),
 
   allow: async ({ context, input }) => {
     const ticket = await context.ticketsService.getById(context.user, {
@@ -31,9 +30,7 @@ export const updateTicket = schema.mutation('updateTicket', {
     });
 
     return {
-      ticket: {
-        updates: [ticket],
-      },
+      ticket,
     };
   },
 });

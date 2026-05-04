@@ -15,14 +15,11 @@ export type { FormattedTQLServerError } from '../errors.js';
 export type { QueryResolver, ApplyQueryResponseMap } from '../query/query-resolver.js';
 export type { MutationResolver, ApplyMutationResponseMap } from '../mutation/mutation-resolver.js';
 
-export type { MutationResolveResult } from '../mutation/mutation.js';
-
 export type { ClientSchema } from './client-schema.js';
 
 export type {
   IncludeKind,
   IncludeNodeMarker,
-  MutationOp,
   WithId,
   ExtractSelect,
   ExtractInclude,
@@ -44,10 +41,7 @@ export type {
 } from './query-projection.js';
 
 export type {
-  EntityWithId,
-  ChangesEntityFromMap,
-  MutationChangesFor,
-  MutationChangesFromRegistry,
+  MutationOutputFromMap,
   HandleMutationResponseFor,
   MutationResponseMapFor,
 } from './mutation-projection.js';

@@ -1,5 +1,7 @@
 import { tql } from '@/shared/lib/tql'
 
+import { ticketQuery } from '../queries/ticket.query'
+
 type CreateTicketAttachmentParams = {
   workspaceId: string
   ticketId: string
@@ -19,5 +21,12 @@ export const createTicketAttachmentMutation = tql.createMutation(
       size: params.size,
       key: params.key,
     }),
+    onSuccess: ({ store, output }) => {
+      store
+        .get(ticketQuery, { id: output.ticketAttachment.ticketId })
+        .update((draft) => {
+          draft.attachments.push(output.ticketAttachment)
+        })
+    },
   },
 )

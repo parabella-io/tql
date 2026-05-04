@@ -18,7 +18,7 @@ export class Schema<SchemaContext extends Record<string, any>, SchemaEntities ex
    * at registration so codegen and the {@link MutationResolver} can both look
    * them up by name without a separate resolver factory.
    */
-  public readonly mutations: Record<string, Mutation<SchemaContext, SchemaEntities, any, any>> = {};
+  public readonly mutations: Record<string, Mutation<SchemaContext, any, any>> = {};
 
   model<
     ModelName extends keyof SchemaEntities,
@@ -40,16 +40,13 @@ export class Schema<SchemaContext extends Record<string, any>, SchemaEntities ex
     return model;
   }
 
-  mutation<
-    Input extends z.ZodObject<z.ZodRawShape>,
-    const Changed extends Partial<Record<string, Partial<Record<'inserts' | 'updates' | 'upserts' | 'deletes', true>>>> = {},
-  >(
+  mutation<Input extends z.ZodObject<z.ZodRawShape>, Output extends z.ZodTypeAny>(
     mutationName: string,
-    options: MutationOptions<SchemaContext, SchemaEntities, Input, Changed>,
-  ): Mutation<SchemaContext, SchemaEntities, Input, Changed> {
+    options: MutationOptions<SchemaContext, Input, Output>,
+  ): Mutation<SchemaContext, Input, Output> {
     const mutation = new Mutation(mutationName, options);
 
-    this.mutations[mutationName] = mutation as unknown as Mutation<SchemaContext, SchemaEntities, any, any>;
+    this.mutations[mutationName] = mutation as unknown as Mutation<SchemaContext, any, any>;
 
     return mutation;
   }

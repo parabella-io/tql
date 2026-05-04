@@ -17,12 +17,12 @@
  * `QueryDataFor`, …) are imported from `@tql/server/shared` so the client
  * and the codegen output share a single source of truth.
  */
-import type { ClientSchema, QueryDataFor, Remove__Model } from '@tql/server/shared';
+import type { ClientSchema, QueryDataFor } from '@tql/server/shared';
 import type { TransportKey } from '../transports';
 
 export type { ClientSchema, QueryDataFor };
 
-export type { IncludeKind, MutationOp, QueryRegistryEntry } from '@tql/server/shared';
+export type { IncludeKind, QueryRegistryEntry } from '@tql/server/shared';
 
 // =============================================================================
 // PUBLIC TYPES
@@ -67,48 +67,3 @@ export type QueryOptions<
   transport?: TransportKey;
 };
 
-export type QueryModelNameFor<S extends ClientSchema> = keyof S['SchemaEntities'] & string;
-
-export type QueryModelShapeFor<S extends ClientSchema, ModelName extends QueryModelNameFor<S>> = Remove__Model<
-  S['SchemaEntities'][ModelName]
->;
-
-export type QueryModelUpdateHook<
-  S extends ClientSchema,
-  ModelName extends QueryModelNameFor<S>,
-  QueryName extends QueryNameFor<S>,
-  QueryModel extends QueryModelShapeFor<S, ModelName>,
-  QueryInput extends QueryInputFor<S, QueryName>,
-  QueryParams extends Record<string, any>,
-> = {
-  filter?: (params: { params: QueryParams; change: QueryModel }) => boolean;
-  onInsert?: (params: {
-    draft: QueryDataFor<S, QueryName, QueryInput>;
-    change: QueryModel;
-    params: QueryParams;
-  }) => QueryDataFor<S, QueryName, QueryInput> | void;
-  onUpdate?: (params: {
-    draft: QueryDataFor<S, QueryName, QueryInput>;
-    change: QueryModel;
-    params: QueryParams;
-  }) => QueryDataFor<S, QueryName, QueryInput> | void;
-  onUpsert?: (params: {
-    draft: QueryDataFor<S, QueryName, QueryInput>;
-    change: QueryModel;
-    params: QueryParams;
-  }) => QueryDataFor<S, QueryName, QueryInput> | void;
-  onDelete?: (params: {
-    draft: QueryDataFor<S, QueryName, QueryInput>;
-    change: QueryModel;
-    params: QueryParams;
-  }) => QueryDataFor<S, QueryName, QueryInput> | void;
-};
-
-// modelName -> queryName -> QueryUpdateHooks
-export type QueryUpdateHooksMap = Record<string, Record<string, QueryUpdateHooks>>;
-
-export type QueryUpdateHooks = {
-  modelName: QueryModelNameFor<any>;
-  hooks: QueryModelUpdateHook<any, any, any, any, any, any>;
-  queryName: QueryNameFor<any>;
-};

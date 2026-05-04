@@ -58,7 +58,6 @@ describe('Query', () => {
       store: store,
       queryHandler: handleQuery,
       queryName: queryKey,
-      queryUpdateHooks: {},
       queryOptions: {
         queryKey,
         query: (params) => ({
@@ -118,7 +117,6 @@ describe('Query', () => {
       store: store,
       queryHandler: handleQuery,
       queryName: queryKey,
-      queryUpdateHooks: {},
       queryOptions: {
         queryKey,
         query: (params) => ({
@@ -201,7 +199,6 @@ describe('Query', () => {
       store: store,
       queryHandler: handleQuery,
       queryName: queryKey,
-      queryUpdateHooks: {},
       queryOptions: {
         queryKey,
         query: (params) => ({
@@ -251,7 +248,6 @@ describe('Query', () => {
       store: store,
       queryHandler: handleQuery,
       queryName: queryKey,
-      queryUpdateHooks: {},
       queryOptions: {
         queryKey,
         query: () => ({
@@ -323,7 +319,6 @@ describe('Query', () => {
       store,
       queryHandler: handleQuery,
       queryName: queryKey,
-      queryUpdateHooks: {},
       queryOptions: {
         queryKey,
         query: (nextParams) => ({
@@ -382,7 +377,6 @@ describe('Query', () => {
       store: localStore,
       queryHandler: handleQuery,
       queryName: queryKey,
-      queryUpdateHooks: {},
       queryOptions: {
         queryKey,
         query: (nextParams) => ({

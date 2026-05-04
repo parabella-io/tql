@@ -115,10 +115,8 @@ describe('Client', () => {
           mutation: async () => {
             return {
               createPost: {
-                changes: {
-                  post: {
-                    inserts: [createdPost],
-                  },
+                data: {
+                  post: createdPost,
                 },
                 error: null,
               },
@@ -128,14 +126,13 @@ describe('Client', () => {
       },
     });
 
-    const changes = await client.mutation('createPost', input);
+    const output = await client.mutation('createPost', input);
 
-    expect(changes).not.toBeNull();
-    const insertedPost = changes.post.inserts?.[0];
-    expect(insertedPost).toEqual(createdPost);
-    expect(insertedPost?.id).toEqual(createdPost.id);
-    expect(insertedPost?.title).toEqual(createdPost.title);
-    expect(insertedPost?.content).toEqual(createdPost.content);
-    expect(insertedPost?.profileId).toEqual(createdPost.profileId);
+    expect(output).not.toBeNull();
+    expect(output.post).toEqual(createdPost);
+    expect(output.post.id).toEqual(createdPost.id);
+    expect(output.post.title).toEqual(createdPost.title);
+    expect(output.post.content).toEqual(createdPost.content);
+    expect(output.post.profileId).toEqual(createdPost.profileId);
   });
 });

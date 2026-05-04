@@ -1,4 +1,4 @@
-// @schema-hash c18a22602ec3b286
+// @schema-hash e92ffd0d8508c147
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -7,11 +7,11 @@
  * resolves each query / mutation in near-O(1) instead of walking the deep
  * `FlattenedQueriesInput` / `FlattenedMutationsInput` generic chains.
  *
- * All projection helpers (`Selected`, `IncludeProjection`, `MutationChanges`,
- * etc.) live in `@tql/server/shared` so the codegen output, the server
+ * All projection helpers (`Selected`, `IncludeProjection`, etc.) live in
+ * `@tql/server/shared` so the codegen output, the server
  * runtime, and `@tql/client` all share a single source of truth. The file
  * below only emits schema-specific shapes (entities, selects, includes,
- * inputs, registries, and the aggregate `ClientSchema`).
+ * inputs, outputs, registries, and the aggregate `ClientSchema`).
  *
  * Layout:
  *   1. <Model>Entity                    one per registered model
@@ -22,7 +22,7 @@
  *   6. <Query>Input + QueryInputMap     per-query envelopes (`query`, `select`, `include?`) and aggregate map
  *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys }
  *   8. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
- *   9. MutationRegistry                 mutationName -> declared `changed` map
+ *   9. <Mutation>Output + MutationOutputMap per-mutation payloads and aggregate map
  *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
  *  11. MutationResponseMap / HandleMutationResponse aliases over shared helpers
  *  12. ClientSchema                     aggregate map consumed by @tql/client
@@ -398,16 +398,92 @@ export interface MutationInputMap {
 }
 
 // ===========================================================================
-// MUTATION REGISTRY (literal `changed` map per mutation)
+// PER-MUTATION OUTPUT INTERFACES
 // ===========================================================================
 
-export interface MutationRegistry {
-  createProfile: { profile: { inserts: true } };
-  createProfileNoChanges: {};
-  createProfileUnauthorized: { profile: { inserts: true } };
-  createProfileMalformedResponse: { profile: { inserts: true } };
-  createPost: { post: { inserts: true } };
-  createComment: { comment: { inserts: true } };
+export interface CreateProfileOutput {
+  profile: {
+    id: string;
+    name: string;
+    hobbies: {
+      level: number;
+      name: string;
+    }[];
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+    };
+  };
+}
+
+export interface CreateProfileNoChangesOutput {
+}
+
+export interface CreateProfileUnauthorizedOutput {
+  profile: {
+    id: string;
+    name: string;
+    hobbies: {
+      level: number;
+      name: string;
+    }[];
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+    };
+  };
+}
+
+export interface CreateProfileMalformedResponseOutput {
+  profile: {
+    id: string;
+    name: string;
+    hobbies: {
+      level: number;
+      name: string;
+    }[];
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+    };
+  };
+}
+
+export interface CreatePostOutput {
+  post: {
+    id: string;
+    title: string;
+    content: string;
+    profileId: string;
+  };
+}
+
+export interface CreateCommentOutput {
+  comment: {
+    id: string;
+    comment: string;
+    postId: string;
+    profileId: string;
+  };
+}
+
+// ===========================================================================
+// AGGREGATE MUTATION OUTPUT MAP
+// ===========================================================================
+
+export interface MutationOutputMap {
+  createProfile: CreateProfileOutput;
+  createProfileNoChanges: CreateProfileNoChangesOutput;
+  createProfileUnauthorized: CreateProfileUnauthorizedOutput;
+  createProfileMalformedResponse: CreateProfileMalformedResponseOutput;
+  createPost: CreatePostOutput;
+  createComment: CreateCommentOutput;
 }
 
 // ===========================================================================
@@ -428,16 +504,13 @@ export type HandleQueryResponse<Q extends Partial<QueryInputMap>> = HandleQueryR
 // ===========================================================================
 
 /**
- * Fixed per-mutation response map. Each key resolves to the full
- * `MutationChangesFromRegistry<MutationRegistry, SchemaEntities, K>` for
- * that mutation. Resolver classes use this for their bulk return type
- * while preserving per-key projection.
+ * Fixed per-mutation response map. Each key resolves to the mutation's output
+ * payload wrapped in the transport envelope.
  */
-export type MutationResponseMap = MutationResponseMapFor<MutationRegistry, SchemaEntities, MutationInputMap>;
+export type MutationResponseMap = MutationResponseMapFor<MutationOutputMap, MutationInputMap>;
 
 export type HandleMutationResponse<Q extends Partial<MutationInputMap>> = HandleMutationResponseFor<
-  MutationRegistry,
-  SchemaEntities,
+  MutationOutputMap,
   MutationInputMap,
   Q
 >;
@@ -449,7 +522,7 @@ export type HandleMutationResponse<Q extends Partial<MutationInputMap>> = Handle
 /**
  * Aggregate type consumed by `@tql/client`. The client is parameterized by a
  * single `ClientSchema` so it can index every shape it needs — query inputs,
- * query responses, mutation inputs, mutation responses, entity shapes, and
+ * query responses, mutation inputs, mutation outputs, mutation responses, entity shapes, and
  * the per-query / per-mutation registries used to project response data from
  * the user's actual `select` / `include` shape — off one generic instead of
  * duck-typing a resolver class.
@@ -461,7 +534,7 @@ export interface ClientSchema extends ClientSchemaConstraint {
   QueryResponseMap: QueryResponseMap;
   QueryRegistry: QueryRegistry;
   MutationInputMap: MutationInputMap;
+  MutationOutputMap: MutationOutputMap;
   MutationResponseMap: MutationResponseMap;
-  MutationRegistry: MutationRegistry;
   SchemaEntities: SchemaEntities;
 }

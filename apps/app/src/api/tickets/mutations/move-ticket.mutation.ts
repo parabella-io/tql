@@ -41,4 +41,17 @@ export const moveTicketMutation = tql.createMutation('moveTicket', {
       }
     })
   },
+  onSuccess: ({ store, output }) => {
+    store.getAll(ticketListsQuery).update((draft) => {
+      for (const list of draft ?? []) {
+        const ticketIndex = list.tickets.findIndex(
+          (item) => item.id === output.ticket.id,
+        )
+
+        if (ticketIndex !== -1) {
+          list.tickets[ticketIndex] = output.ticket
+        }
+      }
+    })
+  },
 })

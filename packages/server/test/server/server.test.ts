@@ -169,14 +169,10 @@ describe('Server', () => {
 
     expect(response).toMatchObject({
       createProfile: {
-        changes: {
+        data: {
           profile: {
-            inserts: [
-              {
-                id: 'request-derived-id',
-                name: 'Created from request context',
-              },
-            ],
+            id: 'request-derived-id',
+            name: 'Created from request context',
           },
         },
         error: null,
@@ -202,12 +198,17 @@ type EffectSchema = {
   };
   MutationResponseMap: {
     createEffectThing: {
-      changes: {
-        effectThing: { inserts?: Array<{ id: string; name: string }> };
+      data: {
+        effectThing: { id: string; name: string };
       };
+      error: null;
     };
   };
-  MutationRegistry: Record<string, any>;
+  MutationOutputMap: {
+    createEffectThing: {
+      effectThing: { id: string; name: string };
+    };
+  };
   QueryInputMap: {};
   QueryResponseMap: {};
   QueryRegistry: Record<string, any>;
@@ -220,10 +221,12 @@ describe('Server - effects lifecycle', () => {
 
     effectSchema.mutation('createEffectThing', {
       input: z.object({ id: z.string(), name: z.string() }),
-      changed: { effectThing: { inserts: true } },
+      output: z.object({
+        effectThing: z.object({ id: z.string(), name: z.string() }),
+      }),
       allow: () => true,
       resolve: async ({ input }) => ({
-        effectThing: { inserts: [{ id: input.id, name: input.name }] },
+        effectThing: { id: input.id, name: input.name },
       }),
       resolveEffects,
     });
@@ -246,7 +249,7 @@ describe('Server - effects lifecycle', () => {
 
     expect(response).toMatchObject({
       createEffectThing: {
-        changes: { effectThing: { inserts: [{ id: 't1', name: 'first' }] } },
+        data: { effectThing: { id: 't1', name: 'first' } },
         error: null,
       },
     });
@@ -262,7 +265,7 @@ describe('Server - effects lifecycle', () => {
     expect(resolveEffects).toHaveBeenCalledWith({
       context: { userId: 'u1' },
       input: { id: 't1', name: 'first' },
-      changes: { effectThing: { inserts: [{ id: 't1', name: 'first' }] } },
+      output: { effectThing: { id: 't1', name: 'first' } },
     });
   });
 
@@ -273,10 +276,12 @@ describe('Server - effects lifecycle', () => {
 
     effectSchema.mutation('createEffectThing', {
       input: z.object({ id: z.string(), name: z.string() }),
-      changed: { effectThing: { inserts: true } },
+      output: z.object({
+        effectThing: z.object({ id: z.string(), name: z.string() }),
+      }),
       allow: () => false,
       resolve: async ({ input }) => ({
-        effectThing: { inserts: [{ id: input.id, name: input.name }] },
+        effectThing: { id: input.id, name: input.name },
       }),
       resolveEffects,
     });
@@ -311,10 +316,12 @@ describe('Server - effects lifecycle', () => {
 
     effectSchema.mutation('createEffectThing', {
       input: z.object({ id: z.string(), name: z.string() }),
-      changed: { effectThing: { inserts: true } },
+      output: z.object({
+        effectThing: z.object({ id: z.string(), name: z.string() }),
+      }),
       allow: () => true,
       resolve: async ({ input }) => ({
-        effectThing: { inserts: [{ id: input.id, name: input.name }] },
+        effectThing: { id: input.id, name: input.name },
       }),
       resolveEffects: async () => {
         throw boom;

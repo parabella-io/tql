@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { ticketAttachmentOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const createTicketAttachment = schema.mutation('createTicketAttachment', {
@@ -11,11 +12,9 @@ export const createTicketAttachment = schema.mutation('createTicketAttachment', 
     key: z.string(),
   }),
 
-  changed: {
-    ticketAttachment: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    ticketAttachment: ticketAttachmentOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -31,9 +30,7 @@ export const createTicketAttachment = schema.mutation('createTicketAttachment', 
     });
 
     return {
-      ticketAttachment: {
-        inserts: [ticketAttachment],
-      },
+      ticketAttachment,
     };
   },
 });

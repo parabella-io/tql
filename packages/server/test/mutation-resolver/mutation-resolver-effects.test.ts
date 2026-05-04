@@ -28,17 +28,13 @@ function buildFixture(): Fixture {
 
   schema.mutation('createThing', {
     input: z.object({ id: z.string(), name: z.string() }),
-    changed: {
-      thing: {
-        inserts: true,
-      },
-    },
+    output: z.object({
+      thing: z.object({ id: z.string(), name: z.string() }),
+    }),
     allow: ({ context }) => context.isAllowed,
     resolve: async ({ input }) => {
       return {
-        thing: {
-          inserts: [{ id: input.id, name: input.name }],
-        },
+        thing: { id: input.id, name: input.name },
       };
     },
     resolveEffects,
@@ -46,8 +42,9 @@ function buildFixture(): Fixture {
 
   schema.mutation('createThingNoChanges', {
     input: z.object({ id: z.string() }),
+    output: z.object({}),
     allow: () => true,
-    resolve: async () => {},
+    resolve: async () => ({}),
     resolveEffects,
   });
 
@@ -57,7 +54,7 @@ function buildFixture(): Fixture {
 }
 
 describe('MutationResolver - resolveEffects', () => {
-  test('returns a pending effect with typed changes after successful resolve', async () => {
+  test('returns a pending effect with typed output after successful resolve', async () => {
     const { resolver, resolveEffects } = buildFixture();
 
     const context: Context = { userId: 'u1', isAllowed: true };
@@ -80,15 +77,13 @@ describe('MutationResolver - resolveEffects', () => {
     expect(resolveEffects).toHaveBeenCalledWith({
       context,
       input: { id: 't1', name: 'first' },
-      changes: {
-        thing: {
-          inserts: [{ id: 't1', name: 'first' }],
-        },
+      output: {
+        thing: { id: 't1', name: 'first' },
       },
     });
   });
 
-  test('returns a pending effect even when mutation declares no changes', async () => {
+  test('returns a pending effect even when mutation returns an empty output', async () => {
     const { resolver, resolveEffects } = buildFixture();
 
     const context: Context = { userId: 'u1', isAllowed: true };
@@ -109,7 +104,7 @@ describe('MutationResolver - resolveEffects', () => {
     expect(resolveEffects).toHaveBeenCalledWith({
       context,
       input: { id: 't1' },
-      changes: {},
+      output: {},
     });
   });
 

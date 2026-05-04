@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { workspaceTicketLabelOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const deleteWorkspaceTicketLabel = schema.mutation('deleteWorkspaceTicketLabel', {
@@ -8,11 +9,9 @@ export const deleteWorkspaceTicketLabel = schema.mutation('deleteWorkspaceTicket
     id: z.string(),
   }),
 
-  changed: {
-    workspaceTicketLabel: {
-      deletes: true,
-    },
-  },
+  output: z.object({
+    workspaceTicketLabel: workspaceTicketLabelOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -25,9 +24,7 @@ export const deleteWorkspaceTicketLabel = schema.mutation('deleteWorkspaceTicket
     });
 
     return {
-      workspaceTicketLabel: {
-        deletes: [workspaceTicketLabel],
-      },
+      workspaceTicketLabel,
     };
   },
 });

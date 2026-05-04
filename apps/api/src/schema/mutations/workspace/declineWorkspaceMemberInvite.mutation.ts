@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { workspaceMemberInviteOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const declineWorkspaceMemberInvite = schema.mutation('declineWorkspaceMemberInvite', {
@@ -8,11 +9,9 @@ export const declineWorkspaceMemberInvite = schema.mutation('declineWorkspaceMem
     inviteId: z.string(),
   }),
 
-  changed: {
-    workspaceMemberInvite: {
-      deletes: true,
-    },
-  },
+  output: z.object({
+    workspaceMemberInvite: workspaceMemberInviteOutputSchema,
+  }),
 
   allow: async ({ context, input }) => {
     const workspaceMemberInvite = await context.db.workspaceMemberInvite.findUniqueOrThrow({
@@ -39,9 +38,7 @@ export const declineWorkspaceMemberInvite = schema.mutation('declineWorkspaceMem
     });
 
     return {
-      workspaceMemberInvite: {
-        deletes: [workspaceMemberInvite],
-      },
+      workspaceMemberInvite,
     };
   },
 });

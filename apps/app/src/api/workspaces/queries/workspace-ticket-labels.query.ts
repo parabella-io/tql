@@ -21,12 +21,3 @@ export const workspaceTicketLabelsQuery = tql.createQuery(
     }),
   },
 )
-
-workspaceTicketLabelsQuery.updateOnChange('workspaceTicketLabel', {
-  filter: ({ params, change }) => {
-    return params.workspaceId === change.workspaceId
-  },
-  onInsert({ draft, change }) {
-    draft.push(change)
-  },
-})

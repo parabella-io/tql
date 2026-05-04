@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { userOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const updateUser = schema.mutation('updateUser', {
@@ -8,11 +9,9 @@ export const updateUser = schema.mutation('updateUser', {
     name: z.string(),
   }),
 
-  changed: {
-    user: {
-      updates: true,
-    },
-  },
+  output: z.object({
+    user: userOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.id === input.userId;
@@ -25,9 +24,7 @@ export const updateUser = schema.mutation('updateUser', {
     });
 
     return {
-      user: {
-        updates: [user],
-      },
+      user,
     };
   },
 });

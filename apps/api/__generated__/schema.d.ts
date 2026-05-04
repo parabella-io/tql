@@ -1,4 +1,4 @@
-// @schema-hash 676b81b1936fc053
+// @schema-hash b3a46f9e2292a978
 /**
  * Auto-generated TQL schema — DO NOT EDIT BY HAND.
  *
@@ -7,11 +7,11 @@
  * resolves each query / mutation in near-O(1) instead of walking the deep
  * `FlattenedQueriesInput` / `FlattenedMutationsInput` generic chains.
  *
- * All projection helpers (`Selected`, `IncludeProjection`, `MutationChanges`,
- * etc.) live in `@tql/server/shared` so the codegen output, the server
+ * All projection helpers (`Selected`, `IncludeProjection`, etc.) live in
+ * `@tql/server/shared` so the codegen output, the server
  * runtime, and `@tql/client` all share a single source of truth. The file
  * below only emits schema-specific shapes (entities, selects, includes,
- * inputs, registries, and the aggregate `ClientSchema`).
+ * inputs, outputs, registries, and the aggregate `ClientSchema`).
  *
  * Layout:
  *   1. <Model>Entity                    one per registered model
@@ -22,7 +22,7 @@
  *   6. <Query>Input + QueryInputMap     per-query envelopes (`query`, `select`, `include?`) and aggregate map
  *   7. QueryRegistry                    queryName -> { entity, kind, nullable, includeMap, externalFieldKeys }
  *   8. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
- *   9. MutationRegistry                 mutationName -> declared `changed` map
+ *   9. <Mutation>Output + MutationOutputMap per-mutation payloads and aggregate map
  *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
  *  11. MutationResponseMap / HandleMutationResponse aliases over shared helpers
  *  12. ClientSchema                     aggregate map consumed by @tql/client
@@ -774,33 +774,301 @@ export interface MutationInputMap {
 }
 
 // ===========================================================================
-// MUTATION REGISTRY (literal `changed` map per mutation)
+// PER-MUTATION OUTPUT INTERFACES
 // ===========================================================================
 
-export interface MutationRegistry {
-  createTicketList: { ticketList: { inserts: true } };
-  updateTicketList: { ticketList: { updates: true } };
-  deleteTicketList: { ticketList: { deletes: true } };
-  createTicket: { ticket: { inserts: true } };
-  updateTicket: { ticket: { updates: true } };
-  moveTicket: { ticket: { updates: true } };
-  createTicketAttachment: { ticketAttachment: { inserts: true } };
-  deleteTicketAttachment: { ticketAttachment: { deletes: true } };
-  assignTicketMember: { ticketAssignee: { inserts: true } };
-  unassignTicketMember: { ticketAssignee: { deletes: true } };
-  addTicketLabel: { ticketLabel: { inserts: true } };
-  removeTicketLabel: { ticketLabel: { deletes: true } };
-  updateUser: { user: { updates: true } };
-  createWorkspaceTicketLabel: { workspaceTicketLabel: { inserts: true } };
-  deleteWorkspaceTicketLabel: { workspaceTicketLabel: { deletes: true } };
-  createWorkspace: { workspace: { inserts: true } };
-  deleteWorkspace: { workspace: { deletes: true } };
-  inviteWorkspaceMember: { workspaceMemberInvite: { inserts: true } };
-  acceptWorkspaceMemberInvite: { workspace: { inserts: true }; workspaceMember: { inserts: true }; workspaceMemberInvite: { deletes: true } };
-  declineWorkspaceMemberInvite: { workspaceMemberInvite: { deletes: true } };
-  removeInviteWorkspaceMember: { workspaceMemberInvite: { deletes: true } };
-  removeWorkspaceMember: { workspaceMember: { deletes: true } };
-  updateWorkspace: { workspace: { updates: true } };
+export interface CreateTicketListOutput {
+  ticketList: {
+    id: string;
+    name: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface UpdateTicketListOutput {
+  ticketList: {
+    id: string;
+    name: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface DeleteTicketListOutput {
+  ticketList: {
+    id: string;
+    name: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface CreateTicketOutput {
+  ticket: {
+    id: string;
+    title: string;
+    description: string;
+    workspaceId: string;
+    ticketListId: string;
+    assigneeId: string | null;
+    reporterId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface UpdateTicketOutput {
+  ticket: {
+    id: string;
+    title: string;
+    description: string;
+    workspaceId: string;
+    ticketListId: string;
+    assigneeId: string | null;
+    reporterId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface MoveTicketOutput {
+  ticket: {
+    id: string;
+    title: string;
+    description: string;
+    workspaceId: string;
+    ticketListId: string;
+    assigneeId: string | null;
+    reporterId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface CreateTicketAttachmentOutput {
+  ticketAttachment: {
+    id: string;
+    ticketId: string;
+    key: string;
+    name: string;
+    size: number;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface DeleteTicketAttachmentOutput {
+  ticketAttachment: {
+    id: string;
+    ticketId: string;
+    key: string;
+    name: string;
+    size: number;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface AssignTicketMemberOutput {
+  ticketAssignee: {
+    id: string;
+    ticketId: string;
+    userId: string;
+    name: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface UnassignTicketMemberOutput {
+  ticketAssignee: {
+    id: string;
+    ticketId: string;
+    userId: string;
+    name: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface AddTicketLabelOutput {
+  ticketLabel: {
+    id: string;
+    name: string;
+    workspaceTicketLabelId: string;
+    ticketId: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface RemoveTicketLabelOutput {
+  ticketLabel: {
+    id: string;
+    name: string;
+    workspaceTicketLabelId: string;
+    ticketId: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface UpdateUserOutput {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface CreateWorkspaceTicketLabelOutput {
+  workspaceTicketLabel: {
+    id: string;
+    name: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface DeleteWorkspaceTicketLabelOutput {
+  workspaceTicketLabel: {
+    id: string;
+    name: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface CreateWorkspaceOutput {
+  workspace: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface DeleteWorkspaceOutput {
+  workspace: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface InviteWorkspaceMemberOutput {
+  workspaceMemberInvite: {
+    id: string;
+    email: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface AcceptWorkspaceMemberInviteOutput {
+  workspace: {
+    id: string;
+    name: string;
+  };
+  workspaceMember: {
+    id: string;
+    userId: string;
+    name: string;
+    email: string;
+    workspaceId: string;
+    isWorkspaceOwner: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+  workspaceMemberInvite: {
+    id: string;
+    email: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface DeclineWorkspaceMemberInviteOutput {
+  workspaceMemberInvite: {
+    id: string;
+    email: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface RemoveInviteWorkspaceMemberOutput {
+  workspaceMemberInvite: {
+    id: string;
+    email: string;
+    workspaceId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface RemoveWorkspaceMemberOutput {
+  workspaceMember: {
+    id: string;
+    userId: string;
+    name: string;
+    email: string;
+    workspaceId: string;
+    isWorkspaceOwner: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface UpdateWorkspaceOutput {
+  workspace: {
+    id: string;
+    name: string;
+  };
+}
+
+// ===========================================================================
+// AGGREGATE MUTATION OUTPUT MAP
+// ===========================================================================
+
+export interface MutationOutputMap {
+  createTicketList: CreateTicketListOutput;
+  updateTicketList: UpdateTicketListOutput;
+  deleteTicketList: DeleteTicketListOutput;
+  createTicket: CreateTicketOutput;
+  updateTicket: UpdateTicketOutput;
+  moveTicket: MoveTicketOutput;
+  createTicketAttachment: CreateTicketAttachmentOutput;
+  deleteTicketAttachment: DeleteTicketAttachmentOutput;
+  assignTicketMember: AssignTicketMemberOutput;
+  unassignTicketMember: UnassignTicketMemberOutput;
+  addTicketLabel: AddTicketLabelOutput;
+  removeTicketLabel: RemoveTicketLabelOutput;
+  updateUser: UpdateUserOutput;
+  createWorkspaceTicketLabel: CreateWorkspaceTicketLabelOutput;
+  deleteWorkspaceTicketLabel: DeleteWorkspaceTicketLabelOutput;
+  createWorkspace: CreateWorkspaceOutput;
+  deleteWorkspace: DeleteWorkspaceOutput;
+  inviteWorkspaceMember: InviteWorkspaceMemberOutput;
+  acceptWorkspaceMemberInvite: AcceptWorkspaceMemberInviteOutput;
+  declineWorkspaceMemberInvite: DeclineWorkspaceMemberInviteOutput;
+  removeInviteWorkspaceMember: RemoveInviteWorkspaceMemberOutput;
+  removeWorkspaceMember: RemoveWorkspaceMemberOutput;
+  updateWorkspace: UpdateWorkspaceOutput;
 }
 
 // ===========================================================================
@@ -821,16 +1089,13 @@ export type HandleQueryResponse<Q extends Partial<QueryInputMap>> = HandleQueryR
 // ===========================================================================
 
 /**
- * Fixed per-mutation response map. Each key resolves to the full
- * `MutationChangesFromRegistry<MutationRegistry, SchemaEntities, K>` for
- * that mutation. Resolver classes use this for their bulk return type
- * while preserving per-key projection.
+ * Fixed per-mutation response map. Each key resolves to the mutation's output
+ * payload wrapped in the transport envelope.
  */
-export type MutationResponseMap = MutationResponseMapFor<MutationRegistry, SchemaEntities, MutationInputMap>;
+export type MutationResponseMap = MutationResponseMapFor<MutationOutputMap, MutationInputMap>;
 
 export type HandleMutationResponse<Q extends Partial<MutationInputMap>> = HandleMutationResponseFor<
-  MutationRegistry,
-  SchemaEntities,
+  MutationOutputMap,
   MutationInputMap,
   Q
 >;
@@ -842,7 +1107,7 @@ export type HandleMutationResponse<Q extends Partial<MutationInputMap>> = Handle
 /**
  * Aggregate type consumed by `@tql/client`. The client is parameterized by a
  * single `ClientSchema` so it can index every shape it needs — query inputs,
- * query responses, mutation inputs, mutation responses, entity shapes, and
+ * query responses, mutation inputs, mutation outputs, mutation responses, entity shapes, and
  * the per-query / per-mutation registries used to project response data from
  * the user's actual `select` / `include` shape — off one generic instead of
  * duck-typing a resolver class.
@@ -854,7 +1119,7 @@ export interface ClientSchema extends ClientSchemaConstraint {
   QueryResponseMap: QueryResponseMap;
   QueryRegistry: QueryRegistry;
   MutationInputMap: MutationInputMap;
+  MutationOutputMap: MutationOutputMap;
   MutationResponseMap: MutationResponseMap;
-  MutationRegistry: MutationRegistry;
   SchemaEntities: SchemaEntities;
 }

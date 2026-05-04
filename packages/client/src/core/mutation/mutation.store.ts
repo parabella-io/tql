@@ -14,7 +14,7 @@ export type MutationState = {
   isLoading: boolean;
   isSuccess: boolean | null;
   isError: boolean;
-  changes: Record<string, any> | null;
+  output: unknown | null;
   error: FormattedTQLServerError | null;
 };
 

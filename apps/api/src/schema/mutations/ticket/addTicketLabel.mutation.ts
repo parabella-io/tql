@@ -1,5 +1,6 @@
 import z from 'zod';
 
+import { ticketLabelOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
 export const addTicketLabel = schema.mutation('addTicketLabel', {
@@ -9,11 +10,9 @@ export const addTicketLabel = schema.mutation('addTicketLabel', {
     labelId: z.string(),
   }),
 
-  changed: {
-    ticketLabel: {
-      inserts: true,
-    },
-  },
+  output: z.object({
+    ticketLabel: ticketLabelOutputSchema,
+  }),
 
   allow: ({ context, input }) => {
     return context.user.workspaceIds.includes(input.workspaceId);
@@ -27,11 +26,9 @@ export const addTicketLabel = schema.mutation('addTicketLabel', {
     });
 
     return {
-      ticketLabel: {
-        inserts: [ticketLabel],
-      },
+      ticketLabel,
     };
   },
 
-  resolveEffects: async ({ context, changes, input }) => {},
+  resolveEffects: async ({ context, output, input }) => {},
 });

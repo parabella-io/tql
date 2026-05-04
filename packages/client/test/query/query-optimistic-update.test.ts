@@ -65,7 +65,6 @@ describe('Query Optimistic Update - get()', () => {
 
     profileQuery = new Query<any, typeof profileQueryName, any, any>({
       store: store,
-      queryUpdateHooks: {},
       queryHandler: profileQueryResponse,
       queryName: profileQueryName,
       queryOptions: {
@@ -83,7 +82,6 @@ describe('Query Optimistic Update - get()', () => {
 
     profilesQuery = new Query<any, typeof profilesQueryName, any, any>({
       store: store,
-      queryUpdateHooks: {},
       queryHandler: profilesQueryResponse,
       queryName: profilesQueryName,
       queryOptions: {
