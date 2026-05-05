@@ -5,22 +5,8 @@ import { schema, SchemaContext, UserContext } from './schema/index';
 import { auth } from './auth';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { InMemoryEffectQueue, Server as TQLServer, createFastifyHttpAdapter } from '@tql/server';
-import { createTqlPlugins } from './schema/security';
-import {
-  workspaceService,
-  ticketsService,
-  ticketAttachmentsService,
-  ticketCommentsService,
-  ticketLabelsService,
-  ticketReporterService,
-  ticketAssigneeService,
-  workspaceMemberService,
-  ticketListsService,
-  storageService,
-  workspaceTicketLabelService,
-  workspaceMemberInviteService,
-  userService,
-} from './services';
+import { createTqlPlugins } from './plugins';
+import { storageService } from './services';
 
 import z from 'zod';
 
@@ -157,20 +143,6 @@ async function protectedRoutes(server: FastifyInstance) {
 
   const createContext = async ({ request }: { request: any }): Promise<SchemaContext> => {
     return {
-      db: db,
-      userService: userService,
-      workspaceService: workspaceService,
-      workspaceTicketLabelService: workspaceTicketLabelService,
-      workspaceMemberInviteService: workspaceMemberInviteService,
-      ticketsService: ticketsService,
-      ticketListsService: ticketListsService,
-      ticketAttachmentsService: ticketAttachmentsService,
-      ticketCommentsService: ticketCommentsService,
-      ticketLabelsService: ticketLabelsService,
-      ticketAssigneeService: ticketAssigneeService,
-      ticketReporterService: ticketReporterService,
-      workspaceMemberService: workspaceMemberService,
-      storageService: storageService,
       user: request.user,
     };
   };

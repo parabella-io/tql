@@ -164,7 +164,16 @@ export class Model<
 
   constructor(
     modelName: ModelName,
-    options: ModelConstructor<SchemaContext, SchemaEntities, ModelName, ModelSchema, ModelFields, ModelQueries, ModelIncludes, ModelExternalFields>,
+    options: ModelConstructor<
+      SchemaContext,
+      SchemaEntities,
+      ModelName,
+      ModelSchema,
+      ModelFields,
+      ModelQueries,
+      ModelIncludes,
+      ModelExternalFields
+    >,
   ) {
     this.modelName = modelName;
 
@@ -184,19 +193,12 @@ export class Model<
 
     this.externalFields = (options.externalFields?.({ externalField }) ?? {}) as ModelExternalFields;
 
-    const querySingle = ((opts: any) => new QuerySingle(modelName as any, opts)) as QuerySingleFn<
-      SchemaContext,
-      SchemaEntities,
-      ModelName
-    >;
+    const querySingle = ((opts: any) => new QuerySingle(modelName as any, opts)) as QuerySingleFn<SchemaContext, SchemaEntities, ModelName>;
 
     const queryMany = ((opts: any) => new QueryMany(modelName as any, opts)) as QueryManyFn<SchemaContext, SchemaEntities, ModelName>;
 
-    const includeSingle = ((relationName: any, includeOpts: any) => new IncludeSingle(modelName, relationName, includeOpts)) as IncludeSingleFn<
-      SchemaContext,
-      SchemaEntities,
-      ModelName
-    >;
+    const includeSingle = ((relationName: any, includeOpts: any) =>
+      new IncludeSingle(modelName, relationName, includeOpts)) as IncludeSingleFn<SchemaContext, SchemaEntities, ModelName>;
 
     const includeMany = ((relationName: any, includeOpts: any) => new IncludeMany(modelName, relationName, includeOpts)) as IncludeManyFn<
       SchemaContext,

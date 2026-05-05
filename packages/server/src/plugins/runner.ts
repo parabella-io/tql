@@ -1,5 +1,5 @@
 import type { TQLServerError } from '../errors.js';
-import type { IncludeNode, MutationPlan, QueryNode, QueryPlan } from '../security/plan.js';
+import type { IncludeNode, MutationPlan, QueryNode, QueryPlan } from '../request-plan/plan.js';
 import type { AggregateCost, ServerContext } from './context.js';
 import type { PluginContextExtensions, SchemaContextExtensions } from './extensions.js';
 import type { ServerLike, ServerPlugin } from './plugin.js';
@@ -20,9 +20,7 @@ export class PluginRunner {
   }
 
   public getRequestTimeoutMs(): number | undefined {
-    const values = this.plugins
-      .map((plugin) => plugin.requestTimeoutMs)
-      .filter((value): value is number => value !== undefined);
+    const values = this.plugins.map((plugin) => plugin.requestTimeoutMs).filter((value): value is number => value !== undefined);
 
     return values.length === 0 ? undefined : Math.min(...values);
   }
@@ -81,19 +79,13 @@ export class PluginRunner {
   }
 
   public wrapQueryNode<T>(ctx: ServerContext, node: QueryNode | IncludeNode, final: () => Promise<T>): Promise<T> {
-    const wrapped = this.plugins.reduceRight(
-      (next, plugin) => () => plugin.onResolveQueryNode?.({ ctx, node, next }) ?? next(),
-      final,
-    );
+    const wrapped = this.plugins.reduceRight((next, plugin) => () => plugin.onResolveQueryNode?.({ ctx, node, next }) ?? next(), final);
 
     return wrapped();
   }
 
   public wrapMutation<T>(ctx: ServerContext, entry: MutationPlan['entries'][number], final: () => Promise<T>): Promise<T> {
-    const wrapped = this.plugins.reduceRight(
-      (next, plugin) => () => plugin.onResolveMutation?.({ ctx, entry, next }) ?? next(),
-      final,
-    );
+    const wrapped = this.plugins.reduceRight((next, plugin) => () => plugin.onResolveMutation?.({ ctx, entry, next }) ?? next(), final);
 
     return wrapped();
   }
@@ -108,4 +100,3 @@ export class PluginRunner {
     return current;
   }
 }
-

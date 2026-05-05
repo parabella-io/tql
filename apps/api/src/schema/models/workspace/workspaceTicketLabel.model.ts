@@ -1,5 +1,5 @@
 import { z } from 'zod';
-
+import { workspaceTicketLabelService } from '../../../services';
 import { schema } from '../../schema';
 
 export const workspaceTicketLabel = schema.model('workspaceTicketLabel', {
@@ -29,7 +29,7 @@ export const workspaceTicketLabel = schema.model('workspaceTicketLabel', {
         id: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.workspaceTicketLabelService.getById(context.user, {
+        return workspaceTicketLabelService.getById(context.user, {
           id: query.id,
         });
       },
@@ -40,7 +40,7 @@ export const workspaceTicketLabel = schema.model('workspaceTicketLabel', {
         workspaceId: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.workspaceTicketLabelService.queryByWorkspaceId(context.user, {
+        return workspaceTicketLabelService.queryByWorkspaceId(context.user, {
           workspaceId: query.workspaceId,
         });
       },

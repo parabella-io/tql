@@ -13,4 +13,3 @@ export type ServerContext = {
   resolverTimeouts: Map<string, number>;
   plugin: PluginContextExtensions;
 };
-

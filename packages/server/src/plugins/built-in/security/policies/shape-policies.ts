@@ -1,6 +1,6 @@
-import { TQLServerError, TQLServerErrorType } from '../../errors.js';
-import type { IncludeNode, MutationPlan, QueryNode, QueryPlan } from '../plan.js';
-import type { SecurityContext, SecurityPolicy } from '../policy.js';
+import { TQLServerError, TQLServerErrorType } from '../../../../errors.js';
+import type { IncludeNode, MutationPlan, QueryNode, QueryPlan } from '../../../../request-plan/plan.js';
+import { getResolverSecurity, type SecurityContext, type SecurityPolicy } from '../policy.js';
 
 export const depthPolicy = (options: { maxDepth: number }): SecurityPolicy => ({
   name: 'depth',
@@ -112,7 +112,11 @@ export const timeoutPolicy = (options: {
   beforeQuery(ctx, plan) {
     walkQueryPlan(plan, (node) => {
       const opName = 'queryName' in node ? node.queryName : node.includeName;
-      const timeoutMs = node.security?.timeoutMs ?? options.perOp?.[node.path] ?? options.perOp?.[opName] ?? options.perResolverTimeoutMs;
+      const timeoutMs =
+        getResolverSecurity(node.extensions)?.timeoutMs ??
+        options.perOp?.[node.path] ??
+        options.perOp?.[opName] ??
+        options.perResolverTimeoutMs;
 
       if (timeoutMs !== undefined) {
         ctx.resolverTimeouts.set(node.path, timeoutMs);
@@ -121,7 +125,8 @@ export const timeoutPolicy = (options: {
   },
   beforeMutation(ctx, plan) {
     for (const entry of plan.entries) {
-      const timeoutMs = entry.security?.timeoutMs ?? options.perOp?.[entry.mutationName] ?? options.perResolverTimeoutMs;
+      const timeoutMs =
+        getResolverSecurity(entry.extensions)?.timeoutMs ?? options.perOp?.[entry.mutationName] ?? options.perResolverTimeoutMs;
 
       if (timeoutMs !== undefined) {
         ctx.resolverTimeouts.set(entry.mutationName, timeoutMs);
@@ -181,4 +186,3 @@ const walkQueryPlan = (plan: QueryPlan, visitor: (node: QueryNode | IncludeNode)
 
   for (const node of plan.nodes) visit(node);
 };
-

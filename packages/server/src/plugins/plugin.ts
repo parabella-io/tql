@@ -1,5 +1,5 @@
 import type { TQLServerError } from '../errors.js';
-import type { IncludeNode, MutationPlan, QueryNode, QueryPlan } from '../security/plan.js';
+import type { IncludeNode, MutationPlan, QueryNode, QueryPlan } from '../request-plan/plan.js';
 import type { AggregateCost, ServerContext } from './context.js';
 import type { PluginContextExtensions, SchemaContextExtensions } from './extensions.js';
 
@@ -27,20 +27,11 @@ export interface ServerPlugin {
   }): Partial<PluginContextExtensions> | Promise<Partial<PluginContextExtensions>>;
   beforeQuery?(ctx: ServerContext, plan: QueryPlan): void | Promise<void>;
   beforeMutation?(ctx: ServerContext, plan: MutationPlan): void | Promise<void>;
-  onResolveQueryNode?<T>(args: {
-    ctx: ServerContext;
-    node: QueryNode | IncludeNode;
-    next: () => Promise<T>;
-  }): Promise<T>;
-  onResolveMutation?<T>(args: {
-    ctx: ServerContext;
-    entry: MutationPlan['entries'][number];
-    next: () => Promise<T>;
-  }): Promise<T>;
+  onResolveQueryNode?<T>(args: { ctx: ServerContext; node: QueryNode | IncludeNode; next: () => Promise<T> }): Promise<T>;
+  onResolveMutation?<T>(args: { ctx: ServerContext; entry: MutationPlan['entries'][number]; next: () => Promise<T> }): Promise<T>;
   afterQuery?(ctx: ServerContext, plan: QueryPlan, result: AggregateCost): void | Promise<void>;
   afterMutation?(ctx: ServerContext, plan: MutationPlan, result: AggregateCost): void | Promise<void>;
   onError?(ctx: ServerContext, error: TQLServerError): TQLServerError | void;
 }
 
 export const definePlugin = <P extends ServerPlugin>(plugin: P): P => plugin;
-

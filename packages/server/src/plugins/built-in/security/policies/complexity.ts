@@ -1,6 +1,6 @@
-import { TQLServerError, TQLServerErrorType } from '../../errors.js';
-import type { IncludeNode, QueryNode } from '../plan.js';
-import type { SecurityPolicy } from '../policy.js';
+import { TQLServerError, TQLServerErrorType } from '../../../../errors.js';
+import type { IncludeNode, QueryNode } from '../../../../request-plan/plan.js';
+import { getResolverSecurity, type SecurityPolicy } from '../policy.js';
 
 export type ComplexityDefaults = {
   single: number;
@@ -53,7 +53,7 @@ const nodeCost = (node: QueryNode | IncludeNode, options: ComplexityPolicyOption
 };
 
 const nodeBaseCost = (node: QueryNode | IncludeNode, options: ComplexityPolicyOptions): number => {
-  const override = node.security?.complexity;
+  const override = getResolverSecurity(node.extensions)?.complexity;
 
   if (typeof override === 'number') {
     return override;
@@ -73,4 +73,3 @@ const getNodeTake = (node: QueryNode | IncludeNode, options: ComplexityPolicyOpt
 
   return options.assumedManyTake ?? 1;
 };
-

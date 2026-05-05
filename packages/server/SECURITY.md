@@ -14,12 +14,13 @@ import {
   complexityPolicy,
   defineAllowedShapes,
   depthPolicy,
-  InMemoryRateLimitStore,
-  rateLimitPolicy,
+  rateLimitPlugin,
   securityPlugin,
   takePolicy,
   timeoutPolicy,
 } from '@tql/server';
+
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 const allowedShapes = defineAllowedShapes({
   tickets: {
@@ -32,7 +33,7 @@ const allowedShapes = defineAllowedShapes({
   },
 });
 
-export const createSecurityPlugin = () =>
+export const createTqlPlugins = () => [
   securityPlugin({
     getPrincipal: (_request, context) => {
       const user = (context as { user?: { id?: string } }).user;
@@ -49,15 +50,16 @@ export const createSecurityPlugin = () =>
       takePolicy({ defaultMax: 100 }),
       timeoutPolicy({ perResolverTimeoutMs: 5_000 }),
       complexityPolicy({ defaults: { single: 1, many: 5, selectKey: 0.1 }, assumedManyTake: 25, budget: 1000 }),
-      rateLimitPolicy({
-        store: new InMemoryRateLimitStore(),
-        buckets: [
-          { scope: 'route', capacity: 600, refillPerSec: 10 },
-          { scope: 'op', capacity: 100, refillPerSec: 2 },
-        ],
-      }),
     ],
-  });
+  }),
+  rateLimitPlugin({
+    getIdentity: (_request, context) => {
+      const user = (context as { user?: { id?: string } }).user;
+      return user?.id ?? 'anon';
+    },
+    limiter: new RateLimiterMemory({ points: 600, duration: 30 }),
+  }),
+];
 ```
 
 ## Allowed Shapes
@@ -121,18 +123,44 @@ tickets: queryMany({
 
 Resolver declarations override policy-level per-model/per-op values, which override policy defaults. Resolver timeouts are still capped by `requestTimeoutMs`.
 
-## Rate Limit Stores
+## Rate Limits
 
-`InMemoryRateLimitStore` is intended for development, tests, and single-process deployments. Production deployments with multiple API instances should implement `RateLimitStore` against a shared backend such as Redis:
+`rateLimitPlugin` is independent from `securityPlugin`. It uses its own `getIdentity` callback, charges costs declared on query, include, and mutation definitions, and consumes those points from one identity budget. Missing resolver metadata is charged `defaultCost`, which defaults to `1`.
 
 ```ts
-interface RateLimitStore {
-  consume(
-    key: string,
-    cost: number,
-    opts: { capacity: number; refillPerSec: number },
-  ): Promise<{ allowed: boolean; remaining: number; retryAfterMs: number }>;
-}
+import { RateLimiterRedis } from 'rate-limiter-flexible';
+
+rateLimitPlugin({
+  getIdentity: (_request, context) => {
+    const user = (context as { user?: { id?: string } }).user;
+    return user?.id ?? 'anon';
+  },
+  keyPrefix: 'tql',
+  limiter: new RateLimiterRedis({
+    storeClient: redis,
+    points: 600,
+    duration: 30,
+  }),
+  defaultCost: 1,
+});
+
+tickets: queryMany({
+  query: z.object({ workspaceId: z.string(), limit: z.number() }),
+  rateLimit: { cost: 5 },
+  resolve: async ({ context, query }) => context.ticketsService.queryByWorkspaceId(context.user, query),
+});
+
+comments: includeMany('ticketComment', {
+  query: z.object({ order: z.enum(['asc', 'desc']) }),
+  rateLimit: { cost: 2 },
+  resolve: async ({ context, parents }) => context.ticketCommentsService.queryByTicketIds(context.user, parents),
+});
+
+const createTicket = schema.mutation('createTicket', {
+  input: createTicketInput,
+  rateLimit: { cost: 10 },
+  resolve: async ({ context, input }) => context.ticketsService.create(context.user, input),
+});
 ```
 
-A Redis implementation should update token count and refill timestamp atomically, ideally via a Lua script or transaction, and set a TTL so idle buckets expire.
+Query requests charge the selected root query plus selected includes recursively. Mutation requests charge each mutation entry. Rate limit costs do not inspect args and are not linked to `complexityPolicy`.

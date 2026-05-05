@@ -1,5 +1,5 @@
 import z from 'zod';
-
+import { workspaceTicketLabelService } from '../../../services';
 import { workspaceTicketLabelOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
@@ -18,7 +18,7 @@ export const createWorkspaceTicketLabel = schema.mutation('createWorkspaceTicket
   },
 
   resolve: async ({ context, input }) => {
-    const workspaceTicketLabel = await context.workspaceTicketLabelService.create(context.user, {
+    const workspaceTicketLabel = await workspaceTicketLabelService.create(context.user, {
       workspaceId: input.workspaceId,
       name: input.name,
     });

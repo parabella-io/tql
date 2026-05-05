@@ -1,4 +1,4 @@
-import type { IncludeNode, QueryNode } from './plan.js';
+import type { IncludeNode, QueryNode } from '../../../request-plan/plan.js';
 
 export type AllowedShape = {
   select?: true | Record<string, true>;

@@ -11,4 +11,3 @@ export interface MutationOptionsExtensions<Input = unknown> {}
 export interface SchemaContextExtensions {}
 
 export interface PluginContextExtensions {}
-

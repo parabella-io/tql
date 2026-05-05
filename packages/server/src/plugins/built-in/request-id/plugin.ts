@@ -1,16 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { definePlugin, type ServerPlugin } from '../plugin.js';
-
-declare module '../extensions.js' {
-  interface PluginContextExtensions {
-    requestId: string;
-  }
-
-  interface SchemaContextExtensions {
-    requestId: string;
-  }
-}
+import { definePlugin, type ServerPlugin } from '../../plugin.js';
 
 export type RequestIdPluginOptions = {
   header?: string;
@@ -29,10 +19,13 @@ export const requestIdPlugin = (options: RequestIdPluginOptions = {}): ServerPlu
       };
     },
     beforeQuery(ctx) {
-      (ctx.schemaContext as Record<string, unknown>).requestId = ctx.plugin.requestId;
+      (ctx.schemaContext as Record<string, unknown>).requestId = (ctx.plugin as RequestIdPluginContext).requestId;
     },
     beforeMutation(ctx) {
-      (ctx.schemaContext as Record<string, unknown>).requestId = ctx.plugin.requestId;
+      (ctx.schemaContext as Record<string, unknown>).requestId = (ctx.plugin as RequestIdPluginContext).requestId;
     },
   });
 
+type RequestIdPluginContext = {
+  requestId: string;
+};

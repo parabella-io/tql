@@ -1,6 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
-
 import { TQLServerError, TQLServerErrorType } from '../../src/errors.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
@@ -10,15 +9,13 @@ import {
   batchPolicy,
   bodyLimitPolicy,
   breadthPolicy,
-  buildQueryPlan,
   complexityPolicy,
   depthPolicy,
-  InMemoryRateLimitStore,
-  rateLimitPolicy,
+  securityPlugin,
   takePolicy,
   timeoutPolicy,
-} from '../../src/security/index.js';
-import { securityPlugin } from '../../src/plugins/index.js';
+} from '../../src/plugins/built-in/security/index.js';
+import { buildQueryPlan } from '../../src/request-plan/index.js';
 import { schema as testSchema } from '../test-schema/schema.js';
 import '../test-schema/models.js';
 
@@ -228,19 +225,7 @@ describe('security plan and policies', () => {
     ).toThrowError(TQLServerError);
   });
 
-  test('rate limit store refills and rejects over capacity', async () => {
-    let now = 0;
-    const store = new InMemoryRateLimitStore({ now: () => now });
-
-    expect(await store.consume('k', 1, { capacity: 1, refillPerSec: 1 })).toMatchObject({ allowed: true });
-    expect(await store.consume('k', 1, { capacity: 1, refillPerSec: 1 })).toMatchObject({ allowed: false });
-
-    now = 1000;
-
-    expect(await store.consume('k', 1, { capacity: 1, refillPerSec: 1 })).toMatchObject({ allowed: true });
-  });
-
-  test('rate limit policy uses admitted static complexity as cost', async () => {
+  test('query plans preserve resolver extensions for plugin-owned metadata', () => {
     const schema = createSecuritySchema();
     const plan = buildQueryPlan({
       schema,
@@ -251,20 +236,8 @@ describe('security plan and policies', () => {
         },
       },
     });
-    const store = new InMemoryRateLimitStore({ now: () => 0 });
-    const ctx = { principal: { id: 'u1' }, costs: { staticCost: 2 } } as any;
 
-    await rateLimitPolicy({
-      store,
-      buckets: [{ scope: 'route', capacity: 2, refillPerSec: 0 }],
-    }).beforeQuery?.(ctx, plan);
-
-    await expect(
-      rateLimitPolicy({
-        store,
-        buckets: [{ scope: 'route', capacity: 2, refillPerSec: 0 }],
-      }).beforeQuery?.(ctx, plan),
-    ).rejects.toThrowError(TQLServerError);
+    expect((plan.nodes[0]?.extensions as { security?: { timeoutMs?: number } }).security?.timeoutMs).toBe(5);
   });
 
   test('timeout policy applies resolver overrides and server returns security errors', async () => {
@@ -319,4 +292,3 @@ describe('security plan and policies', () => {
     expect(result.thingById.error?.type).toBe(TQLServerErrorType.SecurityShapeNotAllowedError);
   });
 });
-

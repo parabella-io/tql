@@ -1,5 +1,6 @@
 import { z } from 'zod';
-
+import { workspaceMemberInviteService } from '../../../services';
+import { workspaceService } from '../../../services';
 import { schema } from '../../schema';
 
 export const workspaceMemberInvite = schema.model('workspaceMemberInvite', {
@@ -29,7 +30,7 @@ export const workspaceMemberInvite = schema.model('workspaceMemberInvite', {
         id: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.workspaceMemberInviteService.getById(context.user, {
+        return workspaceMemberInviteService.getById(context.user, {
           inviteId: query.id,
         });
       },
@@ -38,7 +39,7 @@ export const workspaceMemberInvite = schema.model('workspaceMemberInvite', {
     myWorkspaceInvites: queryMany({
       query: z.object({}),
       resolve: async ({ context }) => {
-        return context.workspaceMemberInviteService.queryMyWorkspaceInvites(context.user);
+        return workspaceMemberInviteService.queryMyWorkspaceInvites(context.user);
       },
     }),
 
@@ -52,7 +53,7 @@ export const workspaceMemberInvite = schema.model('workspaceMemberInvite', {
         minTakeSize: 1,
       },
       resolve: async ({ context, query, pagingInfo }) => {
-        return context.workspaceMemberInviteService.queryByWorkspaceIdPaged(
+        return workspaceMemberInviteService.queryByWorkspaceIdPaged(
           context.user,
           {
             workspaceId: query.workspaceId,
@@ -67,7 +68,7 @@ export const workspaceMemberInvite = schema.model('workspaceMemberInvite', {
     workspace: includeSingle('workspace', {
       matchKey: 'workspaceMemberInviteId',
       resolve: async ({ context, parents }) => {
-        const workspaces = await context.workspaceService.queryByWorkspaceIds(context.user, {
+        const workspaces = await workspaceService.queryByWorkspaceIds(context.user, {
           workspaceIds: parents.map((parent) => parent.workspaceId),
         });
 

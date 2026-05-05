@@ -1,6 +1,7 @@
 import { z } from 'zod';
-
 import { schema } from '../../schema';
+import { ticketListsService } from '../../../services';
+import { ticketsService } from '../../../services';
 
 export const ticketList = schema.model('ticketList', {
   schema: z.object({
@@ -28,8 +29,11 @@ export const ticketList = schema.model('ticketList', {
       query: z.object({
         id: z.string(),
       }),
+      rateLimit: {
+        cost: 1,
+      },
       resolve: ({ context, query }) => {
-        return context.ticketListsService.getById(context.user, {
+        return ticketListsService.getById(context.user, {
           id: query.id,
         });
       },
@@ -41,8 +45,9 @@ export const ticketList = schema.model('ticketList', {
         limit: z.number(),
         order: z.enum(['asc', 'desc']),
       }),
+      rateLimit: { cost: 5 },
       resolve: async ({ context, query }) => {
-        return context.ticketListsService.queryByWorkspaceId(context.user, {
+        return ticketListsService.queryByWorkspaceId(context.user, {
           workspaceId: query.workspaceId,
         });
       },
@@ -56,8 +61,10 @@ export const ticketList = schema.model('ticketList', {
         limit: z.number(),
         order: z.enum(['asc', 'desc']),
       }),
+      rateLimit: { cost: 5 },
+      security: {},
       resolve: async ({ context, query, parents }) => {
-        return context.ticketsService.queryByTicketListIds(context.user, {
+        return ticketsService.queryByTicketListIds(context.user, {
           ticketListIds: parents.map((parent) => parent.id),
           limit: query.limit,
           order: query.order,

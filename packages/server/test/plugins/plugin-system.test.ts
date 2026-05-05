@@ -1,8 +1,9 @@
 import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
-
 import { TQLServerError, TQLServerErrorType } from '../../src/errors.js';
-import { definePlugin, requestIdPlugin, securityPlugin, type ServerPlugin } from '../../src/plugins/index.js';
+import { requestIdPlugin } from '../../src/plugins/built-in/request-id/index.js';
+import { securityPlugin } from '../../src/plugins/built-in/security/index.js';
+import { definePlugin, type ServerPlugin } from '../../src/plugins/index.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
 import { Server } from '../../src/server/server.js';
@@ -205,4 +206,3 @@ describe('plugin system', () => {
     expect(result.thing.error?.type).toBe(TQLServerErrorType.SecurityShapeNotAllowedError);
   });
 });
-

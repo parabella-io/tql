@@ -1,31 +1,8 @@
-import { allowedShapesPolicy } from '../../security/built-in/allowed-shapes.js';
-import type { AllowedShapesMap } from '../../security/shape-subset.js';
-import type { Principal } from '../../security/plan.js';
-import type { SecurityContext, SecurityPolicy } from '../../security/policy.js';
-import type { SecurityLogger } from '../../security/config.js';
-import type { AggregateCost } from '../context.js';
-import { definePlugin, type ServerPlugin } from '../plugin.js';
-import type {
-  IncludeManyOptionsExtensions,
-  IncludeSingleOptionsExtensions,
-  MutationOptionsExtensions,
-  PluginContextExtensions,
-  QueryManyOptionsExtensions,
-  QuerySingleOptionsExtensions,
-} from '../extensions.js';
-
-export type ResolverSecurityOptions<QueryArgs = unknown, PagingInputArgs = void> = {
-  /**
-   * Static cost for this resolver node, or a function evaluated against
-   * validated query inputs before the resolver runs.
-   */
-  complexity?: number | ((args: { query: QueryArgs; pagingInfo: PagingInputArgs }) => number);
-  /**
-   * Per-resolver timeout in milliseconds. The request-level deadline still
-   * caps this value.
-   */
-  timeoutMs?: number;
-};
+import { allowedShapesPolicy } from './policies/allowed-shapes.js';
+import type { AllowedShapesMap } from './shape-subset.js';
+import type { Principal, SecurityContext, SecurityPolicy } from './policy.js';
+import type { SecurityLogger } from './config.js';
+import { definePlugin, type ServerPlugin } from '../../plugin.js';
 
 export type SecurityPluginConfig = {
   getPrincipal?: (request: unknown, schemaContext: unknown) => Principal | null | Promise<Principal | null>;
@@ -35,34 +12,6 @@ export type SecurityPluginConfig = {
   allowedShapesMode?: 'enforce' | 'warn';
   logger?: SecurityLogger;
 };
-
-declare module '../extensions.js' {
-  interface QuerySingleOptionsExtensions<QueryArgs> {
-    security?: ResolverSecurityOptions<QueryArgs>;
-  }
-
-  interface QueryManyOptionsExtensions<QueryArgs, PagingInputArgs> {
-    security?: ResolverSecurityOptions<QueryArgs, PagingInputArgs>;
-  }
-
-  interface IncludeSingleOptionsExtensions<QueryArgs> {
-    security?: ResolverSecurityOptions<QueryArgs>;
-  }
-
-  interface IncludeManyOptionsExtensions<QueryArgs> {
-    security?: ResolverSecurityOptions<QueryArgs>;
-  }
-
-  interface MutationOptionsExtensions<Input> {
-    security?: ResolverSecurityOptions<Input>;
-  }
-
-  interface PluginContextExtensions {
-    principal: Principal | null;
-    costs: AggregateCost;
-    allowedShapesMode?: 'enforce' | 'warn';
-  }
-}
 
 export const securityPlugin = (config: SecurityPluginConfig): ServerPlugin => {
   const policies = [...(config.policies ?? [])];
@@ -126,7 +75,7 @@ const toSecurityContext = (ctx: {
   schemaContext: unknown;
   signal: AbortSignal;
   resolverTimeouts: Map<string, number>;
-  plugin: PluginContextExtensions;
+  plugin: SecurityPluginContext;
 }): SecurityContext => {
   ctx.plugin.costs ??= {};
 
@@ -141,3 +90,8 @@ const toSecurityContext = (ctx: {
   };
 };
 
+type SecurityPluginContext = {
+  principal?: Principal | null;
+  costs?: SecurityContext['costs'];
+  allowedShapesMode?: 'enforce' | 'warn';
+};

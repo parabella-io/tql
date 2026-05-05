@@ -10,6 +10,22 @@
       "types": "./dist/src/shared/index.d.ts",
       "default": "./dist/src/shared/index.js"
     },
+    "./plugins": {
+      "types": "./dist/src/plugins/index.d.ts",
+      "default": "./dist/src/plugins/index.js"
+    },
+    "./plugins/built-in/rate-limit": {
+      "types": "./dist/src/plugins/built-in/rate-limit/index.d.ts",
+      "default": "./dist/src/plugins/built-in/rate-limit/index.js"
+    },
+    "./plugins/built-in/request-id": {
+      "types": "./dist/src/plugins/built-in/request-id/index.d.ts",
+      "default": "./dist/src/plugins/built-in/request-id/index.js"
+    },
+    "./plugins/built-in/security": {
+      "types": "./dist/src/plugins/built-in/security/index.d.ts",
+      "default": "./dist/src/plugins/built-in/security/index.js"
+    },
     "./test-schema": {
       "types": "./dist/test/test-schema/index.d.ts",
       "default": "./dist/test/test-schema/index.js"
@@ -41,6 +57,7 @@
     "better-sqlite3": "^12.5.0",
     "lodash-es": "^4.17.22",
     "p-queue": "^9.1.2",
+    "rate-limiter-flexible": "^11.0.2",
     "uuid": "^13.0.0",
     "zod": "4.3.6"
   }

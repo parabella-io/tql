@@ -1,7 +1,5 @@
 export { Schema } from './schema.js';
-
 export { type SchemaEntity } from './schema-entity.js';
-
 export { type ClientSchema } from './client-schema.js';
 
 export { Server, type ServerOptions, type EffectsConfig } from './server/server.js';
@@ -17,10 +15,10 @@ export {
   type EffectTask,
 } from './effects/index.js';
 
-export * from './security/index.js';
-export * from './plugins/index.js';
+export * from './request-plan/index.js';
 
 export * from './query/index.js';
+
 export * from './mutation/index.js';
 
 export { type FormattedTQLServerError, TQLServerErrorType } from './errors.js';

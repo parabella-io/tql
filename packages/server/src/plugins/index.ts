@@ -10,6 +10,3 @@ export {
 } from './extensions.js';
 export { definePlugin, type ServerLike, type ServerPlugin } from './plugin.js';
 export { PluginRunner, type PluginRunnerOptions } from './runner.js';
-export { requestIdPlugin, type RequestIdPluginOptions } from './built-in/request-id.js';
-export { securityPlugin, type ResolverSecurityOptions, type SecurityPluginConfig } from './built-in/security.js';
-

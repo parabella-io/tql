@@ -7,7 +7,7 @@ import type { HttpAdapter } from './adapters/http/http-adapter.js';
 import type { EffectMeta, EffectQueue } from '../effects/effect-queue.js';
 import { InMemoryEffectQueue, type EffectLogger } from '../effects/in-memory-effect-queue.js';
 import { TQLServerError } from '../errors.js';
-import { buildMutationPlan, buildQueryPlan, type IncludeNode, type MutationPlan, type QueryNode } from '../security/index.js';
+import { buildMutationPlan, buildQueryPlan, type IncludeNode, type MutationPlan, type QueryNode } from '../request-plan/index.js';
 import { PluginRunner, type ServerContext, type ServerPlugin } from '../plugins/index.js';
 
 export type GenerateSchemaConfig = {
@@ -77,6 +77,7 @@ export class Server<S extends ClientSchema> {
 
   constructor(options: ServerOptions) {
     this.schema = options.schema;
+
     this.effectQueue = Server.createEffectQueue(options.effects);
 
     this.queryResolver = new QueryResolver<S>({ schema: options.schema });
@@ -226,13 +227,16 @@ export class Server<S extends ClientSchema> {
     schemaContext: unknown;
   }): Promise<{ serverContext: ServerContext; cleanup: () => void }> {
     const controller = new AbortController();
+
     const timeoutMs = this.pluginRunner.getRequestTimeoutMs();
+
     const timeout =
       timeoutMs === undefined
         ? undefined
         : setTimeout(() => {
             controller.abort();
           }, timeoutMs);
+
     const serverContext = await this.pluginRunner.createContext({
       request: options.request,
       body: options.body,

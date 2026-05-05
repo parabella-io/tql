@@ -5,7 +5,7 @@ Plugins are the extension point for cross-cutting server behaviour: security, ca
 ## Registering Plugins
 
 ```ts
-import { Server, requestIdPlugin, securityPlugin } from '@tql/server';
+import { Server, rateLimitPlugin, requestIdPlugin, securityPlugin } from '@tql/server';
 
 const server = new Server({
   schema,
@@ -16,8 +16,12 @@ const server = new Server({
       allowedShapes, // usually defineAllowedShapes<ClientSchema>({...})
       allowedShapesMode: 'enforce',
       policies: [
-        /* shape, complexity, rate-limit policies */
+        /* shape and complexity policies */
       ],
+    }),
+    rateLimitPlugin({
+      getIdentity: (_request, context) => context.user?.id ?? 'anon',
+      limiter: { points: 600, duration: 30 },
     }),
   ],
 });
@@ -80,7 +84,7 @@ ticketById: querySingle({
 });
 ```
 
-The extension interfaces are project-global. Prefer namespaced option keys (`cache`, `security`, `observability`) to avoid plugin conflicts.
+The extension interfaces are project-global. Prefer namespaced option keys (`cache`, `security`, `observability`) to avoid plugin conflicts. Request plans preserve resolver options as `extensions`; each plugin is responsible for interpreting only the extension fields it owns.
 
 ## Request IDs
 
@@ -89,6 +93,32 @@ The extension interfaces are project-global. Prefer namespaced option keys (`cac
 ```ts
 plugins: [requestIdPlugin({ header: 'x-request-id' })];
 ```
+
+## Rate Limits
+
+`rateLimitPlugin()` is a built-in plugin for identity-based operation budgets. It runs before resolvers, uses its own `getIdentity(request, context)` callback, and consumes costs declared on selected query, include, and mutation definitions.
+
+```ts
+rateLimitPlugin({
+  getIdentity: (_request, context) => context.user?.id ?? 'anon',
+  limiter: { points: 600, duration: 30 },
+  defaultCost: 1,
+});
+
+ticketById: querySingle({
+  query: z.object({ id: z.string() }),
+  rateLimit: { cost: 1 },
+  resolve: async ({ context, query }) => context.ticketsService.getById(context.user, query),
+});
+
+comments: includeMany('ticketComment', {
+  query: z.object({ order: z.enum(['asc', 'desc']) }),
+  rateLimit: { cost: 2 },
+  resolve: async ({ context, parents }) => context.ticketCommentsService.queryByTicketIds(context.user, parents),
+});
+```
+
+Omitted resolver metadata is charged `defaultCost`, which defaults to `1`. Query requests charge the selected root query plus selected includes recursively; mutation requests charge each mutation entry. Rate-limit costs are independent from security complexity costs.
 
 ## Cache Plugin Sketch
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-
 import { schema } from '../../schema';
+import { workspaceMemberService } from '../../../services';
 
 export const workspaceMember = schema.model('workspaceMember', {
   schema: z.object({
@@ -35,7 +35,7 @@ export const workspaceMember = schema.model('workspaceMember', {
         id: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.workspaceMemberService.getById(context.user, {
+        return workspaceMemberService.getById(context.user, {
           id: query.id,
         });
       },
@@ -51,7 +51,7 @@ export const workspaceMember = schema.model('workspaceMember', {
         minTakeSize: 1,
       },
       resolve: async ({ context, query, pagingInfo }) => {
-        return context.workspaceMemberService.queryByWorkspaceIdPaged(
+        return workspaceMemberService.queryByWorkspaceIdPaged(
           context.user,
           {
             workspaceId: query.workspaceId,

@@ -54,7 +54,10 @@ export class QuerySingle<
     return this.options.nullable ?? false;
   }
 
-  public getAllow(): (options: { context: SchemaContext & SchemaContextExtensions; query: z.infer<QueryArgs> }) => Promise<boolean> | boolean {
+  public getAllow(): (options: {
+    context: SchemaContext & SchemaContextExtensions;
+    query: z.infer<QueryArgs>;
+  }) => Promise<boolean> | boolean {
     return this.options.allow ?? (async () => true);
   }
 

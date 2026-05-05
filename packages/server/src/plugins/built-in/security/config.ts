@@ -1,5 +1,6 @@
-import type { AllowedShapesMap } from './shape-subset.js';
-import type { ClientSchema } from '../client-schema.js';
+import type { ClientSchema } from '../../../client-schema.js';
+
+import { AllowedShapesMap } from './shape-subset.js';
 
 export type SecurityLogger = {
   warn?: (...args: unknown[]) => void;
@@ -21,4 +22,3 @@ export type AllowedShapesFor<S extends ClientSchema> = {
 };
 
 export const defineAllowedShapes = <S extends ClientSchema>(shapes: AllowedShapesFor<S>): AllowedShapesMap => shapes as AllowedShapesMap;
-

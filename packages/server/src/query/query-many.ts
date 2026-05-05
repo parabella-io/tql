@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ExtractEntityShape } from '../extract-entity-shape.js';
+
 import type { QueryManyOptionsExtensions, SchemaContextExtensions } from '../plugins/extensions.js';
 
 export type WithPagingConfig = {
@@ -36,7 +37,11 @@ export type QueryManyOptionsNonPaginated<
 > = {
   query?: z.ZodSchema<QueryArgs>;
   allow?: (options: { context: SchemaContext & SchemaContextExtensions; query: QueryArgs }) => Promise<boolean> | boolean;
-  resolve: (args: { context: SchemaContext & SchemaContextExtensions; query: QueryArgs; signal?: AbortSignal }) => Promise<EntityRow<SchemaEntities, ModelName>>;
+  resolve: (args: {
+    context: SchemaContext & SchemaContextExtensions;
+    query: QueryArgs;
+    signal?: AbortSignal;
+  }) => Promise<EntityRow<SchemaEntities, ModelName>>;
 } & QueryManyOptionsExtensions<QueryArgs>;
 
 export type QueryManyOptionsPaginated<

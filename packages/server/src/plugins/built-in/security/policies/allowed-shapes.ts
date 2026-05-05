@@ -1,5 +1,4 @@
-import { TQLServerError, TQLServerErrorType } from '../../errors.js';
-import type { QueryPlan } from '../plan.js';
+import { TQLServerError, TQLServerErrorType } from '../../../../errors.js';
 import type { SecurityLogger } from '../config.js';
 import type { SecurityPolicy } from '../policy.js';
 import { assertQueryNodeAllowed, type AllowedShapesMap } from '../shape-subset.js';
@@ -35,4 +34,3 @@ export const allowedShapesPolicy = (options: AllowedShapesPolicyOptions): Securi
     }
   },
 });
-

@@ -8,13 +8,6 @@ import { IncludeMany } from '../query/include-many.js';
 import { IncludeSingle } from '../query/include-single.js';
 import { Mutation } from '../mutation/mutation.js';
 import { TQLServerError, TQLServerErrorType } from '../errors.js';
-import type { ResolverSecurityOptions } from '../plugins/built-in/security.js';
-
-export type Principal = {
-  id: string;
-  tier?: string;
-  meta?: Record<string, unknown>;
-};
 
 export type QueryNode = {
   path: string;
@@ -28,7 +21,6 @@ export type QueryNode = {
   includes: IncludeNode[];
   depth: number;
   extensions?: unknown;
-  security?: ResolverSecurityOptions<any, any>;
   staticCost?: number;
   actualRows?: number;
 };
@@ -44,7 +36,6 @@ export type IncludeNode = {
   includes: IncludeNode[];
   depth: number;
   extensions?: unknown;
-  security?: ResolverSecurityOptions<any, any>;
   staticCost?: number;
   actualRows?: number;
 };
@@ -65,7 +56,6 @@ export type MutationPlan = {
     inputBytes: number;
     input: unknown;
     extensions?: unknown;
-    security?: ResolverSecurityOptions<any, any>;
     staticCost?: number;
   }>;
   staticCost?: number;
@@ -87,6 +77,7 @@ export const buildSchemaIndexes = (schema: Schema<any, any>) => {
 
   for (const modelName of Object.keys(schema.models)) {
     const model = schema.models[modelName] as Model<any, any, any, any, any, any, any, any>;
+
     models[modelName] = model;
 
     for (const { queryName, querySingle } of model.getQuerySingles()) {
@@ -132,7 +123,9 @@ export const buildQueryPlan = (options: { schema: Schema<any, any>; query: unkno
   const indexes = buildSchemaIndexes(options.schema);
   const queryInput = asRecord(options.query);
   const nodes: QueryNode[] = [];
+
   let totalNodes = 0;
+
   let maxDepth = 0;
 
   for (const queryName of Object.keys(queryInput)) {
@@ -173,11 +166,9 @@ export const buildQueryPlan = (options: { schema: Schema<any, any>; query: unkno
         includes,
         depth: 0,
         extensions: querySingle.getExtensions(),
-        security: getResolverSecurity(querySingle.getExtensions()),
       });
 
       nodes.push(node);
-
     } else if (kind === 'many') {
       const queryMany = indexes.queryManys[queryName];
 
@@ -191,9 +182,7 @@ export const buildQueryPlan = (options: { schema: Schema<any, any>; query: unkno
         queryName,
       });
 
-      const pagingInfo = queryMany.isPaginated()
-        ? parsePagingInfo({ queryMany, value: raw.pagingInfo, queryName })
-        : undefined;
+      const pagingInfo = queryMany.isPaginated() ? parsePagingInfo({ queryMany, value: raw.pagingInfo, queryName }) : undefined;
 
       const modelName = queryMany.getModelName() as string;
 
@@ -216,7 +205,6 @@ export const buildQueryPlan = (options: { schema: Schema<any, any>; query: unkno
         includes,
         depth: 0,
         extensions: queryMany.getExtensions(),
-        security: getResolverSecurity(queryMany.getExtensions()),
       });
 
       nodes.push(node);
@@ -257,7 +245,6 @@ export const buildMutationPlan = (options: { schema: Schema<any, any>; mutation:
         input,
         inputBytes: byteLength(input),
         extensions: mutation.getExtensions(),
-        security: getResolverSecurity(mutation.getExtensions()),
       };
     }),
   };
@@ -308,7 +295,6 @@ const buildIncludeNodes = (options: {
         }),
         depth,
         extensions: includeSingle.getExtensions(),
-        security: getResolverSecurity(includeSingle.getExtensions()),
       });
     }
 
@@ -320,7 +306,7 @@ const buildIncludeNodes = (options: {
       }
 
       const relationModelName = includeMany.getRelationName() as string;
-      
+
       return makeIncludeNode({
         path,
         includeName,
@@ -337,7 +323,6 @@ const buildIncludeNodes = (options: {
         }),
         depth,
         extensions: includeMany.getExtensions(),
-        security: getResolverSecurity(includeMany.getExtensions()),
       });
     }
 
@@ -421,8 +406,3 @@ const byteLength = (value: unknown): number => {
 };
 
 const getIncludeKey = (modelName: string, includeName: string) => `${modelName}-${includeName}`;
-
-const getResolverSecurity = (extensions: unknown): ResolverSecurityOptions<any, any> | undefined => {
-  return (extensions as { security?: ResolverSecurityOptions<any, any> }).security;
-};
-

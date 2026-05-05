@@ -1,5 +1,5 @@
 import { z } from 'zod';
-
+import { workspaceService, workspaceMemberService } from '../../../services';
 import { schema } from '../../schema';
 
 export const workspace = schema.model('workspace', {
@@ -23,14 +23,14 @@ export const workspace = schema.model('workspace', {
         id: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.workspaceService.getById(context.user, { id: query.id });
+        return workspaceService.getById(context.user, { id: query.id });
       },
     }),
 
     myWorkspaces: queryMany({
       query: z.object({}),
       resolve: async ({ context, query }) => {
-        return context.workspaceService.getMyWorkspaces(context.user);
+        return workspaceService.getMyWorkspaces(context.user);
       },
     }),
   }),
@@ -39,7 +39,7 @@ export const workspace = schema.model('workspace', {
     owner: includeSingle('workspaceMember', {
       matchKey: 'workspaceId',
       resolve: async ({ context, parents }) => {
-        return context.workspaceMemberService.queryOwnersByWorkspaceIds(context.user, {
+        return workspaceMemberService.queryOwnersByWorkspaceIds(context.user, {
           workspaceIds: parents.map((parent) => parent.id),
         });
       },
