@@ -38,7 +38,7 @@ export const useQuery = <QueryType extends AnyQuery>(options: {
   return useMemo(
     () =>
       ({
-        data: state?.data ?? null,
+        data: state?.data,
         pagingInfo: state?.pagingInfo ?? null,
         error: state?.error ?? null,
         isLoading: !!state?.isLoading,

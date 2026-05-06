@@ -6,7 +6,7 @@ import { produce } from 'immer';
 import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@tql/server/shared';
 import { subscribeWithSelector } from 'zustand/middleware';
 
-type QueryData = Record<string, any> | Array<Record<string, any>> | null;
+type QueryData = Record<string, any> | Array<Record<string, any>> | null | undefined;
 
 type QueryError = FormattedTQLServerError | null;
 
@@ -46,7 +46,7 @@ export type QueryActions = {
   setData: (keys: QueryHashKey[] | QueryHashKey, updator: (prevData: any) => any) => void;
   setLoading: (keys: QueryHashKey[] | QueryHashKey, isLoading: boolean) => void;
   updateState: (keys: QueryHashKey[] | QueryHashKey, updator: (prevState: QueryState) => QueryState | void) => void;
-  getData: (hashKey: QueryHashKey) => QueryData | null;
+  getData: (hashKey: QueryHashKey) => QueryData;
   reset: () => void;
 };
 
@@ -123,7 +123,7 @@ export const createQueryStore = (): QueryStore => {
             }
           }),
         ),
-      getData: (hashKey: QueryHashKey) => get().state[hashKey]?.data ?? null,
+      getData: (hashKey: QueryHashKey) => get().state[hashKey]?.data,
       reset: () => set({ state: {} }),
     }))),
   );

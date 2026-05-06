@@ -2,28 +2,45 @@ import type { WorkspaceMembersInput } from '@tql/api'
 
 import { tql } from '@/shared/lib/tql'
 
-/** Matches server `withPaging.maxTakeSize` for workspaceMembers. */
-export const WORKSPACE_MEMBERS_MAX_TAKE = 100
+export type WorkspaceMembersQueryParams = { workspaceId: string }
 
-/** Default page size for members list UI. */
-export const WORKSPACE_MEMBERS_PAGE_SIZE = 10
-
-export type WorkspaceMembersQueryParams = { workspaceId: string } & Pick<
-  WorkspaceMembersInput,
-  'pagingInfo'
->
-
-export const workspaceMembersQuery = tql.createQuery<
+export const workspaceMembersPagedQuery = tql.createPagedQuery<
   'workspaceMembers',
   WorkspaceMembersInput,
   WorkspaceMembersQueryParams
 >('workspaceMembers', {
   queryKey: 'workspaceMembers',
-  query: (params: WorkspaceMembersQueryParams) => ({
+  pageSize: 10,
+  query: (params: WorkspaceMembersQueryParams, pagingInfo) => ({
     query: {
       workspaceId: params.workspaceId,
     },
-    pagingInfo: params.pagingInfo,
+    pagingInfo,
+    select: {
+      id: true,
+      userId: true,
+      name: true,
+      email: true,
+      workspaceId: true,
+      isWorkspaceOwner: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  }),
+})
+
+export const workspaceMembersMaxPagedQuery = tql.createPagedQuery<
+  'workspaceMembers',
+  WorkspaceMembersInput,
+  WorkspaceMembersQueryParams
+>('workspaceMembers', {
+  queryKey: 'workspaceMembersMax',
+  pageSize: 100,
+  query: (params: WorkspaceMembersQueryParams, pagingInfo) => ({
+    query: {
+      workspaceId: params.workspaceId,
+    },
+    pagingInfo,
     select: {
       id: true,
       userId: true,

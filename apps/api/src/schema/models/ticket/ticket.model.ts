@@ -45,7 +45,9 @@ export const ticket = schema.model('ticket', {
       query: z.object({
         id: z.string(),
       }),
-      rateLimit: { cost: 1 },
+      rateLimit: {
+        cost: 1,
+      },
       resolve: async ({ context, query }) => {
         return ticketsService.getById(context.user, {
           id: query.id,
@@ -59,7 +61,9 @@ export const ticket = schema.model('ticket', {
         limit: z.number(),
         order: z.enum(['asc', 'desc']),
       }),
-      rateLimit: { cost: 5 },
+      rateLimit: {
+        cost: 5,
+      },
       resolve: async ({ context, query }) => {
         return ticketsService.queryByWorkspaceId(context.user, {
           workspaceId: query.workspaceId,
@@ -74,7 +78,9 @@ export const ticket = schema.model('ticket', {
     assignee: includeSingle('ticketAssignee', {
       nullable: true,
       matchKey: 'ticketId',
-      rateLimit: { cost: 1 },
+      rateLimit: {
+        cost: 1,
+      },
       resolve: async ({ context, parents }) => {
         return ticketAssigneeService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
@@ -84,7 +90,9 @@ export const ticket = schema.model('ticket', {
 
     reporter: includeSingle('ticketReporter', {
       matchKey: 'ticketId',
-      rateLimit: { cost: 1 },
+      rateLimit: {
+        cost: 1,
+      },
       resolve: async ({ context, parents }) => {
         return ticketReporterService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
@@ -97,7 +105,9 @@ export const ticket = schema.model('ticket', {
       query: z.object({
         order: z.enum(['asc', 'desc']),
       }),
-      rateLimit: { cost: 2 },
+      rateLimit: {
+        cost: 2,
+      },
       resolve: async ({ context, query, parents }) => {
         return ticketAttachmentsService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
@@ -111,7 +121,9 @@ export const ticket = schema.model('ticket', {
       query: z.object({
         order: z.enum(['asc', 'desc']),
       }),
-      rateLimit: { cost: 2 },
+      rateLimit: {
+        cost: 2,
+      },
       resolve: async ({ context, query, parents }) => {
         return ticketCommentsService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
@@ -125,7 +137,9 @@ export const ticket = schema.model('ticket', {
       query: z.object({
         order: z.enum(['asc', 'desc']),
       }),
-      rateLimit: { cost: 2 },
+      rateLimit: {
+        cost: 2,
+      },
       resolve: async ({ context, parents }) => {
         return ticketLabelsService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),

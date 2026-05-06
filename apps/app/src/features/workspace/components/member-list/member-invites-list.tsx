@@ -2,7 +2,7 @@ import { useMutation, usePagedQuery } from "@tql/client"
 import { ErrorCenter } from "@/shared/components/error/error-center"
 import { LoadingCenter } from "@/shared/components/loading/loading-center"
 import { Card, CardAction, CardContent, CardFooter } from "@/shared/components/ui/card"
-import { workspaceMemberInvitesQuery, WORKSPACE_MEMBER_INVITES_PAGE_SIZE } from "@/api/workspaces/queries/workspace-member-invites.query"
+import { workspaceMemberInvitesPagedQuery } from "@/api/workspaces/queries/workspace-member-invites.query"
 import { removeInviteWorkspaceMemberMutation } from "@/api/workspaces/mutations/remove-invite-workspace-member.mutation"
 import { WorkspaceMemberInviteEntity } from "node_modules/@tql/api/src/schema"
 import { Button } from "@/shared/components/ui/button"
@@ -35,9 +35,8 @@ export const MemberInvitesList = ({ workspaceId }: MemberInvitesListProps) => {
         loadPreviousPage,
         reset,
     } = usePagedQuery({
-        query: workspaceMemberInvitesQuery,
+        pagedQuery: workspaceMemberInvitesPagedQuery,
         params: { workspaceId },
-        pageSize: WORKSPACE_MEMBER_INVITES_PAGE_SIZE,
     })
 
     if (error) {

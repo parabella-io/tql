@@ -1,6 +1,6 @@
 import { tql } from '@/shared/lib/tql'
 
-import { workspaceMembersQuery } from '../queries/workspace-members.query'
+import { workspaceMembersPagedQuery } from '../queries/workspace-members.query'
 
 type RemoveWorkspaceMemberParams = {
   workspaceId: string
@@ -16,11 +16,13 @@ export const removeWorkspaceMemberMutation = tql.createMutation(
       memberId: params.memberId,
     }),
     onSuccess: ({ store, output }) => {
-      store.getAll(workspaceMembersQuery).update((draft) => {
-        const index = draft?.findIndex((member) => member.id === output.workspaceMember.id) ?? -1
+      store.pagedAll(workspaceMembersPagedQuery).update((pages) => {
+        for (const page of pages) {
+          const index = page.data.findIndex((member) => member.id === output.workspaceMember.id)
 
-        if (draft && index !== -1) {
-          draft.splice(index, 1)
+          if (index !== -1) {
+            page.data.splice(index, 1)
+          }
         }
       })
     },

@@ -6,6 +6,9 @@ import type {
   MutationPayloadFor,
 } from '../mutation/mutation.types';
 import { Query, singleQueryInput } from '../query/query';
+import { PagedQuery } from '../paged-query/paged-query';
+import { createPagedQueryStore, PagedQueryStore } from '../paged-query/paged-query-store';
+import type { PagedQueryNameFor, PagedQueryOptions } from '../paged-query/paged-query.types';
 import {
   ClientSchema,
   QueryInputFor,
@@ -49,6 +52,8 @@ export type ClientOptions = {
 export class Client<S extends ClientSchema> {
   private readonly queryStore: QueryStore;
 
+  private readonly pagedQueryStore: PagedQueryStore;
+
   private readonly mutationStore: MutationStore;
 
   private readonly transports: ClientTransports;
@@ -56,6 +61,7 @@ export class Client<S extends ClientSchema> {
 
   constructor(options: ClientOptions) {
     this.queryStore = createQueryStore();
+    this.pagedQueryStore = createPagedQueryStore();
     this.mutationStore = createMutationStore();
     this.transports = options.transports;
     this.defaultTransport = options.defaultTransport ?? 'http';
@@ -94,12 +100,29 @@ export class Client<S extends ClientSchema> {
     });
   }
 
+  createPagedQuery<
+    QueryName extends PagedQueryNameFor<S>,
+    QueryInput extends QueryInputFor<S, QueryName>,
+    QueryParams extends Record<string, any>,
+  >(
+    queryName: QueryName,
+    options: PagedQueryOptions<S, QueryName, QueryInput, QueryParams>,
+  ) {
+    return new PagedQuery<S, QueryName, QueryInput, QueryParams>({
+      store: this.pagedQueryStore,
+      queryName,
+      queryOptions: options,
+      queryHandler: this.queryHandlerFor(options.transport),
+    });
+  }
+
   createMutation<const MutationName extends MutationNameFor<S>, MutationParams extends Record<string, any>>(
     mutationName: MutationName,
     options: MutationOptions<S, MutationName, MutationPayloadFor<S, MutationName>, MutationParams>,
   ) {
     return new Mutation<S, MutationName, MutationPayloadFor<S, MutationName>, MutationParams>({
       queryStore: this.queryStore,
+      pagedQueryStore: this.pagedQueryStore,
       mutationHandler: this.mutationHandlerFor(options.transport),
       mutationStore: this.mutationStore,
       mutationName,
@@ -141,6 +164,7 @@ export class Client<S extends ClientSchema> {
 
   reset() {
     this.queryStore.getState().reset();
+    this.pagedQueryStore.getState().reset();
     this.mutationStore.getState().reset();
   }
 }

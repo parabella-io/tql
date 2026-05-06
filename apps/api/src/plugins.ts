@@ -13,7 +13,6 @@ import { rateLimitPlugin } from '@tql/server/plugins/built-in/rate-limit';
 import { requestIdPlugin } from '@tql/server/plugins/built-in/request-id';
 import { effectsPlugin, InMemoryEffectQueue } from '@tql/server/plugins/built-in/effects';
 import { loggingPlugin } from '@tql/server/plugins/built-in/logging';
-// import { otelPlugin } from '@tql/server/plugins/built-in/otel';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import type { ClientSchema } from '../__generated__/schema.d.ts';
 
@@ -31,6 +30,12 @@ export const allowedShapes = defineAllowedShapes<ClientSchema>({
         },
       },
     },
+  },
+  workspaceMembers: {
+    select: true,
+  },
+  workspaceMemberInvites: {
+    select: true,
   },
   workspaceTicketLabels: {
     select: true,
@@ -93,8 +98,8 @@ export const createTqlPlugins = () => [
           many: 5,
           selectKey: 0.1,
         },
-        assumedManyTake: 25,
-        budget: 1_000,
+        assumedManyTake: 5,
+        budget: 2_500,
       }),
     ],
   }),

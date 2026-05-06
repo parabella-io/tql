@@ -1,4 +1,4 @@
-import { workspaceMembersQuery, WORKSPACE_MEMBERS_PAGE_SIZE } from "@/api/workspaces/queries/workspace-members.query"
+import { workspaceMembersPagedQuery } from "@/api/workspaces/queries/workspace-members.query"
 import { useMutation, usePagedQuery } from "@tql/client"
 import { ErrorCenter } from "@/shared/components/error/error-center"
 import { LoadingCenter } from "@/shared/components/loading/loading-center"
@@ -33,9 +33,8 @@ export const MemberList = ({ workspaceId }: MemberListProps) => {
         loadNextPage,
         loadPreviousPage,
     } = usePagedQuery({
-        query: workspaceMembersQuery,
+        pagedQuery: workspaceMembersPagedQuery,
         params: { workspaceId },
-        pageSize: WORKSPACE_MEMBERS_PAGE_SIZE,
     })
 
     if (error) {
