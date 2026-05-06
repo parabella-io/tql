@@ -11,6 +11,7 @@ import { ExtractEntityShape } from '../extract-entity-shape.js';
 import type { ClientSchema } from '../shared/client-schema.js';
 import type { QueryDataFromRegistry, QueryPagingInfoFromRegistry } from '../shared/query-projection.js';
 import type { ExternalFieldNode, ExternalFieldResolveOverrides, QueryResolveOverrides } from '../plugins/plugin.js';
+import { runWithTimeout } from '../run-with-timeout.js';
 
 export type QueryExecutionOptions = {
   signal?: AbortSignal;
@@ -754,6 +755,7 @@ export class QueryResolver<S extends ClientSchema> {
       }
 
       if (!entitiesByParentId.has(parentId)) {
+        entitiesByParentId.set(parentId, parsedEntity.data);
         parsedItems.push({ parentId, entity: parsedEntity.data });
       }
     }
@@ -1188,62 +1190,13 @@ const runResolver = async <T>(options: {
     return options.execution?.wrapQueryNode?.(options.path, options.meta ?? {}, final) ?? final(overrides);
   };
 
-  if (timeoutMs === undefined && !options.execution?.signal) {
-    return runTask(undefined);
-  }
-
-  const controller = new AbortController();
-  const parentSignal = options.execution?.signal;
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-
-  const abortFromParent = () => {
-    controller.abort(parentSignal?.reason);
-  };
-
-  if (parentSignal?.aborted) {
-    controller.abort(parentSignal.reason);
-  } else {
-    parentSignal?.addEventListener('abort', abortFromParent, { once: true });
-  }
-
-  const task = Promise.resolve().then(() => runTask(controller.signal));
-
-  const abortPromise = new Promise<never>((_resolve, reject) => {
-    controller.signal.addEventListener(
-      'abort',
-      () => {
-        reject(
-          new TQLServerError(TQLServerErrorType.SecurityTimeoutError, {
-            path: options.path,
-            reason: 'aborted',
-          }),
-        );
-      },
-      { once: true },
-    );
+  return runWithTimeout({
+    signal: options.execution?.signal,
+    timeoutMs,
+    runTask: (signal) => runTask(signal),
+    makeTimeoutError: (ms) => new TQLServerError(TQLServerErrorType.SecurityTimeoutError, { path: options.path, timeoutMs: ms }),
+    makeAbortError: () => new TQLServerError(TQLServerErrorType.SecurityTimeoutError, { path: options.path, reason: 'aborted' }),
   });
-
-  const timeoutPromise =
-    timeoutMs === undefined
-      ? new Promise<never>(() => {})
-      : new Promise<never>((_resolve, reject) => {
-          timeout = setTimeout(() => {
-            controller.abort();
-            reject(
-              new TQLServerError(TQLServerErrorType.SecurityTimeoutError, {
-                path: options.path,
-                timeoutMs,
-              }),
-            );
-          }, timeoutMs);
-        });
-
-  try {
-    return await Promise.race([task, timeoutPromise, abortPromise]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-    parentSignal?.removeEventListener('abort', abortFromParent);
-  }
 };
 
 export type IncludedDataMap = Record<

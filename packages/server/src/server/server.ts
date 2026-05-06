@@ -81,6 +81,7 @@ export class Server<S extends ClientSchema> {
     body?: unknown;
   }): Promise<ApplyQueryResponseMap<S, Q>> {
     const context = await this.createContext({ request: options.request });
+
     const { serverContext, cleanup } = await this.createServerContext({
       request: options.request,
       body: options.body ?? options.query,
