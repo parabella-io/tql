@@ -1,7 +1,7 @@
 ### Roadmap for v1 release
 
-- **Observability**
-  - Implment built in logging and observability.
+- **Resolver Cache Plugin**
+  - Implment built in memory / redis backed resolver cache.
 
 - **Comprehensive Testing**
   - Implement full integration and end-to-end tests, integration tests, unit tests and strict type-checking.
