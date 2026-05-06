@@ -1,12 +1,11 @@
-import { MutationResolver, type MutationHandleResult, type PendingMutationEffect } from '../mutation/index.js';
+import { MutationResolver, type ApplyMutationResponseMap } from '../mutation/index.js';
 import { QueryResolver, type ApplyQueryResponseMap } from '../query/index.js';
 import { generateSchema } from '../codegen/generate-schema.js';
 import type { ClientSchema } from '../client-schema.js';
 import type { Schema } from '../schema.js';
 import type { HttpAdapter } from './adapters/http/http-adapter.js';
-import type { EffectMeta, EffectQueue } from '../effects/effect-queue.js';
-import { InMemoryEffectQueue, type EffectLogger } from '../effects/in-memory-effect-queue.js';
 import { TQLServerError } from '../errors.js';
+import { pinoLogger, type Logger } from '../logging/index.js';
 import { buildMutationPlan, buildQueryPlan, type IncludeNode, type MutationPlan, type QueryNode } from '../request-plan/index.js';
 import { PluginRunner, type ServerContext, type ServerPlugin } from '../plugins/index.js';
 
@@ -16,30 +15,6 @@ export type GenerateSchemaConfig = {
 };
 
 const DEFAULT_GENERATE_SCHEMA_OUTPUT_PATH = './generated/schema.ts';
-
-export type EffectsConfig = {
-  /**
-   * Supply a custom {@link EffectQueue} (e.g. backed by BullMQ, SQS, …).
-   * When omitted, an in-memory queue is created using `p-queue`.
-   */
-  queue?: EffectQueue;
-  /**
-   * Concurrency for the default in-memory queue. Ignored when `queue` is provided.
-   * Defaults to `Number.POSITIVE_INFINITY`.
-   */
-  concurrency?: number;
-  /**
-   * Logger used by the default in-memory queue for task failures when no
-   * `onError` is provided. Ignored when `queue` is provided.
-   */
-  logger?: EffectLogger;
-  /**
-   * Called when an enqueued effect throws. For the default in-memory queue
-   * this replaces the default logger behaviour. For custom queues the hook
-   * is ignored here and must be wired inside the custom implementation.
-   */
-  onError?: (error: unknown, meta: EffectMeta) => void;
-};
 
 export type ServerOptions = {
   schema: Schema<any, any>;
@@ -53,13 +28,13 @@ export type ServerOptions = {
    *  - `{ outputPath }`     → enabled, written to the supplied path.
    */
   generateSchema?: GenerateSchemaConfig;
-  /**
-   * Configures the pluggable effect queue used to run a mutation's optional
-   * `resolveEffects` hook after the HTTP response has been scheduled.
-   * Defaults to an in-memory `p-queue`.
-   */
-  effects?: EffectsConfig;
+  logger?: Logger;
   plugins?: ServerPlugin[];
+};
+
+export type ServerMutationHandleResult<S extends ClientSchema, Q extends Partial<S['MutationInputMap']>> = {
+  results: ApplyMutationResponseMap<S['MutationResponseMap'], Q>;
+  finalize(): Promise<void>;
 };
 
 export class Server<S extends ClientSchema> {
@@ -69,16 +44,14 @@ export class Server<S extends ClientSchema> {
 
   private readonly contextFactory: (options: { request: any }) => Promise<any>;
 
-  private readonly effectQueue: EffectQueue;
-
   private readonly schema: Schema<any, any>;
 
   private readonly pluginRunner: PluginRunner;
 
+  private readonly logger: Logger;
+
   constructor(options: ServerOptions) {
     this.schema = options.schema;
-
-    this.effectQueue = Server.createEffectQueue(options.effects);
 
     this.queryResolver = new QueryResolver<S>({ schema: options.schema });
 
@@ -87,32 +60,15 @@ export class Server<S extends ClientSchema> {
     });
 
     this.contextFactory = options.createContext;
+    this.logger = options.logger ?? pinoLogger();
 
     this.pluginRunner = new PluginRunner({
       plugins: options.plugins,
+      server: { log: this.logger },
+      logger: this.logger,
     });
 
     this.runSchemaCodegen(options.schema, options.generateSchema);
-  }
-
-  /**
-   * Waits for all queued mutation effects to complete. Useful for graceful
-   * shutdown and deterministic tests.
-   */
-  public drainEffects(): Promise<void> {
-    return this.effectQueue.drain();
-  }
-
-  private static createEffectQueue(config: EffectsConfig | undefined): EffectQueue {
-    if (config?.queue) {
-      return config.queue;
-    }
-
-    return new InMemoryEffectQueue({
-      concurrency: config?.concurrency,
-      logger: config?.logger,
-      onError: config?.onError,
-    });
   }
 
   public async createContext(options: { request: any }): Promise<any> {
@@ -136,7 +92,7 @@ export class Server<S extends ClientSchema> {
 
       const nodesByPath = collectQueryNodes(plan.nodes);
 
-      await this.pluginRunner.beforeQuery(serverContext, plan);
+      await this.pluginRunner.beforeQuery({ ctx: serverContext, plan });
 
       const result = await this.queryResolver.handle({
         context,
@@ -152,7 +108,12 @@ export class Server<S extends ClientSchema> {
         },
       });
 
-      await this.pluginRunner.afterQuery(serverContext, plan, serverContext.plugin.costs ?? {});
+      await this.pluginRunner.afterQuery({
+        ctx: serverContext,
+        plan,
+        result: result as Record<string, unknown>,
+        costs: serverContext.plugin.costs ?? {},
+      });
 
       return result;
     } catch (error) {
@@ -166,18 +127,13 @@ export class Server<S extends ClientSchema> {
     }
   }
 
-  /**
-   * Runs a batch of mutations and returns both the per-mutation results and
-   * any pending effects declared by those mutations. Callers are responsible
-   * for deciding when to invoke the effects - the server itself does so only
-   * in {@link Server.attachHttp}, after the HTTP response has been flushed.
-   */
   public async handleMutation<const Q extends Partial<S['MutationInputMap']>>(options: {
     request: any;
     mutation: Q;
     body?: unknown;
-  }): Promise<MutationHandleResult<S, Q>> {
+  }): Promise<ServerMutationHandleResult<S, Q>> {
     const context = await this.createContext({ request: options.request });
+
     const { serverContext, cleanup } = await this.createServerContext({
       request: options.request,
       body: options.body ?? options.mutation,
@@ -186,11 +142,12 @@ export class Server<S extends ClientSchema> {
 
     try {
       const plan = buildMutationPlan({ schema: this.schema, mutation: options.mutation });
+
       const entriesByName = new Map(plan.entries.map((entry) => [entry.mutationName, entry]));
 
-      await this.pluginRunner.beforeMutation(serverContext, plan);
+      await this.pluginRunner.beforeMutation({ ctx: serverContext, plan });
 
-      const result = await this.mutationResolver.handle({
+      const { results, inputs } = await this.mutationResolver.handle({
         context,
         mutation: options.mutation,
         execution: {
@@ -204,14 +161,23 @@ export class Server<S extends ClientSchema> {
         },
       });
 
-      await this.pluginRunner.afterMutation(serverContext, plan, serverContext.plugin.costs ?? {});
+      await this.pluginRunner.afterMutation({
+        ctx: serverContext,
+        plan,
+        result: results as Record<string, { data: unknown; error: unknown }>,
+        inputs,
+        costs: serverContext.plugin.costs ?? {},
+      });
 
-      return result;
+      return {
+        results,
+        finalize: () => this.pluginRunner.afterResponse({ ctx: serverContext }),
+      };
     } catch (error) {
       if (error instanceof TQLServerError) {
         return {
           results: formatMutationError(options.mutation, this.pluginRunner.transformError(serverContext, error)) as any,
-          effects: [],
+          finalize: async () => {},
         };
       }
 
@@ -252,20 +218,10 @@ export class Server<S extends ClientSchema> {
     };
   }
 
-  /**
-   * Enqueue a batch of pending mutation effects onto the server-owned
-   * {@link EffectQueue}. Used by the transport layer after the HTTP response
-   * has been flushed to the client. Safe to call with an empty array.
-   */
-  public enqueueMutationEffects(effects: PendingMutationEffect[]): void {
-    for (const effect of effects) {
-      this.effectQueue.enqueue(() => effect.run(), { mutationName: effect.mutationName });
-    }
-  }
-
   public attachHttp(adapter: HttpAdapter<any>): this {
     adapter.post('/query', async (request) => {
       const body = adapter.getBody(request);
+
       return this.handleQuery({
         request,
         body,
@@ -275,17 +231,14 @@ export class Server<S extends ClientSchema> {
 
     adapter.post('/mutation', async (request, hooks) => {
       const body = adapter.getBody(request);
-      const { results, effects } = await this.handleMutation({
+
+      const { results, finalize } = await this.handleMutation({
         request,
         body,
         mutation: body as Partial<S['MutationInputMap']>,
       });
 
-      if (effects.length > 0) {
-        hooks.afterResponse(() => {
-          this.enqueueMutationEffects(effects);
-        });
-      }
+      hooks.afterResponse(() => finalize());
 
       return results;
     });
@@ -304,9 +257,7 @@ export class Server<S extends ClientSchema> {
 
     const { renderMs, diffMs, writeMs, totalMs } = result.timings;
 
-    console.log(
-      `[generateSchema] ${result.reason} (${totalMs.toFixed(2)}ms total — render ${renderMs.toFixed(2)}ms, diff ${diffMs.toFixed(2)}ms, write ${writeMs.toFixed(2)}ms)`,
-    );
+    this.logger.info({ reason: result.reason, totalMs, renderMs, diffMs, writeMs }, '[generateSchema] codegen complete');
   }
 }
 
@@ -327,6 +278,7 @@ const formatQueryError = (query: unknown, error: TQLServerError): Record<string,
 
 const collectQueryNodes = (nodes: QueryNode[]): Map<string, QueryNode | IncludeNode> => {
   const map = new Map<string, QueryNode | IncludeNode>();
+
   const visit = (node: QueryNode | IncludeNode) => {
     map.set(node.path, node);
 

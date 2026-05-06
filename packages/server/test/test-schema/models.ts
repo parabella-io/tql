@@ -1,7 +1,5 @@
 import { z } from 'zod';
 import { NotFoundError } from '../../src/errors.js';
-import type {} from '../../src/plugins/built-in/rate-limit/types.js';
-import type {} from '../../src/plugins/built-in/security/types.js';
 import { Comment, Post, Profile, schema } from './schema.js';
 
 export const profile = schema.model('profile', {

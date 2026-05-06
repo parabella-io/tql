@@ -21,7 +21,7 @@ declare module '../../extensions.js' {
     security?: ResolverSecurityOptions<QueryArgs>;
   }
 
-  interface MutationOptionsExtensions<Input> {
+  interface MutationOptionsExtensions<Input, Output, SchemaContext> {
     security?: ResolverSecurityOptions<Input>;
   }
 

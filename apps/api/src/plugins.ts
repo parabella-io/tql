@@ -11,6 +11,9 @@ import {
 } from '@tql/server/plugins/built-in/security';
 import { rateLimitPlugin } from '@tql/server/plugins/built-in/rate-limit';
 import { requestIdPlugin } from '@tql/server/plugins/built-in/request-id';
+import { effectsPlugin, InMemoryEffectQueue } from '@tql/server/plugins/built-in/effects';
+import { loggingPlugin } from '@tql/server/plugins/built-in/logging';
+// import { otelPlugin } from '@tql/server/plugins/built-in/otel';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import type { ClientSchema } from '../__generated__/schema.d.ts';
 
@@ -52,6 +55,8 @@ export const allowedShapes = defineAllowedShapes<ClientSchema>({
 
 export const createTqlPlugins = () => [
   requestIdPlugin(),
+  loggingPlugin({ slowQueryMs: 500 }),
+  // otelPlugin({ tracerProvider, meterProvider }),
   securityPlugin({
     getPrincipal: (_request, context) => {
       const user = (context as { user?: { id?: string } }).user;
@@ -99,5 +104,8 @@ export const createTqlPlugins = () => [
       return user?.id ?? 'anon';
     },
     limiter: new RateLimiterMemory({ points: 600, duration: 30 }),
+  }),
+  effectsPlugin({
+    queue: new InMemoryEffectQueue(),
   }),
 ];

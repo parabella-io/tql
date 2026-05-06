@@ -1,4 +1,5 @@
 import './types.js';
+
 export { type SecurityPluginConfig, securityPlugin } from './plugin.js';
 export { type Principal, type SecurityContext, type SecurityPolicy, getResolverSecurity } from './policy.js';
 export { type AllowedShapesFor, type SecurityLogger, defineAllowedShapes } from './config.js';

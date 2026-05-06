@@ -1,3 +1,4 @@
+import type { Logger } from '../logging/index.js';
 import type { PluginContextExtensions } from './extensions.js';
 
 export type AggregateCost = {
@@ -12,4 +13,5 @@ export type ServerContext = {
   signal: AbortSignal;
   resolverTimeouts: Map<string, number>;
   plugin: PluginContextExtensions;
+  logger: Logger;
 };

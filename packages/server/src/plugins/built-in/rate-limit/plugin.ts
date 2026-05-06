@@ -22,7 +22,7 @@ export const rateLimitPlugin = (options: RateLimitPluginOptions): ServerPlugin =
 
   return definePlugin({
     name: 'rate-limit',
-    async beforeQuery(ctx, plan) {
+    async beforeQuery({ ctx, plan }) {
       await consumePlanCost({
         limiter,
         key: getIdentityKey({
@@ -32,7 +32,7 @@ export const rateLimitPlugin = (options: RateLimitPluginOptions): ServerPlugin =
         cost: getQueryPlanCost(plan, defaultCost),
       });
     },
-    async beforeMutation(ctx, plan) {
+    async beforeMutation({ ctx, plan }) {
       await consumePlanCost({
         limiter,
         key: getIdentityKey({

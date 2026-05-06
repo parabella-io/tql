@@ -18,10 +18,10 @@ export const requestIdPlugin = (options: RequestIdPluginOptions = {}): ServerPlu
         requestId: Array.isArray(fromHeader) ? (fromHeader[0] ?? randomUUID()) : (fromHeader ?? randomUUID()),
       };
     },
-    beforeQuery(ctx) {
+    beforeQuery({ ctx }) {
       (ctx.schemaContext as Record<string, unknown>).requestId = (ctx.plugin as RequestIdPluginContext).requestId;
     },
-    beforeMutation(ctx) {
+    beforeMutation({ ctx }) {
       (ctx.schemaContext as Record<string, unknown>).requestId = (ctx.plugin as RequestIdPluginContext).requestId;
     },
   });

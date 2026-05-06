@@ -125,6 +125,9 @@ export type UserContext = {
 
 export type SchemaContext = {
   user: UserContext;
+  logger?: {
+    error: (...args: unknown[]) => void;
+  };
 };
 
 export const schema: Schema<SchemaContext, SchemaEntities> = new Schema<SchemaContext, SchemaEntities>();

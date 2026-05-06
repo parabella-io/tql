@@ -1,6 +1,6 @@
 import PQueue from 'p-queue';
 
-import type { EffectMeta, EffectQueue, EffectTask } from './effect-queue.js';
+import type { EffectMeta, EffectQueue, EffectTask } from './queue.js';
 
 export type EffectLogger = {
   error: (...args: unknown[]) => void;
@@ -17,16 +17,18 @@ export class InMemoryEffectQueue implements EffectQueue {
 
   private readonly onError?: (error: unknown, meta: EffectMeta) => void;
 
-  private readonly logger?: EffectLogger;
+  private logger?: EffectLogger;
 
   constructor(options: InMemoryEffectQueueOptions = {}) {
     this.queue = new PQueue({
       concurrency: options.concurrency ?? Number.POSITIVE_INFINITY,
     });
-
     this.onError = options.onError;
-
     this.logger = options.logger;
+  }
+
+  setLogger(logger: EffectLogger): void {
+    this.logger ??= logger;
   }
 
   enqueue(task: EffectTask, meta: EffectMeta): void {

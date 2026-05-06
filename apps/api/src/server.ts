@@ -4,7 +4,7 @@ import { db } from './database-client';
 import { schema, SchemaContext, UserContext } from './schema/index';
 import { auth } from './auth';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { InMemoryEffectQueue, Server as TQLServer, createFastifyHttpAdapter } from '@tql/server';
+import { Server as TQLServer, createFastifyHttpAdapter, type Logger } from '@tql/server';
 import { createTqlPlugins } from './plugins';
 import { storageService } from './services';
 
@@ -144,6 +144,7 @@ async function protectedRoutes(server: FastifyInstance) {
   const createContext = async ({ request }: { request: any }): Promise<SchemaContext> => {
     return {
       user: request.user,
+      logger: request.log,
     };
   };
 
@@ -154,11 +155,9 @@ async function protectedRoutes(server: FastifyInstance) {
       outputPath: './__generated__/schema.d.ts',
     },
     createContext,
-    effects: {
-      queue: new InMemoryEffectQueue(),
-    },
+    logger: server.log as unknown as Logger,
     plugins: createTqlPlugins(),
   });
-
+  
   tqlServer.attachHttp(createFastifyHttpAdapter(server));
 }

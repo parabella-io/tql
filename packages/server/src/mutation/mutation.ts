@@ -10,12 +10,7 @@ export type MutationOptions<SchemaContext, Input extends z.ZodObject<z.ZodRawSha
     context: SchemaContext & SchemaContextExtensions;
     signal?: AbortSignal;
   }) => Promise<z.infer<Output>> | z.infer<Output>;
-  resolveEffects?: (options: {
-    input: z.infer<Input>;
-    context: SchemaContext & SchemaContextExtensions;
-    output: z.infer<Output>;
-  }) => Promise<void> | void;
-} & MutationOptionsExtensions<z.infer<Input>>;
+} & MutationOptionsExtensions<z.infer<Input>, z.infer<Output>, SchemaContext>;
 
 export class Mutation<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, Output extends z.ZodTypeAny> {
   declare Output: z.infer<Output>;
@@ -30,8 +25,6 @@ export class Mutation<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, O
 
   private readonly resolve: MutationOptions<SchemaContext, Input, Output>['resolve'];
 
-  private readonly resolveEffects?: MutationOptions<SchemaContext, Input, Output>['resolveEffects'];
-
   private readonly options: MutationOptions<SchemaContext, Input, Output>;
 
   constructor(mutationName: string, options: MutationOptions<SchemaContext, Input, Output>) {
@@ -41,7 +34,6 @@ export class Mutation<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, O
     this.output = options.output;
     this.allow = options.allow;
     this.resolve = options.resolve;
-    this.resolveEffects = options.resolveEffects;
   }
 
   getMutationName(): string {
@@ -68,17 +60,7 @@ export class Mutation<SchemaContext, Input extends z.ZodObject<z.ZodRawShape>, O
     return this.resolve;
   }
 
-  getExtensions(): MutationOptionsExtensions<z.infer<Input>> {
+  getExtensions(): MutationOptionsExtensions<z.infer<Input>, z.infer<Output>, SchemaContext> {
     return this.options;
-  }
-
-  getResolveEffects():
-    | ((options: {
-        input: z.infer<Input>;
-        context: SchemaContext & SchemaContextExtensions;
-        output: z.infer<Output>;
-      }) => Promise<void> | void)
-    | undefined {
-    return this.resolveEffects;
   }
 }

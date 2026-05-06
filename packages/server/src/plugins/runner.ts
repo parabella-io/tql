@@ -1,22 +1,30 @@
 import type { TQLServerError } from '../errors.js';
+import { noopLogger, type Logger } from '../logging/index.js';
 import type { IncludeNode, MutationPlan, QueryNode, QueryPlan } from '../request-plan/plan.js';
-import type { AggregateCost, ServerContext } from './context.js';
+import type { ServerContext } from './context.js';
 import type { PluginContextExtensions, SchemaContextExtensions } from './extensions.js';
-import type { ServerLike, ServerPlugin } from './plugin.js';
+import type { MutationAfterHookArgs, QueryAfterHookArgs, ServerLike, ServerPlugin } from './plugin.js';
 
 export type PluginRunnerOptions = {
   plugins?: ServerPlugin[];
   server?: ServerLike;
+  logger?: Logger;
 };
 
 export class PluginRunner {
   private readonly plugins: ServerPlugin[];
 
+  private readonly server: ServerLike;
+
+  private readonly logger: Logger;
+
   private readonly setupPromise: Promise<void>;
 
   constructor(options: PluginRunnerOptions = {}) {
     this.plugins = options.plugins ?? [];
-    this.setupPromise = Promise.all(this.plugins.map((plugin) => plugin.setup?.(options.server ?? {}))).then(() => undefined);
+    this.logger = options.logger ?? options.server?.log ?? noopLogger;
+    this.server = options.server ?? { log: this.logger };
+    this.setupPromise = Promise.all(this.plugins.map((plugin) => plugin.setup?.({ server: this.server }))).then(() => undefined);
   }
 
   public getRequestTimeoutMs(): number | undefined {
@@ -41,6 +49,7 @@ export class PluginRunner {
         body: options.body,
         schemaContext: options.schemaContext as SchemaContextExtensions,
         signal: options.signal,
+        pluginContext: pluginContext as Partial<PluginContextExtensions>,
       });
 
       if (part) {
@@ -54,28 +63,39 @@ export class PluginRunner {
       schemaContext: options.schemaContext,
       signal: options.signal,
       resolverTimeouts: new Map(),
+      logger: ((pluginContext as { logger?: Logger }).logger ?? this.logger) as Logger,
       plugin: pluginContext as unknown as PluginContextExtensions,
     };
   }
 
-  public async beforeQuery(ctx: ServerContext, plan: QueryPlan): Promise<void> {
+  public async beforeQuery(args: { ctx: ServerContext; plan: QueryPlan }): Promise<void> {
     for (const plugin of this.plugins) {
-      await plugin.beforeQuery?.(ctx, plan);
+      await plugin.beforeQuery?.(args);
     }
   }
 
-  public async beforeMutation(ctx: ServerContext, plan: MutationPlan): Promise<void> {
+  public async beforeMutation(args: { ctx: ServerContext; plan: MutationPlan }): Promise<void> {
     for (const plugin of this.plugins) {
-      await plugin.beforeMutation?.(ctx, plan);
+      await plugin.beforeMutation?.(args);
     }
   }
 
-  public async afterQuery(ctx: ServerContext, plan: QueryPlan, result: AggregateCost): Promise<void> {
-    await Promise.all(this.plugins.map((plugin) => plugin.afterQuery?.(ctx, plan, result)));
+  public async afterQuery(args: QueryAfterHookArgs): Promise<void> {
+    await Promise.all(this.plugins.map((plugin) => plugin.afterQuery?.(args)));
   }
 
-  public async afterMutation(ctx: ServerContext, plan: MutationPlan, result: AggregateCost): Promise<void> {
-    await Promise.all(this.plugins.map((plugin) => plugin.afterMutation?.(ctx, plan, result)));
+  public async afterMutation(args: MutationAfterHookArgs): Promise<void> {
+    await Promise.all(this.plugins.map((plugin) => plugin.afterMutation?.(args)));
+  }
+
+  public async afterResponse(args: { ctx: ServerContext }): Promise<void> {
+    for (const plugin of this.plugins) {
+      try {
+        await plugin.afterResponse?.(args);
+      } catch (error) {
+        this.logger.error({ err: error, plugin: plugin.name }, '[tql] plugin afterResponse hook failed');
+      }
+    }
   }
 
   public wrapQueryNode<T>(ctx: ServerContext, node: QueryNode | IncludeNode, final: () => Promise<T>): Promise<T> {
@@ -94,7 +114,7 @@ export class PluginRunner {
     let current = error;
 
     for (const plugin of this.plugins) {
-      current = plugin.onError?.(ctx, current) ?? current;
+      current = plugin.onError?.({ ctx, error: current }) ?? current;
     }
 
     return current;

@@ -10,9 +10,25 @@
       "types": "./dist/src/shared/index.d.ts",
       "default": "./dist/src/shared/index.js"
     },
+    "./logging": {
+      "types": "./dist/src/logging/index.d.ts",
+      "default": "./dist/src/logging/index.js"
+    },
     "./plugins": {
       "types": "./dist/src/plugins/index.d.ts",
       "default": "./dist/src/plugins/index.js"
+    },
+    "./plugins/built-in/effects": {
+      "types": "./dist/src/plugins/built-in/effects/index.d.ts",
+      "default": "./dist/src/plugins/built-in/effects/index.js"
+    },
+    "./plugins/built-in/logging": {
+      "types": "./dist/src/plugins/built-in/logging/index.d.ts",
+      "default": "./dist/src/plugins/built-in/logging/index.js"
+    },
+    "./plugins/built-in/otel": {
+      "types": "./dist/src/plugins/built-in/otel/index.d.ts",
+      "default": "./dist/src/plugins/built-in/otel/index.js"
     },
     "./plugins/built-in/rate-limit": {
       "types": "./dist/src/plugins/built-in/rate-limit/index.d.ts",
@@ -42,13 +58,29 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.15.0",
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "pino": "^9.0.0 || ^10.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    },
+    "pino": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@faker-js/faker": "^10.1.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/sdk-metrics": "^2.7.1",
+    "@opentelemetry/sdk-trace-base": "^2.7.1",
     "@tql/ts-config": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^25.0.3",
     "@types/sqlite3": "^5.1.0",
+    "pino": "^10.3.1",
     "typescript": "^5.9.3",
     "vite-tsconfig-paths": "^6.0.3",
     "vitest": "^4.0.16"

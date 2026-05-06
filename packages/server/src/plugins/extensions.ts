@@ -6,7 +6,7 @@ export interface IncludeSingleOptionsExtensions<QueryArgs = unknown> {}
 
 export interface IncludeManyOptionsExtensions<QueryArgs = unknown> {}
 
-export interface MutationOptionsExtensions<Input = unknown> {}
+export interface MutationOptionsExtensions<Input = unknown, Output = unknown, SchemaContext = unknown> {}
 
 export interface SchemaContextExtensions {}
 

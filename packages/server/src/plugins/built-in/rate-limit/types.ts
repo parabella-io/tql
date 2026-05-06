@@ -19,7 +19,7 @@ declare module '../../extensions.js' {
     rateLimit?: ResolverRateLimitOptions;
   }
 
-  interface MutationOptionsExtensions<Input> {
+  interface MutationOptionsExtensions<Input, Output, SchemaContext> {
     rateLimit?: ResolverRateLimitOptions;
   }
 }

@@ -89,8 +89,8 @@ describe('rateLimitPlugin', () => {
     });
     const ctx = { request: {}, schemaContext: { userId: 'u1' } } as any;
 
-    await plugin.beforeQuery?.(ctx, queryPlan);
-    await plugin.beforeMutation?.(ctx, mutationPlan);
+    await plugin.beforeQuery?.({ ctx, plan: queryPlan });
+    await plugin.beforeMutation?.({ ctx, plan: mutationPlan });
 
     expect(consume).toHaveBeenNthCalledWith(1, 'tql:u1', 7);
     expect(consume).toHaveBeenNthCalledWith(2, 'tql:u1', 10);
@@ -118,7 +118,7 @@ describe('rateLimitPlugin', () => {
       limiter: { consume } as any,
     });
 
-    await plugin.beforeQuery?.({ request: {}, schemaContext: {} } as any, plan);
+    await plugin.beforeQuery?.({ ctx: { request: {}, schemaContext: {} } as any, plan });
 
     expect(consume).toHaveBeenCalledWith('u1', 5);
   });
@@ -141,7 +141,7 @@ describe('rateLimitPlugin', () => {
     });
 
     plan.nodes[0]!.extensions = {};
-    await plugin.beforeQuery?.({ request: {}, schemaContext: {} } as any, plan);
+    await plugin.beforeQuery?.({ ctx: { request: {}, schemaContext: {} } as any, plan });
 
     expect(consume).toHaveBeenCalledWith('u1', 1);
   });
@@ -163,7 +163,7 @@ describe('rateLimitPlugin', () => {
       limiter: { consume } as any,
     });
 
-    await plugin.beforeQuery?.({ request: {}, schemaContext: {}, plugin: { costs: { staticCost: 999 } } } as any, plan);
+    await plugin.beforeQuery?.({ ctx: { request: {}, schemaContext: {}, plugin: { costs: { staticCost: 999 } } } as any, plan });
 
     expect(consume).toHaveBeenCalledWith('u1', 2);
   });
@@ -186,7 +186,7 @@ describe('rateLimitPlugin', () => {
       } as any,
     });
 
-    await expect(plugin.beforeQuery?.({ request: {}, schemaContext: {} } as any, plan)).rejects.toMatchObject({
+    await expect(plugin.beforeQuery?.({ ctx: { request: {}, schemaContext: {} } as any, plan })).rejects.toMatchObject({
       message: TQLServerErrorType.SecurityRateLimitedError,
       details: {
         key: 'u1',

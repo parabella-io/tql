@@ -5,13 +5,18 @@ Plugins are the extension point for cross-cutting server behaviour: security, ca
 ## Registering Plugins
 
 ```ts
-import { Server, rateLimitPlugin, requestIdPlugin, securityPlugin } from '@tql/server';
+import { Server } from '@tql/server';
+import { loggingPlugin } from '@tql/server/plugins/built-in/logging';
+import { rateLimitPlugin } from '@tql/server/plugins/built-in/rate-limit';
+import { requestIdPlugin } from '@tql/server/plugins/built-in/request-id';
+import { securityPlugin } from '@tql/server/plugins/built-in/security';
 
 const server = new Server({
   schema,
   createContext,
   plugins: [
     requestIdPlugin(),
+    loggingPlugin({ slowQueryMs: 500 }),
     securityPlugin({
       allowedShapes, // usually defineAllowedShapes<ClientSchema>({...})
       allowedShapesMode: 'enforce',
@@ -51,7 +56,7 @@ export const timingPlugin = () =>
 
 Available lifecycle hooks:
 
-- `setup(server)` runs once when the `Server` is created.
+- `setup({ server })` runs once when the `Server` is created.
 - `createPluginContext(...)` runs once per request and merges into `ctx.plugin`.
 - `beforeQuery` / `beforeMutation` run after plan construction and before resolvers.
 - `onResolveQueryNode` / `onResolveMutation` wrap each resolver call and may short-circuit by returning without calling `next`.
@@ -92,6 +97,22 @@ The extension interfaces are project-global. Prefer namespaced option keys (`cac
 
 ```ts
 plugins: [requestIdPlugin({ header: 'x-request-id' })];
+```
+
+## Logging and OpenTelemetry
+
+`loggingPlugin()` emits structured request lifecycle logs through the server logger. Put it after `requestIdPlugin()` so log entries include the request id.
+
+```ts
+plugins: [requestIdPlugin(), loggingPlugin({ slowQueryMs: 500 })];
+```
+
+`otelPlugin()` is opt-in and isolated to its own subpath. Pass providers from your app's OpenTelemetry setup; TQL creates root request spans and child resolver spans, but does not configure exporters.
+
+```ts
+import { otelPlugin } from '@tql/server/plugins/built-in/otel';
+
+plugins: [requestIdPlugin(), loggingPlugin(), otelPlugin({ tracerProvider, meterProvider })];
 ```
 
 ## Rate Limits

@@ -1,10 +1,12 @@
-import { describe, test, expect, vi } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
-import { Schema } from '../../src/schema.js';
-import { SchemaEntity } from '../../src/schema-entity.js';
 import { MutationResolver } from '../../src/mutation/mutation-resolver.js';
-import { InMemoryEffectQueue } from '../../src/effects/in-memory-effect-queue.js';
+import { effectsPlugin, InMemoryEffectQueue } from '../../src/plugins/built-in/effects/index.js';
+import { PluginRunner } from '../../src/plugins/runner.js';
+import { buildMutationPlan } from '../../src/request-plan/index.js';
+import { Schema } from '../../src/schema.js';
+import type { SchemaEntity } from '../../src/schema-entity.js';
 
 type Thing = SchemaEntity<{ name: string }>;
 
@@ -18,6 +20,7 @@ type Context = {
 };
 
 type Fixture = {
+  schema: Schema<Context, Entities>;
   resolver: MutationResolver<any>;
   resolveEffects: ReturnType<typeof vi.fn>;
 };
@@ -50,16 +53,53 @@ function buildFixture(): Fixture {
 
   const resolver = new MutationResolver<any>({ schema: schema as any });
 
-  return { resolver, resolveEffects };
+  return { schema, resolver, resolveEffects };
 }
 
-describe('MutationResolver - resolveEffects', () => {
-  test('returns a pending effect with typed output after successful resolve', async () => {
-    const { resolver, resolveEffects } = buildFixture();
+async function runMutationEffects(options: {
+  fixture: Fixture;
+  context: Context;
+  mutation: Record<string, unknown>;
+  flush?: boolean;
+}) {
+  const effects = effectsPlugin();
+  const runner = new PluginRunner({ plugins: [effects] });
+  const ctx = await runner.createContext({
+    request: {},
+    body: options.mutation,
+    schemaContext: options.context,
+    signal: new AbortController().signal,
+  });
+  const plan = buildMutationPlan({ schema: options.fixture.schema as any, mutation: options.mutation as any });
+  const { results, inputs } = await options.fixture.resolver.handle({
+    context: options.context,
+    mutation: options.mutation as any,
+  });
 
+  await runner.afterMutation({
+    ctx,
+    plan,
+    result: results as Record<string, { data: unknown; error: unknown }>,
+    inputs,
+    costs: {},
+  });
+
+  if (options.flush ?? true) {
+    await runner.afterResponse({ ctx });
+  }
+
+  await effects.drain();
+
+  return { results };
+}
+
+describe('effectsPlugin - resolveEffects', () => {
+  test('enqueues an effect with typed input and output after a successful mutation', async () => {
+    const fixture = buildFixture();
     const context: Context = { userId: 'u1', isAllowed: true };
 
-    const { results, effects } = await resolver.handle({
+    const { results } = await runMutationEffects({
+      fixture,
       context,
       mutation: {
         createThing: { input: { id: 't1', name: 'first' } },
@@ -67,14 +107,8 @@ describe('MutationResolver - resolveEffects', () => {
     });
 
     expect(results.createThing.error).toBeNull();
-    expect(effects).toHaveLength(1);
-    expect(effects[0]!.mutationName).toBe('createThing');
-    expect(resolveEffects).not.toHaveBeenCalled();
-
-    await effects[0]!.run();
-
-    expect(resolveEffects).toHaveBeenCalledTimes(1);
-    expect(resolveEffects).toHaveBeenCalledWith({
+    expect(fixture.resolveEffects).toHaveBeenCalledTimes(1);
+    expect(fixture.resolveEffects).toHaveBeenCalledWith({
       context,
       input: { id: 't1', name: 'first' },
       output: {
@@ -83,37 +117,48 @@ describe('MutationResolver - resolveEffects', () => {
     });
   });
 
-  test('returns a pending effect even when mutation returns an empty output', async () => {
-    const { resolver, resolveEffects } = buildFixture();
-
+  test('enqueues an effect when mutation output is empty', async () => {
+    const fixture = buildFixture();
     const context: Context = { userId: 'u1', isAllowed: true };
 
-    const { effects } = await resolver.handle({
+    await runMutationEffects({
+      fixture,
       context,
       mutation: {
         createThingNoChanges: { input: { id: 't1' } },
       },
     });
 
-    expect(effects).toHaveLength(1);
-    expect(effects[0]!.mutationName).toBe('createThingNoChanges');
-
-    await effects[0]!.run();
-
-    expect(resolveEffects).toHaveBeenCalledTimes(1);
-    expect(resolveEffects).toHaveBeenCalledWith({
+    expect(fixture.resolveEffects).toHaveBeenCalledTimes(1);
+    expect(fixture.resolveEffects).toHaveBeenCalledWith({
       context,
       input: { id: 't1' },
       output: {},
     });
   });
 
-  test('does not return an effect when allow returns false', async () => {
-    const { resolver, resolveEffects } = buildFixture();
+  test('does not enqueue effects before afterResponse runs', async () => {
+    const fixture = buildFixture();
+    const context: Context = { userId: 'u1', isAllowed: true };
 
+    await runMutationEffects({
+      fixture,
+      context,
+      mutation: {
+        createThing: { input: { id: 't1', name: 'first' } },
+      },
+      flush: false,
+    });
+
+    expect(fixture.resolveEffects).not.toHaveBeenCalled();
+  });
+
+  test('does not enqueue an effect when allow returns false', async () => {
+    const fixture = buildFixture();
     const context: Context = { userId: 'u1', isAllowed: false };
 
-    const { results, effects } = await resolver.handle({
+    const { results } = await runMutationEffects({
+      fixture,
       context,
       mutation: {
         createThing: { input: { id: 't1', name: 'first' } },
@@ -121,33 +166,31 @@ describe('MutationResolver - resolveEffects', () => {
     });
 
     expect(results.createThing.error).not.toBeNull();
-    expect(effects).toHaveLength(0);
-    expect(resolveEffects).not.toHaveBeenCalled();
+    expect(fixture.resolveEffects).not.toHaveBeenCalled();
   });
 
-  test('does not return an effect when input validation fails', async () => {
-    const { resolver, resolveEffects } = buildFixture();
-
+  test('does not enqueue an effect when input validation fails', async () => {
+    const fixture = buildFixture();
     const context: Context = { userId: 'u1', isAllowed: true };
 
-    const { results, effects } = await resolver.handle({
+    const { results } = await runMutationEffects({
+      fixture,
       context,
       mutation: {
-        createThing: { input: { id: 't1' } as any },
+        createThing: { input: { id: 't1' } },
       },
     });
 
     expect(results.createThing.error).not.toBeNull();
-    expect(effects).toHaveLength(0);
-    expect(resolveEffects).not.toHaveBeenCalled();
+    expect(fixture.resolveEffects).not.toHaveBeenCalled();
   });
 
-  test('returns one effect per mutation in a batch', async () => {
-    const { resolver, resolveEffects } = buildFixture();
-
+  test('enqueues one effect per successful mutation in a batch', async () => {
+    const fixture = buildFixture();
     const context: Context = { userId: 'u1', isAllowed: true };
 
-    const { effects } = await resolver.handle({
+    await runMutationEffects({
+      fixture,
       context,
       mutation: {
         createThing: { input: { id: 't1', name: 'first' } },
@@ -155,9 +198,7 @@ describe('MutationResolver - resolveEffects', () => {
       },
     });
 
-    expect(effects.map((e) => e.mutationName).sort()).toEqual(['createThing', 'createThingNoChanges'].sort());
-
-    expect(resolveEffects).not.toHaveBeenCalled();
+    expect(fixture.resolveEffects).toHaveBeenCalledTimes(2);
   });
 });
 

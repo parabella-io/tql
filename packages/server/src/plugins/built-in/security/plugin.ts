@@ -15,13 +15,17 @@ export type SecurityPluginConfig = {
 
 export const securityPlugin = (config: SecurityPluginConfig): ServerPlugin => {
   const policies = [...(config.policies ?? [])];
+  let logger = config.logger;
+  const policyLogger: SecurityLogger = {
+    warn: (...args) => logger?.warn?.(...args),
+  };
 
   if (config.allowedShapes) {
     policies.unshift(
       allowedShapesPolicy({
         shapes: config.allowedShapes,
         mode: config.allowedShapesMode ?? 'enforce',
-        logger: config.logger,
+        logger: policyLogger,
       }),
     );
   }
@@ -29,6 +33,9 @@ export const securityPlugin = (config: SecurityPluginConfig): ServerPlugin => {
   return definePlugin({
     name: 'security',
     requestTimeoutMs: config.requestTimeoutMs,
+    setup({ server }) {
+      logger ??= server.log;
+    },
     async createPluginContext({ request, schemaContext }) {
       const principal = (await config.getPrincipal?.(request, schemaContext)) ?? null;
 
@@ -38,32 +45,32 @@ export const securityPlugin = (config: SecurityPluginConfig): ServerPlugin => {
         allowedShapesMode: config.allowedShapesMode,
       };
     },
-    async beforeQuery(ctx, plan) {
+    async beforeQuery({ ctx, plan }) {
       const securityContext = toSecurityContext(ctx);
 
       for (const policy of policies) {
         await policy.beforeQuery?.(securityContext, plan);
       }
     },
-    async beforeMutation(ctx, plan) {
+    async beforeMutation({ ctx, plan }) {
       const securityContext = toSecurityContext(ctx);
 
       for (const policy of policies) {
         await policy.beforeMutation?.(securityContext, plan);
       }
     },
-    async afterQuery(ctx, plan, result) {
+    async afterQuery({ ctx, plan, costs }) {
       const securityContext = toSecurityContext(ctx);
 
       for (const policy of policies) {
-        await policy.afterQuery?.(securityContext, plan, result);
+        await policy.afterQuery?.(securityContext, plan, costs);
       }
     },
-    async afterMutation(ctx, plan, result) {
+    async afterMutation({ ctx, plan, costs }) {
       const securityContext = toSecurityContext(ctx);
 
       for (const policy of policies) {
-        await policy.afterMutation?.(securityContext, plan, result);
+        await policy.afterMutation?.(securityContext, plan, costs);
       }
     },
   });

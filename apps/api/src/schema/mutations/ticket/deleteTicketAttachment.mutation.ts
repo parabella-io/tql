@@ -25,7 +25,9 @@ export const deleteTicketAttachment = schema.mutation('deleteTicketAttachment', 
       id: input.attachmentId,
     });
 
-    await storageService.deleteFile(ticketAttachment.key).catch(console.log);
+    await storageService.deleteFile(ticketAttachment.key).catch((error) => {
+      context.logger?.error({ err: error, attachmentId: input.attachmentId }, 'failed to delete ticket attachment file');
+    });
 
     return {
       ticketAttachment,
