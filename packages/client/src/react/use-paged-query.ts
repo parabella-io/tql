@@ -29,7 +29,9 @@ export type UsePagedQueryResult<QueryType extends AnyPagedQuery> = {
   reset: () => void;
   addToStart: (itemOrItems: PagedQueryEntity<QueryType> | PagedQueryEntity<QueryType>[]) => void;
   addToEnd: (itemOrItems: PagedQueryEntity<QueryType> | PagedQueryEntity<QueryType>[]) => void;
-  update: (updator: (draft: PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void | PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void;
+  update: (
+    updator: (draft: PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void | PagedQueryChunk<PagedQueryEntity<QueryType>>[],
+  ) => void;
 };
 
 /**
@@ -60,14 +62,23 @@ export const usePagedQuery = <QueryType extends AnyPagedQuery>(options: {
   const loadNextPage = useCallback(() => {
     if (!isEnabled) return;
     if (state?.isLoading) return;
-    void pagedQuery.loadNextPage(params);
-  }, [isEnabled, pagedQuery, params, state?.isLoading]);
+    const pages = state?.pages ?? [];
+    const pageIndex = state?.pageIndex ?? 0;
+    if (pageIndex < pages.length - 1) {
+      pagedQuery.setActivePage(params, pageIndex + 1);
+    } else {
+      void pagedQuery.loadNextPage(params);
+    }
+  }, [isEnabled, pagedQuery, params, state?.isLoading, state?.pages, state?.pageIndex]);
 
   const loadPreviousPage = useCallback(() => {
     if (!isEnabled) return;
     if (state?.isLoading) return;
-    void pagedQuery.loadPreviousPage(params);
-  }, [isEnabled, pagedQuery, params, state?.isLoading]);
+    const pageIndex = state?.pageIndex ?? 0;
+    if (pageIndex > 0) {
+      pagedQuery.setActivePage(params, pageIndex - 1);
+    }
+  }, [isEnabled, pagedQuery, params, state?.isLoading, state?.pageIndex]);
 
   const goToPage = useCallback(
     (pageIndex: number) => {
@@ -117,8 +128,8 @@ export const usePagedQuery = <QueryType extends AnyPagedQuery>(options: {
       error: state?.error ?? null,
       isLoading: !!state?.isLoading,
       isError: !!state?.error,
-      hasNextPage: pagingInfo?.hasNextPage ?? false,
-      hasPreviousPage: pagingInfo?.hasPreviousPage ?? false,
+      hasNextPage: pageIndex < pages.length - 1 || (pagingInfo?.hasNextPage ?? false),
+      hasPreviousPage: pageIndex > 0,
       loadNextPage,
       loadPreviousPage,
       goToPage,

@@ -26,7 +26,9 @@ export type UseInfinitePagedQueryResult<QueryType extends AnyPagedQuery> = {
   reset: () => void;
   addToStart: (itemOrItems: PagedQueryEntity<QueryType> | PagedQueryEntity<QueryType>[]) => void;
   addToEnd: (itemOrItems: PagedQueryEntity<QueryType> | PagedQueryEntity<QueryType>[]) => void;
-  update: (updator: (draft: PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void | PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void;
+  update: (
+    updator: (draft: PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void | PagedQueryChunk<PagedQueryEntity<QueryType>>[],
+  ) => void;
 };
 
 /**

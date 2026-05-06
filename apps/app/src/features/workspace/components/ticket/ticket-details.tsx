@@ -226,7 +226,7 @@ const AssignMemberPopover = ({ ticketId, workspaceId, assigneeId, disclosure, ch
 
             <PopoverContent>
                 {
-                    !workspaceMembers.data ? (<><Spinner /></>) : (<>
+                    workspaceMembers.isLoading && workspaceMembers.data.length === 0 ? (<><Spinner /></>) : (<>
                         <form.AppForm>
                             <FieldGroup>
                                 <form.AppField name="assigneeId">
@@ -234,7 +234,7 @@ const AssignMemberPopover = ({ ticketId, workspaceId, assigneeId, disclosure, ch
                                         <field.FormSelectField
                                             label="Assign member"
                                             required
-                                            options={workspaceMembers.data?.map(member => ({
+                                            options={workspaceMembers.data.map(member => ({
                                                 label: member.name,
                                                 value: member.id,
                                             }))}
