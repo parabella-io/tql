@@ -1,6 +1,6 @@
 import { tql } from '@/shared/lib/tql'
 
-import { workspaceMemberInvitesQuery } from '../queries/workspace-member-invites.query'
+import { workspaceMemberInvitesPagedQuery } from '../queries/workspace-member-invites.query'
 
 type RemoveInviteWorkspaceMemberParams = {
   workspaceId: string
@@ -16,11 +16,13 @@ export const removeInviteWorkspaceMemberMutation = tql.createMutation(
       inviteId: params.inviteId,
     }),
     onSuccess: ({ store, output }) => {
-      store.getAll(workspaceMemberInvitesQuery).update((draft) => {
-        const index = draft?.findIndex((invite) => invite.id === output.workspaceMemberInvite.id) ?? -1
+      store.pagedAll(workspaceMemberInvitesPagedQuery).update((pages) => {
+        for (const page of pages) {
+          const index = page.data.findIndex((invite) => invite.id === output.workspaceMemberInvite.id)
 
-        if (draft && index !== -1) {
-          draft.splice(index, 1)
+          if (index !== -1) {
+            page.data.splice(index, 1)
+          }
         }
       })
     },

@@ -1,187 +1,132 @@
-import stableStringify from 'fast-json-stable-stringify';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Query } from '../core/query/query';
-import type { PagedQueryChunk, ResolvedPagingInfo } from './paged-query-utils';
-import { useQuery } from './use-query';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import type { PagedQuery } from '../core/paged-query/paged-query';
+import type { PagedQueryChunk } from '../core/paged-query/paged-query-store';
 
-type AnyQuery = Query<any, any, any, any>;
+type AnyPagedQuery = PagedQuery<any, any, any, any>;
 
-type QueryParamsFor<QueryType extends AnyQuery> = QueryType extends Query<any, any, any, infer Params> ? Params : never;
+type PagedQueryParamsFor<QueryType extends AnyPagedQuery> = QueryType extends PagedQuery<any, any, any, infer Params> ? Params : never;
 
-type PagingInfoIn = {
-  take?: number;
-  before?: string | null;
-  after?: string | null;
-};
+type PagedQueryEntity<QueryType extends AnyPagedQuery> =
+  Exclude<ReturnType<QueryType['getAllData']>, null> extends (infer Entity)[] ? Entity : never;
 
-type MergeOp = 'reset' | 'append' | 'prepend';
-
-type PagedQueryEntity<Q extends AnyQuery> =
-  Exclude<ReturnType<Q['getData']>, null> extends infer D ? (D extends (infer E)[] ? E : never) : never;
-
-export type UsePagedQueryResult<Q extends AnyQuery> = {
-  /** Rows for the **current page** only (replaced when changing pages). */
-  data: PagedQueryEntity<Q>[];
-  /** Paging window for the current page. */
-  pagingInfo: ResolvedPagingInfo | null;
-  /** Zero-based page index (0 = first page). */
+export type UsePagedQueryResult<QueryType extends AnyPagedQuery> = {
+  /** Rows for the active page only. */
+  data: PagedQueryEntity<QueryType>[];
+  /** Raw loaded pages, in cursor order. */
+  pages: PagedQueryChunk<PagedQueryEntity<QueryType>>[];
+  /** Combined paging window across loaded pages. */
+  pagingInfo: ReturnType<QueryType['getPagingInfo']>;
+  /** Zero-based page index in the loaded page buffer. */
   pageIndex: number;
-  error: ReturnType<Q['getError']>;
+  error: ReturnType<QueryType['getError']>;
   isLoading: boolean;
   isError: boolean;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
   loadNextPage: () => void;
   loadPreviousPage: () => void;
+  goToPage: (pageIndex: number) => void;
   reset: () => void;
+  addToStart: (itemOrItems: PagedQueryEntity<QueryType> | PagedQueryEntity<QueryType>[]) => void;
+  addToEnd: (itemOrItems: PagedQueryEntity<QueryType> | PagedQueryEntity<QueryType>[]) => void;
+  update: (updator: (draft: PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void | PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void;
 };
 
 /**
- * Cursor-paginated `queryMany` hook with **table-style** paging: each navigation
- * replaces `data` with a single page instead of accumulating chunks.
- *
- * Use {@link useInfinitePagedQuery} for infinite lists that grow as you load more.
- *
- * `params` must not include `pagingInfo`; the hook injects it using server cursors.
+ * Cursor-paginated table-style hook. Paging state and cursor fetch logic live
+ * in `PagedQuery`; this hook only subscribes and exposes the active page.
  */
-export const usePagedQuery = <QueryType extends AnyQuery>(options: {
-  query: QueryType;
-  params: Omit<QueryParamsFor<QueryType>, 'pagingInfo'>;
-  pageSize: number;
+export const usePagedQuery = <QueryType extends AnyPagedQuery>(options: {
+  pagedQuery: QueryType;
+  params: PagedQueryParamsFor<QueryType>;
   isEnabled?: boolean;
 }): UsePagedQueryResult<QueryType> => {
-  const { query, params, pageSize, isEnabled = true } = options;
-
-  const paramsKey = useMemo(() => stableStringify(params), [params]);
-
-  const pendingMergeRef = useRef<MergeOp | null>('reset');
-
-  const [pagingRequest, setPagingRequest] = useState<PagingInfoIn>(() => ({
-    take: pageSize,
-  }));
-
-  const [pageIndex, setPageIndex] = useState(0);
-
-  const [currentChunk, setCurrentChunk] = useState<PagedQueryChunk<PagedQueryEntity<QueryType>> | null>(null);
-
-  const chunkNavRef = useRef<PagedQueryChunk<PagedQueryEntity<QueryType>> | null>(null);
-
-  const resetKey = `${paramsKey}:${pageSize}`;
-
-  const [prevResetKey, setPrevResetKey] = useState(resetKey);
-
-  const nextPaging: PagingInfoIn = resetKey !== prevResetKey ? { take: pageSize } : pagingRequest;
-
-  if (resetKey !== prevResetKey) {
-    setPrevResetKey(resetKey);
-    setPagingRequest(nextPaging);
-    setCurrentChunk(null);
-    setPageIndex(0);
-    chunkNavRef.current = null;
-    pendingMergeRef.current = 'reset';
-  }
-
-  const mergedParams = useMemo(() => {
-    const pagingInfo: PagingInfoIn = {
-      ...nextPaging,
-      take: nextPaging.take ?? pageSize,
-    };
-    return { ...params, pagingInfo } as QueryParamsFor<QueryType>;
-  }, [params, nextPaging, pageSize]);
-
-  const q = useQuery({ query, params: mergedParams, isEnabled });
+  const { pagedQuery, params, isEnabled = true } = options;
 
   useEffect(() => {
-    if (q.pagingInfo == null) return;
+    if (!isEnabled) return;
+    pagedQuery.register(params);
+  }, [pagedQuery, params, isEnabled]);
 
-    const chunk: PagedQueryChunk<PagedQueryEntity<QueryType>> = {
-      data: (q.data ?? []) as PagedQueryEntity<QueryType>[],
-      pagingInfo: q.pagingInfo,
-    };
-
-    const op = pendingMergeRef.current;
-
-    if (op === 'reset') {
-      pendingMergeRef.current = null;
-      setCurrentChunk(chunk);
-      chunkNavRef.current = chunk;
-      setPageIndex(0);
-      return;
-    }
-
-    if (op === 'append') {
-      pendingMergeRef.current = null;
-      setCurrentChunk(chunk);
-      chunkNavRef.current = chunk;
-      setPageIndex((i) => i + 1);
-      return;
-    }
-
-    if (op === 'prepend') {
-      pendingMergeRef.current = null;
-      setCurrentChunk(chunk);
-      chunkNavRef.current = chunk;
-      setPageIndex((i) => Math.max(0, i - 1));
-      return;
-    }
-
-    setCurrentChunk(chunk);
-    chunkNavRef.current = chunk;
-  }, [q.data, q.pagingInfo]);
+  const state = useSyncExternalStore(
+    (callback) =>
+      pagedQuery.subscribe(params, () => {
+        callback();
+      }),
+    () => pagedQuery.getStateOrNull(params),
+    () => null,
+  );
 
   const loadNextPage = useCallback(() => {
     if (!isEnabled) return;
-    if (q.isLoading) return;
-    const pi = chunkNavRef.current?.pagingInfo;
-    if (!pi?.hasNextPage || pi.endCursor === null) return;
-    pendingMergeRef.current = 'append';
-    setPagingRequest({
-      take: pageSize,
-      after: pi.endCursor,
-    });
-  }, [isEnabled, q.isLoading, pageSize]);
+    if (state?.isLoading) return;
+    void pagedQuery.loadNextPage(params);
+  }, [isEnabled, pagedQuery, params, state?.isLoading]);
 
   const loadPreviousPage = useCallback(() => {
     if (!isEnabled) return;
-    if (q.isLoading) return;
-    const pi = chunkNavRef.current?.pagingInfo;
-    if (!pi?.hasPreviousPage || pi.startCursor === null) return;
-    pendingMergeRef.current = 'prepend';
-    setPagingRequest({
-      take: pageSize,
-      before: pi.startCursor,
-    });
-  }, [isEnabled, q.isLoading, pageSize]);
+    if (state?.isLoading) return;
+    void pagedQuery.loadPreviousPage(params);
+  }, [isEnabled, pagedQuery, params, state?.isLoading]);
+
+  const goToPage = useCallback(
+    (pageIndex: number) => {
+      if (!isEnabled) return;
+      void pagedQuery.goToPage(params, pageIndex);
+    },
+    [isEnabled, pagedQuery, params],
+  );
 
   const reset = useCallback(() => {
-    pendingMergeRef.current = 'reset';
-    setCurrentChunk(null);
-    chunkNavRef.current = null;
-    setPageIndex(0);
-    setPagingRequest({
-      take: pageSize,
-    });
-  }, [pageSize]);
+    if (!isEnabled) return;
+    void pagedQuery.reset(params);
+  }, [isEnabled, pagedQuery, params]);
 
-  const data = (currentChunk?.data ?? []) as PagedQueryEntity<QueryType>[];
+  const addToStart = useCallback(
+    (itemOrItems: PagedQueryEntity<QueryType> | PagedQueryEntity<QueryType>[]) => {
+      pagedQuery.addToStart(params, itemOrItems);
+    },
+    [pagedQuery, params],
+  );
 
-  const pagingInfo = currentChunk?.pagingInfo ?? null;
+  const addToEnd = useCallback(
+    (itemOrItems: PagedQueryEntity<QueryType> | PagedQueryEntity<QueryType>[]) => {
+      pagedQuery.addToEnd(params, itemOrItems);
+    },
+    [pagedQuery, params],
+  );
+
+  const update = useCallback(
+    (updator: (draft: PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => void | PagedQueryChunk<PagedQueryEntity<QueryType>>[]) => {
+      pagedQuery.update(params, updator);
+    },
+    [pagedQuery, params],
+  );
+
+  const pages = (state?.pages ?? []) as PagedQueryChunk<PagedQueryEntity<QueryType>>[];
+  const pageIndex = state?.pageIndex ?? 0;
+  const pagingInfo = state?.pagingInfo ?? null;
+  const data = (pages[pageIndex]?.data ?? []) as PagedQueryEntity<QueryType>[];
 
   return useMemo(
-    () =>
-      ({
-        data,
-        pagingInfo,
-        pageIndex,
-        error: q.error,
-        isLoading: q.isLoading,
-        isError: q.isError,
-        hasNextPage: pagingInfo?.hasNextPage ?? false,
-        hasPreviousPage: pagingInfo?.hasPreviousPage ?? false,
-        loadNextPage,
-        loadPreviousPage,
-        reset,
-      }) as UsePagedQueryResult<QueryType>,
-    [data, loadNextPage, loadPreviousPage, pageIndex, pagingInfo, q.error, q.isError, q.isLoading, reset],
-  );
+    () => ({
+      data,
+      pages,
+      pagingInfo,
+      pageIndex,
+      error: state?.error ?? null,
+      isLoading: !!state?.isLoading,
+      isError: !!state?.error,
+      hasNextPage: pagingInfo?.hasNextPage ?? false,
+      hasPreviousPage: pagingInfo?.hasPreviousPage ?? false,
+      loadNextPage,
+      loadPreviousPage,
+      goToPage,
+      reset,
+      addToStart,
+      addToEnd,
+      update,
+    }),
+    [addToEnd, addToStart, data, goToPage, loadNextPage, loadPreviousPage, pageIndex, pages, pagingInfo, reset, state, update],
+  ) as UsePagedQueryResult<QueryType>;
 };

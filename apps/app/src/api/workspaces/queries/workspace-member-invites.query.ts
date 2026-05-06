@@ -2,24 +2,20 @@ import type { WorkspaceMemberInvitesInput } from '@tql/api'
 
 import { tql } from '@/shared/lib/tql'
 
-export const WORKSPACE_MEMBER_INVITES_PAGE_SIZE = 10
+export type WorkspaceMemberInvitesQueryParams = { workspaceId: string }
 
-export type WorkspaceMemberInvitesQueryParams = { workspaceId: string } & Pick<
-  WorkspaceMemberInvitesInput,
-  'pagingInfo'
->
-
-export const workspaceMemberInvitesQuery = tql.createQuery<
+export const workspaceMemberInvitesPagedQuery = tql.createPagedQuery<
   'workspaceMemberInvites',
   WorkspaceMemberInvitesInput,
   WorkspaceMemberInvitesQueryParams
 >('workspaceMemberInvites', {
   queryKey: 'workspaceMemberInvites',
-  query: (params: WorkspaceMemberInvitesQueryParams) => ({
+  pageSize: 10,
+  query: (params: WorkspaceMemberInvitesQueryParams, pagingInfo) => ({
     query: {
       workspaceId: params.workspaceId,
     },
-    pagingInfo: params.pagingInfo,
+    pagingInfo,
     select: {
       id: true,
       email: true,

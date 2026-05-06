@@ -158,6 +158,6 @@ async function protectedRoutes(server: FastifyInstance) {
     logger: server.log as unknown as Logger,
     plugins: createTqlPlugins(),
   });
-  
+
   tqlServer.attachHttp(createFastifyHttpAdapter(server));
 }

@@ -3,6 +3,7 @@ import { ClientSchema } from '../query/query.types';
 import { ClientHandleMutation } from '../client/client';
 import { createOptimisticUpdate } from '../query/query-optimistic-update';
 import { createMutationHashKey, QueryStore } from '../query/query-store';
+import { PagedQueryStore } from '../paged-query/paged-query-store';
 import { MutationState, MutationStore } from './mutation.store';
 import {
   MutationPayloadFor,
@@ -20,6 +21,7 @@ type MutationConstructor<
   MutationParams extends Record<string, any>,
 > = {
   queryStore: QueryStore;
+  pagedQueryStore?: PagedQueryStore;
   mutationStore: MutationStore;
   mutationHandler: ClientHandleMutation<S>;
   mutationName: MutationName;
@@ -33,6 +35,8 @@ export class Mutation<
   MutationParams extends Record<string, any>,
 > {
   private readonly queryStore: QueryStore;
+
+  private readonly pagedQueryStore: PagedQueryStore | undefined;
 
   private readonly mutationName: MutationName;
 
@@ -54,6 +58,7 @@ export class Mutation<
     const { queryStore, mutationStore, mutationHandler, mutationName, mutationOptions } = this.options;
 
     this.queryStore = queryStore;
+    this.pagedQueryStore = this.options.pagedQueryStore;
     this.mutationStore = mutationStore;
     this.setState = this.mutationStore.getState().setState;
     this.mutationHandler = mutationHandler;
@@ -86,11 +91,14 @@ export class Mutation<
       error: null,
     };
 
-    const optimisticStore = createOptimisticUpdate(this.queryStore);
+    const optimisticStore = createOptimisticUpdate(this.queryStore, this.pagedQueryStore);
     const optimisticStorePublic: OptimisticQueryStorePublic = {
       getAll: optimisticStore.getAll,
       get: optimisticStore.get,
       where: optimisticStore.where,
+      paged: optimisticStore.paged,
+      pagedAll: optimisticStore.pagedAll,
+      pagedWhere: optimisticStore.pagedWhere,
     };
 
     let hasOptimisticSnapshot = false;
@@ -222,12 +230,15 @@ export class Mutation<
       return;
     }
 
-    const successStore = createOptimisticUpdate(this.queryStore);
+    const successStore = createOptimisticUpdate(this.queryStore, this.pagedQueryStore);
 
     const successStorePublic: OptimisticQueryStorePublic = {
       getAll: successStore.getAll,
       get: successStore.get,
       where: successStore.where,
+      paged: successStore.paged,
+      pagedAll: successStore.pagedAll,
+      pagedWhere: successStore.pagedWhere,
     };
 
     successStore.start();

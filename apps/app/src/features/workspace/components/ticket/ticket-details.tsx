@@ -1,5 +1,5 @@
 import { assignTicketMemberMutation } from "@/api/tickets/mutations/assign-ticket-member.mutation"
-import { workspaceMembersQuery, WORKSPACE_MEMBERS_MAX_TAKE } from "@/api/workspaces/queries/workspace-members.query"
+import { workspaceMembersMaxPagedQuery } from "@/api/workspaces/queries/workspace-members.query"
 import { useAppForm } from "@/shared/components/form/form.hook"
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar"
 import { Button } from "@/shared/components/ui/button"
@@ -10,7 +10,7 @@ import { Spinner } from "@/shared/components/ui/spinner"
 import { useDisclosure } from "@/shared/hooks/use-dialog"
 import { IconEdit, IconLoader2, IconPlus, IconTrash, IconUser } from "@tabler/icons-react"
 import { TicketEntity, TicketLabelEntity, WorkspaceMemberEntity } from "@tql/api"
-import { useMutation, useQuery } from "@tql/client"
+import { useMutation, usePagedQuery, useQuery } from "@tql/client"
 import { toast } from "sonner"
 import z from "zod"
 import { workspaceTicketLabelsQuery } from "@/api/workspaces/queries/workspace-ticket-labels.query"
@@ -172,14 +172,11 @@ type TicketAssigneePopoverProps = {
 
 const AssignMemberPopover = ({ ticketId, workspaceId, assigneeId, disclosure, children }: TicketAssigneePopoverProps) => {
 
-    const workspaceMembers = useQuery({
+    const workspaceMembers = usePagedQuery({
         isEnabled: disclosure.isOpen,
-        query: workspaceMembersQuery,
+        pagedQuery: workspaceMembersMaxPagedQuery,
         params: {
             workspaceId: workspaceId,
-            pagingInfo: {
-                take: WORKSPACE_MEMBERS_MAX_TAKE,
-            },
         },
     })
 
