@@ -7,6 +7,7 @@ import { Server } from '../../src/server/server.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
 import type { HttpAdapter, HttpHandler, HttpHandlerHooks } from '../../src/server/adapters/http/http-adapter.js';
+import { effectsPlugin } from '../../src/plugins/built-in/effects/index.js';
 import '../test-schema/models.js';
 import '../test-schema/mutations.js';
 
@@ -232,11 +233,13 @@ describe('Server - effects lifecycle', () => {
     });
 
     const transport = createFakeTransport();
+    const effects = effectsPlugin();
 
     const server = new Server<EffectSchema>({
       schema: effectSchema as any,
       createContext: async () => ({ userId: 'u1' }),
       generateSchema: { enabled: false },
+      plugins: [effects],
     });
 
     server.attachHttp(transport.adapter);
@@ -258,7 +261,7 @@ describe('Server - effects lifecycle', () => {
 
     await flushResponse();
 
-    await server.drainEffects();
+    await effects.drain();
 
     expect(resolveEffects).toHaveBeenCalledTimes(1);
 
@@ -267,6 +270,45 @@ describe('Server - effects lifecycle', () => {
       input: { id: 't1', name: 'first' },
       output: { effectThing: { id: 't1', name: 'first' } },
     });
+  });
+
+  test('does not enqueue mutation effects until the response is flushed', async () => {
+    const effectSchema = new Schema<EffectSchemaContext, EffectSchemaEntities>();
+    const resolveEffects = vi.fn(async () => {});
+
+    effectSchema.mutation('createEffectThing', {
+      input: z.object({ id: z.string(), name: z.string() }),
+      output: z.object({
+        effectThing: z.object({ id: z.string(), name: z.string() }),
+      }),
+      allow: () => true,
+      resolve: async ({ input }) => ({
+        effectThing: { id: input.id, name: input.name },
+      }),
+      resolveEffects,
+    });
+
+    const transport = createFakeTransport();
+    const effects = effectsPlugin();
+
+    const server = new Server<EffectSchema>({
+      schema: effectSchema as any,
+      createContext: async () => ({ userId: 'u1' }),
+      generateSchema: { enabled: false },
+      plugins: [effects],
+    });
+
+    server.attachHttp(transport.adapter);
+
+    await transport.invoke('/mutation', {
+      body: {
+        createEffectThing: { input: { id: 't1', name: 'first' } },
+      },
+    });
+
+    await effects.drain();
+
+    expect(resolveEffects).not.toHaveBeenCalled();
   });
 
   test('does not enqueue effects when mutation fails', async () => {
@@ -287,11 +329,13 @@ describe('Server - effects lifecycle', () => {
     });
 
     const transport = createFakeTransport();
+    const effects = effectsPlugin();
 
     const server = new Server<EffectSchema>({
       schema: effectSchema as any,
       createContext: async () => ({ userId: 'u1' }),
       generateSchema: { enabled: false },
+      plugins: [effects],
     });
 
     server.attachHttp(transport.adapter);
@@ -304,7 +348,7 @@ describe('Server - effects lifecycle', () => {
 
     await flushResponse();
 
-    await server.drainEffects();
+    await effects.drain();
 
     expect(resolveEffects).not.toHaveBeenCalled();
   });
@@ -331,12 +375,13 @@ describe('Server - effects lifecycle', () => {
     const transport = createFakeTransport();
 
     const onError = vi.fn();
+    const effects = effectsPlugin({ onError });
 
     const server = new Server<EffectSchema>({
       schema: effectSchema as any,
       createContext: async () => ({ userId: 'u1' }),
       generateSchema: { enabled: false },
-      effects: { onError },
+      plugins: [effects],
     });
 
     server.attachHttp(transport.adapter);
@@ -353,7 +398,7 @@ describe('Server - effects lifecycle', () => {
 
     await flushResponse();
 
-    await server.drainEffects();
+    await effects.drain();
 
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0]![0]).toBe(boom);

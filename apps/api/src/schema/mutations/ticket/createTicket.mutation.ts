@@ -2,6 +2,7 @@ import z from 'zod';
 
 import { ticketOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
+import { ticketsService } from '../../../services';
 
 export const createTicket = schema.mutation('createTicket', {
   input: z.object({
@@ -18,8 +19,10 @@ export const createTicket = schema.mutation('createTicket', {
     return context.user.workspaceIds.includes(input.workspaceId);
   },
 
+  rateLimit: { cost: 10 },
+
   resolve: async ({ context, input }) => {
-    const ticket = await context.ticketsService.create(context.user, {
+    const ticket = await ticketsService.create(context.user, {
       workspaceId: input.workspaceId,
       ticketListId: input.ticketListId,
       title: input.title,

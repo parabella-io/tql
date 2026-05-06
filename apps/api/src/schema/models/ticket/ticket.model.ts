@@ -2,6 +2,15 @@ import { z } from 'zod';
 
 import { schema } from '../../schema';
 
+import {
+  ticketsService,
+  ticketAssigneeService,
+  ticketReporterService,
+  ticketAttachmentsService,
+  ticketCommentsService,
+  ticketLabelsService,
+} from '../../../services';
+
 export const ticket = schema.model('ticket', {
   schema: z.object({
     id: z.string(),
@@ -36,9 +45,9 @@ export const ticket = schema.model('ticket', {
       query: z.object({
         id: z.string(),
       }),
-
+      rateLimit: { cost: 1 },
       resolve: async ({ context, query }) => {
-        return context.ticketsService.getById(context.user, {
+        return ticketsService.getById(context.user, {
           id: query.id,
         });
       },
@@ -50,8 +59,9 @@ export const ticket = schema.model('ticket', {
         limit: z.number(),
         order: z.enum(['asc', 'desc']),
       }),
+      rateLimit: { cost: 5 },
       resolve: async ({ context, query }) => {
-        return context.ticketsService.queryByWorkspaceId(context.user, {
+        return ticketsService.queryByWorkspaceId(context.user, {
           workspaceId: query.workspaceId,
           limit: query.limit,
           order: query.order,
@@ -64,8 +74,9 @@ export const ticket = schema.model('ticket', {
     assignee: includeSingle('ticketAssignee', {
       nullable: true,
       matchKey: 'ticketId',
+      rateLimit: { cost: 1 },
       resolve: async ({ context, parents }) => {
-        return context.ticketAssigneeService.queryByTicketIds(context.user, {
+        return ticketAssigneeService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
         });
       },
@@ -73,8 +84,9 @@ export const ticket = schema.model('ticket', {
 
     reporter: includeSingle('ticketReporter', {
       matchKey: 'ticketId',
+      rateLimit: { cost: 1 },
       resolve: async ({ context, parents }) => {
-        return context.ticketReporterService.queryByTicketIds(context.user, {
+        return ticketReporterService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
         });
       },
@@ -85,8 +97,9 @@ export const ticket = schema.model('ticket', {
       query: z.object({
         order: z.enum(['asc', 'desc']),
       }),
+      rateLimit: { cost: 2 },
       resolve: async ({ context, query, parents }) => {
-        return context.ticketAttachmentsService.queryByTicketIds(context.user, {
+        return ticketAttachmentsService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
           order: query.order,
         });
@@ -98,8 +111,9 @@ export const ticket = schema.model('ticket', {
       query: z.object({
         order: z.enum(['asc', 'desc']),
       }),
+      rateLimit: { cost: 2 },
       resolve: async ({ context, query, parents }) => {
-        return context.ticketCommentsService.queryByTicketIds(context.user, {
+        return ticketCommentsService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
           order: query.order,
         });
@@ -111,8 +125,9 @@ export const ticket = schema.model('ticket', {
       query: z.object({
         order: z.enum(['asc', 'desc']),
       }),
+      rateLimit: { cost: 2 },
       resolve: async ({ context, parents }) => {
-        return context.ticketLabelsService.queryByTicketIds(context.user, {
+        return ticketLabelsService.queryByTicketIds(context.user, {
           ticketIds: parents.map((parent) => parent.id),
           order: 'asc',
         });

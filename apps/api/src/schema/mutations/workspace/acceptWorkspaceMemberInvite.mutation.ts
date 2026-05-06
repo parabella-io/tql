@@ -1,6 +1,8 @@
 import z from 'zod';
 import { workspaceMemberInviteOutputSchema, workspaceMemberOutputSchema, workspaceOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
+import { db } from '../../../database-client';
+import { workspaceMemberInviteService } from '../../../services';
 
 export const acceptWorkspaceMemberInvite = schema.mutation('acceptWorkspaceMemberInvite', {
   input: z.object({
@@ -15,7 +17,7 @@ export const acceptWorkspaceMemberInvite = schema.mutation('acceptWorkspaceMembe
   }),
 
   allow: async ({ context, input }) => {
-    const workspaceMemberInvite = await context.db.workspaceMemberInvite.findUniqueOrThrow({
+    const workspaceMemberInvite = await db.workspaceMemberInvite.findUniqueOrThrow({
       where: {
         id: input.inviteId,
       },
@@ -33,7 +35,7 @@ export const acceptWorkspaceMemberInvite = schema.mutation('acceptWorkspaceMembe
   },
 
   resolve: async ({ context, input }) => {
-    const { workspaceMember, workspaceMemberInvite, workspace } = await context.workspaceMemberInviteService.accept(context.user, {
+    const { workspaceMember, workspaceMemberInvite, workspace } = await workspaceMemberInviteService.accept(context.user, {
       workspaceId: input.workspaceId,
       inviteId: input.inviteId,
     });

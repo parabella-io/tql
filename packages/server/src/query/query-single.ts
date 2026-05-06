@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ExtractEntityShape } from '../extract-entity-shape.js';
+import type { QuerySingleOptionsExtensions, SchemaContextExtensions } from '../plugins/extensions.js';
 
 export type QuerySingleOptions<
   SchemaContext extends Record<string, any>,
@@ -11,17 +12,19 @@ export type QuerySingleOptions<
 > = {
   query?: z.ZodSchema<QueryArgs>;
   nullable?: Nullable;
-  allow?: (options: { context: SchemaContext; query: QueryArgs }) => Promise<boolean> | boolean;
+  allow?: (options: { context: SchemaContext & SchemaContextExtensions; query: QueryArgs }) => Promise<boolean> | boolean;
   resolve: ({
     context,
     query,
+    signal,
   }: {
-    context: SchemaContext;
+    context: SchemaContext & SchemaContextExtensions;
     query: QueryArgs;
+    signal?: AbortSignal;
   }) => Nullable extends true
     ? Promise<ExtractEntityShape<SchemaEntities, ModelName> | null>
     : Promise<ExtractEntityShape<SchemaEntities, ModelName>>;
-};
+} & QuerySingleOptionsExtensions<QueryArgs>;
 
 export class QuerySingle<
   SchemaContext extends Record<string, any>,
@@ -51,7 +54,14 @@ export class QuerySingle<
     return this.options.nullable ?? false;
   }
 
-  public getAllow(): (options: { context: SchemaContext; query: z.infer<QueryArgs> }) => Promise<boolean> | boolean {
+  public getAllow(): (options: {
+    context: SchemaContext & SchemaContextExtensions;
+    query: z.infer<QueryArgs>;
+  }) => Promise<boolean> | boolean {
     return this.options.allow ?? (async () => true);
+  }
+
+  public getExtensions(): QuerySingleOptionsExtensions<QueryArgs> {
+    return this.options;
   }
 }

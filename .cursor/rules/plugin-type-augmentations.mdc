@@ -1,0 +1,11 @@
+---
+description: Built-in plugin type augmentation convention
+globs: packages/server/src/plugins/built-in/**/*.ts,apps/api/src/plugins.ts,packages/server/test/plugins/**/*.ts
+alwaysApply: false
+---
+
+# Plugin Type Augmentations
+
+- Built-in plugin indexes must import their local `types.ts` module with `import './types.js';`.
+- Do not require consumers to add separate `import type {} from '.../types'` opt-ins for built-in plugin options.
+- When adding a built-in plugin with module augmentation, keep the augmentation in `types.ts` and load it from that plugin's `index.ts`.

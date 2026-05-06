@@ -97,6 +97,7 @@ export const profile = schema.model('profile', {
       allow: async ({ context }) => {
         return context.shouldAllow ?? true;
       },
+      rateLimit: { cost: 2 },
       resolve: async ({ context, query }) => {
         const order = query.order && (query.order.toLowerCase() === 'desc' ? 'DESC' : 'ASC');
 
@@ -129,6 +130,7 @@ export const profile = schema.model('profile', {
         limit: z.number(),
         order: z.enum(['asc', 'desc']),
       }),
+      rateLimit: { cost: 3 },
       resolve: async ({ context, parents, query }) => {
         const profileId = parents.map((parent: Profile) => parent.id);
 

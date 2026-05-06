@@ -15,6 +15,8 @@ It also takes a deliberately different stance on client-side state management. M
 
 `tql` is built around a single idea: the network shouldn't be in the way. You declare your domain on the server (entities, models, queries, includes, mutations) and consume it on the client with the same shape you'd get from a local ORM. Mutations declare their output shape and own the cache updates that should happen after they succeed.
 
+For production-facing servers, `@tql/server` also includes a plugin system. The built-in security plugin provides dev-authored allowed query shapes, depth/breadth/batch/body limits, per-resolver complexity and timeout overrides, and pluggable rate limiting. See [`packages/server/PLUGINS.md`](./packages/server/PLUGINS.md) and [`packages/server/SECURITY.md`](./packages/server/SECURITY.md).
+
 ---
 
 ## Project structure

@@ -1,5 +1,5 @@
 import z from 'zod';
-
+import { workspaceService } from '../../../services';
 import { workspaceOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
 
@@ -17,7 +17,7 @@ export const deleteWorkspace = schema.mutation('deleteWorkspace', {
   },
 
   resolve: async ({ context, input }) => {
-    const workspace = await context.workspaceService.deleteWorkspace(context.user, {
+    const workspace = await workspaceService.deleteWorkspace(context.user, {
       id: input.id,
     });
 

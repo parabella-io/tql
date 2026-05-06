@@ -4,22 +4,9 @@ import { db } from './database-client';
 import { schema, SchemaContext, UserContext } from './schema/index';
 import { auth } from './auth';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { InMemoryEffectQueue, Server as TQLServer, createFastifyHttpAdapter } from '@tql/server';
-import {
-  workspaceService,
-  ticketsService,
-  ticketAttachmentsService,
-  ticketCommentsService,
-  ticketLabelsService,
-  ticketReporterService,
-  ticketAssigneeService,
-  workspaceMemberService,
-  ticketListsService,
-  storageService,
-  workspaceTicketLabelService,
-  workspaceMemberInviteService,
-  userService,
-} from './services';
+import { Server as TQLServer, createFastifyHttpAdapter, type Logger } from '@tql/server';
+import { createTqlPlugins } from './plugins';
+import { storageService } from './services';
 
 import z from 'zod';
 
@@ -156,21 +143,8 @@ async function protectedRoutes(server: FastifyInstance) {
 
   const createContext = async ({ request }: { request: any }): Promise<SchemaContext> => {
     return {
-      db: db,
-      userService: userService,
-      workspaceService: workspaceService,
-      workspaceTicketLabelService: workspaceTicketLabelService,
-      workspaceMemberInviteService: workspaceMemberInviteService,
-      ticketsService: ticketsService,
-      ticketListsService: ticketListsService,
-      ticketAttachmentsService: ticketAttachmentsService,
-      ticketCommentsService: ticketCommentsService,
-      ticketLabelsService: ticketLabelsService,
-      ticketAssigneeService: ticketAssigneeService,
-      ticketReporterService: ticketReporterService,
-      workspaceMemberService: workspaceMemberService,
-      storageService: storageService,
       user: request.user,
+      logger: request.log,
     };
   };
 
@@ -181,10 +155,9 @@ async function protectedRoutes(server: FastifyInstance) {
       outputPath: './__generated__/schema.d.ts',
     },
     createContext,
-    effects: {
-      queue: new InMemoryEffectQueue(),
-    },
+    logger: server.log as unknown as Logger,
+    plugins: createTqlPlugins(),
   });
-
+  
   tqlServer.attachHttp(createFastifyHttpAdapter(server));
 }

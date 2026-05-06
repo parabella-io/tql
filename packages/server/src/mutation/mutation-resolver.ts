@@ -7,6 +7,12 @@ export type MutationResolverOptions = {
   schema: Schema<any, any>;
 };
 
+export type MutationExecutionOptions = {
+  signal?: AbortSignal;
+  resolverTimeouts?: Map<string, number>;
+  wrapMutation?: <T>(mutationName: string, final: () => Promise<T>) => Promise<T>;
+};
+
 /**
  * Project the full {@link MutationResponseMap} down to just the keys present in
  * a given mutation input `Q`. This is the per-call return type for `handle`.
@@ -15,25 +21,9 @@ export type ApplyMutationResponseMap<MutationResponseMap, Q> = {
   [K in keyof Q & keyof MutationResponseMap]: MutationResponseMap[K];
 };
 
-/**
- * A single pending mutation effect returned alongside a batch of results. The
- * resolver never invokes these itself - it is the server's responsibility to
- * decide *when* and *how* they run (e.g. after the HTTP response is flushed,
- * via the configured {@link EffectQueue}).
- */
-export type PendingMutationEffect = {
-  mutationName: string;
-  run(): Promise<void>;
-};
-
-/**
- * Return shape for {@link MutationResolver.handle}. Pending effects are
- * surfaced as data so a caller (typically the `Server`) can enqueue them
- * against its own queue once the transport layer signals "response sent".
- */
 export type MutationHandleResult<S extends ClientSchema, Q extends Partial<S['MutationInputMap']>> = {
   results: ApplyMutationResponseMap<S['MutationResponseMap'], Q>;
-  effects: PendingMutationEffect[];
+  inputs: Record<string, unknown>;
 };
 
 /**
@@ -74,8 +64,9 @@ export class MutationResolver<S extends ClientSchema> {
   public async handle<const Q extends Partial<S['MutationInputMap']>>(options: {
     context: any;
     mutation: Q;
+    execution?: MutationExecutionOptions;
   }): Promise<MutationHandleResult<S, Q>> {
-    const { context, mutation: mutationInput } = options;
+    const { context, mutation: mutationInput, execution } = options;
 
     const results = {} as Record<
       string,
@@ -85,10 +76,10 @@ export class MutationResolver<S extends ClientSchema> {
       }
     >;
 
-    const effects: PendingMutationEffect[] = [];
+    const inputs: Record<string, unknown> = {};
 
     if (Object.keys(mutationInput as Record<string, unknown>).length === 0) {
-      return { results: results as any, effects };
+      return { results: results as any, inputs };
     }
 
     for (const mutationName of Object.keys(mutationInput as Record<string, unknown>)) {
@@ -115,7 +106,7 @@ export class MutationResolver<S extends ClientSchema> {
 
         const isAllowed = await allowMethod({
           context,
-          input: (mutationInput as any)[mutationName]?.input,
+          input: input.data,
         });
 
         if (!isAllowed) {
@@ -124,9 +115,15 @@ export class MutationResolver<S extends ClientSchema> {
 
         const resolver = mutation.getResolve();
 
-        const result = await resolver({
-          context,
-          input: (mutationInput as any)[mutationName]?.input,
+        const result = await runMutationResolver({
+          mutationName,
+          execution,
+          task: (signal) =>
+            resolver({
+              context,
+              input: input.data,
+              signal,
+            }),
         });
 
         const outputSchema = mutation.getOutputSchema();
@@ -141,7 +138,7 @@ export class MutationResolver<S extends ClientSchema> {
           error: null,
         };
 
-        this.collectEffect(effects, mutation, mutationName, context, input.data, parsedResult.data);
+        inputs[mutationName] = input.data;
       } catch (error: unknown) {
         if (error instanceof TQLServerError) {
           results[mutationName] = {
@@ -157,28 +154,76 @@ export class MutationResolver<S extends ClientSchema> {
       }
     }
 
-    return { results: results as any, effects };
-  }
-
-  private collectEffect(
-    sink: PendingMutationEffect[],
-    mutation: Mutation<any, any, any>,
-    mutationName: string,
-    context: unknown,
-    input: unknown,
-    output: unknown,
-  ): void {
-    const resolveEffects = mutation.getResolveEffects();
-
-    if (!resolveEffects) {
-      return;
-    }
-
-    sink.push({
-      mutationName,
-      run: async () => {
-        await resolveEffects({ context, input, output } as any);
-      },
-    });
+    return { results: results as any, inputs };
   }
 }
+
+const runMutationResolver = async <T>(options: {
+  mutationName: string;
+  execution?: MutationExecutionOptions;
+  task: (signal: AbortSignal | undefined) => Promise<T> | T;
+}): Promise<T> => {
+  const timeoutMs = options.execution?.resolverTimeouts?.get(options.mutationName);
+
+  const runTask = (signal: AbortSignal | undefined) => {
+    const final = () => Promise.resolve(options.task(signal));
+    return options.execution?.wrapMutation?.(options.mutationName, final) ?? final();
+  };
+
+  if (timeoutMs === undefined && !options.execution?.signal) {
+    return runTask(undefined);
+  }
+
+  const controller = new AbortController();
+  const parentSignal = options.execution?.signal;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  const abortFromParent = () => {
+    controller.abort(parentSignal?.reason);
+  };
+
+  if (parentSignal?.aborted) {
+    controller.abort(parentSignal.reason);
+  } else {
+    parentSignal?.addEventListener('abort', abortFromParent, { once: true });
+  }
+
+  const task = Promise.resolve().then(() => runTask(controller.signal));
+
+  const abortPromise = new Promise<never>((_resolve, reject) => {
+    controller.signal.addEventListener(
+      'abort',
+      () => {
+        reject(
+          new TQLServerError(TQLServerErrorType.SecurityTimeoutError, {
+            mutationName: options.mutationName,
+            reason: 'aborted',
+          }),
+        );
+      },
+      { once: true },
+    );
+  });
+
+  const timeoutPromise =
+    timeoutMs === undefined
+      ? new Promise<never>(() => {})
+      : new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            controller.abort();
+            reject(
+              new TQLServerError(TQLServerErrorType.SecurityTimeoutError, {
+                mutationName: options.mutationName,
+                timeoutMs,
+              }),
+            );
+          }, timeoutMs);
+        });
+
+  try {
+    return await Promise.race([task, timeoutPromise, abortPromise]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    parentSignal?.removeEventListener('abort', abortFromParent);
+  }
+};

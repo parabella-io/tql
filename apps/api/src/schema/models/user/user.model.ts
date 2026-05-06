@@ -1,5 +1,5 @@
 import { z } from 'zod';
-
+import { userService } from '../../../services';
 import { schema } from '../../schema';
 
 export const user = schema.model('user', {
@@ -29,7 +29,7 @@ export const user = schema.model('user', {
         id: z.string(),
       }),
       resolve: async ({ context, query }) => {
-        return context.userService.getById(query.id);
+        return userService.getById(query.id);
       },
     }),
   }),

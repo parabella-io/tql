@@ -1,6 +1,7 @@
 import z from 'zod';
 import { ticketAttachmentOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
+import { storageService, ticketAttachmentsService } from '../../../services';
 
 export const deleteTicketAttachment = schema.mutation('deleteTicketAttachment', {
   input: z.object({
@@ -18,13 +19,15 @@ export const deleteTicketAttachment = schema.mutation('deleteTicketAttachment', 
   },
 
   resolve: async ({ context, input }) => {
-    const ticketAttachment = await context.ticketAttachmentsService.delete(context.user, {
+    const ticketAttachment = await ticketAttachmentsService.delete(context.user, {
       workspaceId: input.workspaceId,
       ticketId: input.ticketId,
       id: input.attachmentId,
     });
 
-    await context.storageService.deleteFile(ticketAttachment.key).catch(console.log);
+    await storageService.deleteFile(ticketAttachment.key).catch((error) => {
+      context.logger?.error({ err: error, attachmentId: input.attachmentId }, 'failed to delete ticket attachment file');
+    });
 
     return {
       ticketAttachment,

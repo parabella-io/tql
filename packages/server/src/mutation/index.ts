@@ -5,5 +5,4 @@ export {
   type MutationResolverOptions,
   type ApplyMutationResponseMap,
   type MutationHandleResult,
-  type PendingMutationEffect,
 } from './mutation-resolver.js';

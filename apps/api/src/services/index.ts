@@ -13,19 +13,16 @@ import { WorkspaceTicketLabelService } from './workspace/workspaceTicketLabel.se
 import { WorkspaceMemberInviteService } from './workspace/workspaceMemberInvite.service';
 import { UserService } from './user/user.service';
 
-export const userService = new UserService(db);
-
-export const workspaceService = new WorkspaceService(db);
-export const workspaceMemberService = new WorkspaceMemberService(db);
-export const workspaceTicketLabelService = new WorkspaceTicketLabelService(db);
-export const workspaceMemberInviteService = new WorkspaceMemberInviteService(db);
-
-export const ticketsService = new TicketsService(db);
-export const ticketListsService = new TicketListsService(db);
-export const ticketAssigneeService = new TicketAssigneeService(db);
-export const ticketReporterService = new TicketReporterService(db);
+export const userService: UserService = new UserService(db);
+export const workspaceService: WorkspaceService = new WorkspaceService(db);
+export const workspaceMemberService: WorkspaceMemberService = new WorkspaceMemberService(db);
+export const workspaceTicketLabelService: WorkspaceTicketLabelService = new WorkspaceTicketLabelService(db);
+export const workspaceMemberInviteService: WorkspaceMemberInviteService = new WorkspaceMemberInviteService(db);
+export const ticketsService: TicketsService = new TicketsService(db);
+export const ticketListsService: TicketListsService = new TicketListsService(db);
+export const ticketAssigneeService: TicketAssigneeService = new TicketAssigneeService(db);
+export const ticketReporterService: TicketReporterService = new TicketReporterService(db);
 export const ticketAttachmentsService = new TicketAttachmentsService(db);
-export const ticketCommentsService = new TicketCommentsService(db);
-export const ticketLabelsService = new TicketLabelsService(db);
-
-export const storageService = new StorageService(db);
+export const ticketCommentsService: TicketCommentsService = new TicketCommentsService(db);
+export const ticketLabelsService: TicketLabelsService = new TicketLabelsService(db);
+export const storageService: StorageService = new StorageService(db);

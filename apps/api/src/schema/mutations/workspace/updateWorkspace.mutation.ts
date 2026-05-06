@@ -1,7 +1,7 @@
 import z from 'zod';
-
 import { workspaceOutputSchema } from '../outputSchemas';
 import { schema } from '../../schema';
+import { workspaceService } from '../../../services';
 
 export const updateWorkspace = schema.mutation('updateWorkspace', {
   input: z.object({
@@ -18,7 +18,7 @@ export const updateWorkspace = schema.mutation('updateWorkspace', {
   },
 
   resolve: async ({ context, input }) => {
-    const workspace = await context.workspaceService.updateWorkspace(context.user, {
+    const workspace = await workspaceService.updateWorkspace(context.user, {
       id: input.workspaceId,
       name: input.name,
     });

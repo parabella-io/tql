@@ -1,13 +1,7 @@
 ### Roadmap for v1 release
 
-- **Security Mechanisms**
-  - Implement mechanisms to safely prevent abuse, persisted queries, complexity, max depth, rate limiting.
-
-- **Per query level caching**
-  - Implement built in query level ttl caching backed by ( InMemory / Redis ).
-
-- **Observability**
-  - Implment built in logging and observability.
+- **Resolver Cache Plugin**
+  - Implment built in memory / redis backed resolver caches.
 
 - **Comprehensive Testing**
   - Implement full integration and end-to-end tests, integration tests, unit tests and strict type-checking.
