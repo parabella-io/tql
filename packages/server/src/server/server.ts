@@ -81,6 +81,7 @@ export class Server<S extends ClientSchema> {
     body?: unknown;
   }): Promise<ApplyQueryResponseMap<S, Q>> {
     const context = await this.createContext({ request: options.request });
+
     const { serverContext, cleanup } = await this.createServerContext({
       request: options.request,
       body: options.body ?? options.query,
@@ -100,11 +101,12 @@ export class Server<S extends ClientSchema> {
         execution: {
           signal: serverContext.signal,
           resolverTimeouts: serverContext.resolverTimeouts,
-          wrapQueryNode: (path, final) => {
+          wrapQueryNode: (path, meta, final) => {
             const node = nodesByPath.get(path);
 
-            return node ? this.pluginRunner.wrapQueryNode(serverContext, node, final) : final();
+            return node ? this.pluginRunner.wrapQueryNode(serverContext, node, meta, final) : final();
           },
+          wrapExternalField: (node, meta, final) => this.pluginRunner.wrapExternalField(serverContext, node, meta, final),
         },
       });
 

@@ -30,6 +30,7 @@ export type IncludeNode = {
   includeName: string;
   modelName: string;
   kind: 'single' | 'many';
+  matchKey: string;
   selectAll: boolean;
   selectKeys: string[];
   query: unknown;
@@ -284,6 +285,7 @@ const buildIncludeNodes = (options: {
         includeName,
         modelName: relationModelName,
         kind: includeType,
+        matchKey: includeSingle.getMatchKey(),
         rawSelect: raw.select,
         query: parseResolverQuery({ schema: includeSingle.getOptions().query, value: raw.query, queryName: path }),
         includes: buildIncludeNodes({
@@ -312,6 +314,7 @@ const buildIncludeNodes = (options: {
         includeName,
         modelName: relationModelName,
         kind: includeType,
+        matchKey: includeMany.getMatchKey(),
         rawSelect: raw.select,
         query: parseResolverQuery({ schema: includeMany.getOptions().query, value: raw.query, queryName: path }),
         includes: buildIncludeNodes({

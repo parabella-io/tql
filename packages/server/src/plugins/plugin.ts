@@ -40,7 +40,30 @@ export type MutationBeforeHookArgs = {
 export type QueryResolveHookArgs<T> = {
   ctx: ServerContext;
   node: QueryNode | IncludeNode;
-  next: () => Promise<T>;
+  parents?: ReadonlyArray<unknown>;
+  next: (overrides?: QueryResolveOverrides) => Promise<T>;
+};
+
+export type QueryResolveOverrides = {
+  parents?: ReadonlyArray<unknown>;
+};
+
+export type ExternalFieldNode = {
+  path: string;
+  fieldName: string;
+  modelName: string;
+  extensions?: unknown;
+};
+
+export type ExternalFieldResolveHookArgs<T> = {
+  ctx: ServerContext;
+  node: ExternalFieldNode;
+  entities: ReadonlyArray<unknown>;
+  next: (overrides?: ExternalFieldResolveOverrides) => Promise<T>;
+};
+
+export type ExternalFieldResolveOverrides = {
+  entities?: ReadonlyArray<unknown>;
 };
 
 export type MutationResolveHookArgs<T> = {
@@ -76,6 +99,7 @@ export interface ServerPlugin {
   beforeQuery?(args: QueryBeforeHookArgs): void | Promise<void>;
   beforeMutation?(args: MutationBeforeHookArgs): void | Promise<void>;
   onResolveQueryNode?<T>(args: QueryResolveHookArgs<T>): Promise<T>;
+  onResolveExternalField?<T>(args: ExternalFieldResolveHookArgs<T>): Promise<T>;
   onResolveMutation?<T>(args: MutationResolveHookArgs<T>): Promise<T>;
   afterQuery?(args: QueryAfterHookArgs): void | Promise<void>;
   afterMutation?(args: MutationAfterHookArgs): void | Promise<void>;

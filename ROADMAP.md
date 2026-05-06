@@ -1,8 +1,5 @@
 ### Roadmap for v1 release
 
-- **Resolver Cache Plugin**
-  - Implment built in memory / redis backed resolver caches.
-
 - **Comprehensive Testing**
   - Implement full integration and end-to-end tests, integration tests, unit tests and strict type-checking.
 
