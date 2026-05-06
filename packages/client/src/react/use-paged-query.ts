@@ -77,6 +77,8 @@ export const usePagedQuery = <QueryType extends AnyPagedQuery>(options: {
     const pageIndex = state?.pageIndex ?? 0;
     if (pageIndex > 0) {
       pagedQuery.setActivePage(params, pageIndex - 1);
+    } else {
+      void pagedQuery.loadPreviousPage(params);
     }
   }, [isEnabled, pagedQuery, params, state?.isLoading, state?.pageIndex]);
 
@@ -129,10 +131,10 @@ export const usePagedQuery = <QueryType extends AnyPagedQuery>(options: {
       pagingInfo,
       pageIndex,
       error: state?.error ?? null,
-      isLoading: !!state?.isLoading,
+      isLoading: isEnabled ? (state?.isLoading ?? true) : false,
       isError: !!state?.error,
       hasNextPage: pageIndex < pages.length - 1 || (pagingInfo?.hasNextPage ?? false),
-      hasPreviousPage: pageIndex > 0,
+      hasPreviousPage: pageIndex > 0 || (pagingInfo?.hasPreviousPage ?? false),
       loadNextPage,
       loadPreviousPage,
       goToPage,

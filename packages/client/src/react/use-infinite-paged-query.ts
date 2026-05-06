@@ -107,7 +107,7 @@ export const useInfinitePagedQuery = <QueryType extends AnyPagedQuery>(options: 
       pages,
       pagingInfo,
       error: state?.error ?? null,
-      isLoading: !!state?.isLoading,
+      isLoading: isEnabled ? (state?.isLoading ?? true) : false,
       isError: !!state?.error,
       hasNextPage: pagingInfo?.hasNextPage ?? false,
       hasPreviousPage: pagingInfo?.hasPreviousPage ?? false,
