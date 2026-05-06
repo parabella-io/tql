@@ -69,7 +69,7 @@ export class Query<
       query: this.queryOptions.query(params),
       params,
       error: null,
-      data: null,
+      data: undefined,
       pagingInfo: null,
       isEnabled: this.queryOptions.isEnabled ?? true,
       isLoading: false,
@@ -211,8 +211,8 @@ export class Query<
     this.store.getState().updateState(queryHashKey, updator);
   };
 
-  public getData = (params: QueryParams): QueryDataFor<S, QueryName, QueryInput> => {
-    return this.getState(params).data as QueryDataFor<S, QueryName, QueryInput>;
+  public getData = (params: QueryParams): QueryDataFor<S, QueryName, QueryInput> | undefined => {
+    return this.getState(params).data as QueryDataFor<S, QueryName, QueryInput> | undefined;
   };
 
   public getError = (params: QueryParams): FormattedTQLServerError | null => {
