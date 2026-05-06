@@ -1,0 +1,14 @@
+{
+  "name": "@tql/docs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:docs": "vitepress dev",
+    "build:docs": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}
