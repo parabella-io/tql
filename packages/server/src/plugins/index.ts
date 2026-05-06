@@ -1,5 +1,6 @@
 export { type AggregateCost, type ServerContext } from './context.js';
 export {
+  type ExternalFieldOptionsExtensions,
   type IncludeManyOptionsExtensions,
   type IncludeSingleOptionsExtensions,
   type MutationOptionsExtensions,

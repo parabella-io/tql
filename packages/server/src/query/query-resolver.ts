@@ -10,11 +10,21 @@ import { selectFields } from './select-fields.js';
 import { ExtractEntityShape } from '../extract-entity-shape.js';
 import type { ClientSchema } from '../shared/client-schema.js';
 import type { QueryDataFromRegistry, QueryPagingInfoFromRegistry } from '../shared/query-projection.js';
+import type { ExternalFieldNode, ExternalFieldResolveOverrides, QueryResolveOverrides } from '../plugins/plugin.js';
 
 export type QueryExecutionOptions = {
   signal?: AbortSignal;
   resolverTimeouts?: Map<string, number>;
-  wrapQueryNode?: <T>(path: string, final: () => Promise<T>) => Promise<T>;
+  wrapQueryNode?: <T>(
+    path: string,
+    meta: { parents?: ReadonlyArray<unknown> },
+    final: (overrides?: QueryResolveOverrides) => Promise<T>,
+  ) => Promise<T>;
+  wrapExternalField?: <T>(
+    node: ExternalFieldNode,
+    meta: { entities: ReadonlyArray<unknown> },
+    final: (overrides?: ExternalFieldResolveOverrides) => Promise<T>,
+  ) => Promise<T>;
 };
 
 export type QueryResolverOptions = {
@@ -703,11 +713,12 @@ export class QueryResolver<S extends ClientSchema> {
     const result = await runResolver({
       path: resolverPath,
       execution,
-      task: (signal) =>
+      meta: { parents: parsedQuery.parents },
+      task: (signal, overrides) =>
         (resolve as any)({
           context,
           query: parsedQuery.query,
-          parents: parsedQuery.parents,
+          parents: overrides?.parents ?? parsedQuery.parents,
           signal,
         }),
     });
@@ -720,6 +731,7 @@ export class QueryResolver<S extends ClientSchema> {
 
     const matchKey = includeSingle.getMatchKey();
     const entitiesByParentId = new Map<string, Record<string, any>>();
+    const parsedItems: Array<{ parentId: string; entity: Record<string, any> }> = [];
 
     for (const entity of result as Array<Record<string, any>>) {
       const parentId = entity[matchKey];
@@ -742,7 +754,33 @@ export class QueryResolver<S extends ClientSchema> {
       }
 
       if (!entitiesByParentId.has(parentId)) {
-        entitiesByParentId.set(parentId, parsedEntity.data);
+        parsedItems.push({ parentId, entity: parsedEntity.data });
+      }
+    }
+
+    const parsedEntities = parsedItems.map((item) => item.entity);
+    const externalBatches = (
+      await Promise.all(
+        this.resolveExternalBatches({
+          context,
+          queryName: resolverPath,
+          path: resolverPath,
+          model,
+          modelName: includeModelName,
+          workingEntities: parsedEntities,
+          select: includeInput.select,
+          execution,
+        }),
+      )
+    ).filter((batch): batch is { name: string; values: any[] } => batch !== null);
+
+    const enrichedEntities = attachExternalBatchesToParsed(parsedEntities, externalBatches) as Array<Record<string, any>>;
+
+    for (const [index, entity] of enrichedEntities.entries()) {
+      const parentId = parsedItems[index]?.parentId;
+
+      if (typeof parentId === 'string' && !entitiesByParentId.has(parentId)) {
+        entitiesByParentId.set(parentId, entity);
       }
     }
 
@@ -819,11 +857,12 @@ export class QueryResolver<S extends ClientSchema> {
     const result = await runResolver({
       path: resolverPath,
       execution,
-      task: (signal) =>
+      meta: { parents: parsedQuery.parents },
+      task: (signal, overrides) =>
         (resolve as any)({
           context,
           query: parsedQuery.query,
-          parents: parsedQuery.parents,
+          parents: overrides?.parents ?? parsedQuery.parents,
           signal,
         }),
     });
@@ -836,6 +875,7 @@ export class QueryResolver<S extends ClientSchema> {
 
     const matchKey = includeMany.getMatchKey();
     const entitiesByParentId = new Map<string, Array<Record<string, any>>>();
+    const parsedItems: Array<{ parentId: string; entity: Record<string, any> }> = [];
 
     for (const entity of result as Array<Record<string, any>>) {
       const parentId = entity[matchKey];
@@ -857,12 +897,40 @@ export class QueryResolver<S extends ClientSchema> {
         });
       }
 
+      parsedItems.push({ parentId, entity: parsedEntity.data });
+    }
+
+    const parsedEntities = parsedItems.map((item) => item.entity);
+    const externalBatches = (
+      await Promise.all(
+        this.resolveExternalBatches({
+          context,
+          queryName: resolverPath,
+          path: resolverPath,
+          model,
+          modelName: includeModelName,
+          workingEntities: parsedEntities,
+          select: includeInput.select,
+          execution,
+        }),
+      )
+    ).filter((batch): batch is { name: string; values: any[] } => batch !== null);
+
+    const enrichedEntities = attachExternalBatchesToParsed(parsedEntities, externalBatches) as Array<Record<string, any>>;
+
+    for (const [index, entity] of enrichedEntities.entries()) {
+      const parentId = parsedItems[index]?.parentId;
+
+      if (typeof parentId !== 'string') {
+        continue;
+      }
+
       const existingEntities = entitiesByParentId.get(parentId);
 
       if (existingEntities) {
-        existingEntities.push(parsedEntity.data);
+        existingEntities.push(entity);
       } else {
-        entitiesByParentId.set(parentId, [parsedEntity.data]);
+        entitiesByParentId.set(parentId, [entity]);
       }
     }
 
@@ -903,10 +971,6 @@ export class QueryResolver<S extends ClientSchema> {
   }> {
     const { context, queryName, model, modelName, workingEntities, select, parentInclude, execution } = options;
 
-    const extKeys = model.getExternalFieldKeys();
-    const selectedExt = selectedExternalFieldNames(select, extKeys);
-    const extMap = model.getExternalFields();
-
     const includePromise = parentInclude
       ? this.handleInclude({
           context,
@@ -918,15 +982,61 @@ export class QueryResolver<S extends ClientSchema> {
         })
       : Promise.resolve(null as IncludedDataMap | null);
 
-    const extPromises = selectedExt.map((name) => {
+    const extPromises = this.resolveExternalBatches({
+      context,
+      queryName,
+      path: queryName,
+      model,
+      modelName,
+      workingEntities,
+      select,
+      execution,
+    });
+
+    const results = await Promise.all([includePromise, ...extPromises]);
+
+    const includeData = (results[0] ?? null) as IncludedDataMap | null;
+
+    const externalBatches = results.slice(1).filter((x): x is { name: string; values: any[] } => x !== null);
+
+    return { includeData, externalBatches };
+  }
+
+  private resolveExternalBatches(options: {
+    context: any;
+    queryName: string;
+    path: string;
+    model: Model<any, any, any, any, any, any, any, any>;
+    modelName: string;
+    workingEntities: any[];
+    select: unknown;
+    execution?: QueryExecutionOptions;
+  }): Array<Promise<{ name: string; values: any[] } | null>> {
+    const { context, queryName, path, model, modelName, workingEntities, select, execution } = options;
+    const extKeys = model.getExternalFieldKeys();
+    const selectedExt = selectedExternalFieldNames(select, extKeys);
+    const extMap = model.getExternalFields();
+
+    return selectedExt.map((name) => {
       const def = extMap[name];
 
       if (!def) {
-        return Promise.resolve(null as { name: string; values: any[] } | null);
+        return Promise.resolve(null);
       }
 
       return (async () => {
-        const values = await def.resolve({ context, entities: workingEntities });
+        const externalPath = `${path}.external.${name}`;
+        const run = (entities: ReadonlyArray<unknown>) => Promise.resolve(def.resolve({ context, entities: entities as any[] }));
+        const values = await (execution?.wrapExternalField?.(
+          {
+            path: externalPath,
+            fieldName: name,
+            modelName,
+            extensions: def.getExtensions(),
+          },
+          { entities: workingEntities },
+          (overrides) => run(overrides?.entities ?? workingEntities),
+        ) ?? run(workingEntities));
 
         if (!Array.isArray(values) || values.length !== workingEntities.length) {
           throw new TQLServerError(TQLServerErrorType.QueryError, {
@@ -953,14 +1063,6 @@ export class QueryResolver<S extends ClientSchema> {
         return { name, values: validated };
       })();
     });
-
-    const results = await Promise.all([includePromise, ...extPromises]);
-
-    const includeData = (results[0] ?? null) as IncludedDataMap | null;
-
-    const externalBatches = results.slice(1).filter((x): x is { name: string; values: any[] } => x !== null);
-
-    return { includeData, externalBatches };
   }
 }
 
@@ -1076,13 +1178,14 @@ const parseResolverQuery = (schema: z.ZodTypeAny | undefined, value: unknown, qu
 const runResolver = async <T>(options: {
   path: string;
   execution?: QueryExecutionOptions;
-  task: (signal: AbortSignal | undefined) => Promise<T> | T;
+  meta?: { parents?: ReadonlyArray<unknown> };
+  task: (signal: AbortSignal | undefined, overrides?: QueryResolveOverrides) => Promise<T> | T;
 }): Promise<T> => {
   const timeoutMs = options.execution?.resolverTimeouts?.get(options.path);
 
-  const runTask = (signal: AbortSignal | undefined) => {
-    const final = () => Promise.resolve(options.task(signal));
-    return options.execution?.wrapQueryNode?.(options.path, final) ?? final();
+  const runTask = (signal: AbortSignal | undefined, overrides?: QueryResolveOverrides) => {
+    const final = (finalOverrides?: QueryResolveOverrides) => Promise.resolve(options.task(signal, finalOverrides ?? overrides));
+    return options.execution?.wrapQueryNode?.(options.path, options.meta ?? {}, final) ?? final(overrides);
   };
 
   if (timeoutMs === undefined && !options.execution?.signal) {

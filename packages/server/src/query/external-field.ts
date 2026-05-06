@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 
 import type { ExtractEntityShape } from '../extract-entity-shape.js';
+import type { ExternalFieldOptionsExtensions } from '../plugins/extensions.js';
 
 export type ExternalFieldResolveArgs<
   SchemaContext extends Record<string, any>,
@@ -21,10 +22,18 @@ export class ExternalField<
 
   readonly schema: z.ZodType<Value, any, any>;
 
-  constructor(options: {
+  private readonly options: {
     resolve: ExternalField<SchemaContext, SchemaEntities, ModelName, Value>['resolve'];
     schema: z.ZodType<Value, any, any>;
-  }) {
+  } & ExternalFieldOptionsExtensions<SchemaContext, ExtractEntityShape<SchemaEntities, ModelName>, Value>;
+
+  constructor(
+    options: {
+      resolve: ExternalField<SchemaContext, SchemaEntities, ModelName, Value>['resolve'];
+      schema: z.ZodType<Value, any, any>;
+    } & ExternalFieldOptionsExtensions<SchemaContext, ExtractEntityShape<SchemaEntities, ModelName>, Value>,
+  ) {
+    this.options = options;
     this.resolve = options.resolve;
     this.schema = options.schema;
   }
@@ -32,8 +41,12 @@ export class ExternalField<
   public getOptions(): {
     resolve: ExternalField<SchemaContext, SchemaEntities, ModelName, Value>['resolve'];
     schema: z.ZodType<Value, any, any>;
-  } {
-    return { resolve: this.resolve, schema: this.schema };
+  } & ExternalFieldOptionsExtensions<SchemaContext, ExtractEntityShape<SchemaEntities, ModelName>, Value> {
+    return this.options;
+  }
+
+  public getExtensions(): ExternalFieldOptionsExtensions<SchemaContext, ExtractEntityShape<SchemaEntities, ModelName>, Value> {
+    return this.options;
   }
 }
 
@@ -45,6 +58,11 @@ export function externalField<
 >(options: {
   resolve: (args: ExternalFieldResolveArgs<SchemaContext, SchemaEntities, ModelName>) => Value[] | Promise<Value[]>;
   schema: z.ZodType<Value, any, any>;
-}): ExternalField<SchemaContext, SchemaEntities, ModelName, Value> {
+} & ExternalFieldOptionsExtensions<SchemaContext, ExtractEntityShape<SchemaEntities, ModelName>, Value>): ExternalField<
+  SchemaContext,
+  SchemaEntities,
+  ModelName,
+  Value
+> {
   return new ExternalField<SchemaContext, SchemaEntities, ModelName, Value>(options);
 }

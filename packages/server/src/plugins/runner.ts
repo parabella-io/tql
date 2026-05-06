@@ -3,7 +3,15 @@ import { noopLogger, type Logger } from '../logging/index.js';
 import type { IncludeNode, MutationPlan, QueryNode, QueryPlan } from '../request-plan/plan.js';
 import type { ServerContext } from './context.js';
 import type { PluginContextExtensions, SchemaContextExtensions } from './extensions.js';
-import type { MutationAfterHookArgs, QueryAfterHookArgs, ServerLike, ServerPlugin } from './plugin.js';
+import type {
+  ExternalFieldNode,
+  ExternalFieldResolveOverrides,
+  MutationAfterHookArgs,
+  QueryAfterHookArgs,
+  QueryResolveOverrides,
+  ServerLike,
+  ServerPlugin,
+} from './plugin.js';
 
 export type PluginRunnerOptions = {
   plugins?: ServerPlugin[];
@@ -98,16 +106,63 @@ export class PluginRunner {
     }
   }
 
-  public wrapQueryNode<T>(ctx: ServerContext, node: QueryNode | IncludeNode, final: () => Promise<T>): Promise<T> {
-    const wrapped = this.plugins.reduceRight((next, plugin) => () => plugin.onResolveQueryNode?.({ ctx, node, next }) ?? next(), final);
+  public wrapQueryNode<T>(
+    ctx: ServerContext,
+    node: QueryNode | IncludeNode,
+    metaOrFinal: { parents?: ReadonlyArray<unknown> } | ((overrides?: QueryResolveOverrides) => Promise<T>),
+    finalArg?: (overrides?: QueryResolveOverrides) => Promise<T>,
+  ): Promise<T> {
+    const meta = typeof metaOrFinal === 'function' ? {} : metaOrFinal;
+    
+    const final = typeof metaOrFinal === 'function' ? metaOrFinal : finalArg;
 
-    return wrapped();
+    if (!final) {
+      throw new TypeError('Expected final query resolver callback.');
+    }
+
+    const dispatch = (index: number, overrides?: QueryResolveOverrides): Promise<T> => {
+      const plugin = this.plugins[index];
+
+      if (!plugin) {
+        return final(overrides);
+      }
+
+      const parents = overrides?.parents ?? meta.parents;
+      
+      const next = (nextOverrides?: QueryResolveOverrides) => dispatch(index + 1, nextOverrides ?? overrides);
+
+      return plugin.onResolveQueryNode?.({ ctx, node, parents, next }) ?? next();
+    };
+
+    return dispatch(0);
   }
 
   public wrapMutation<T>(ctx: ServerContext, entry: MutationPlan['entries'][number], final: () => Promise<T>): Promise<T> {
     const wrapped = this.plugins.reduceRight((next, plugin) => () => plugin.onResolveMutation?.({ ctx, entry, next }) ?? next(), final);
 
     return wrapped();
+  }
+
+  public wrapExternalField<T>(
+    ctx: ServerContext,
+    node: ExternalFieldNode,
+    meta: { entities: ReadonlyArray<unknown> },
+    final: (overrides?: ExternalFieldResolveOverrides) => Promise<T>,
+  ): Promise<T> {
+    const dispatch = (index: number, overrides?: ExternalFieldResolveOverrides): Promise<T> => {
+      const plugin = this.plugins[index];
+
+      if (!plugin) {
+        return final(overrides);
+      }
+
+      const entities = overrides?.entities ?? meta.entities;
+      const next = (nextOverrides?: ExternalFieldResolveOverrides) => dispatch(index + 1, nextOverrides ?? overrides);
+
+      return plugin.onResolveExternalField?.({ ctx, node, entities, next }) ?? next();
+    };
+
+    return dispatch(0);
   }
 
   public transformError(ctx: ServerContext, error: TQLServerError): TQLServerError {

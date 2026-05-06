@@ -108,6 +108,16 @@ export const otelPlugin = (options: OtelPluginOptions = {}): ServerPlugin => {
         tracer,
       });
     },
+    async onResolveExternalField({ ctx, node, next }) {
+      return withResolverSpan({
+        pluginContext: ctx.plugin as OtelPluginContext,
+        kind: 'externalField',
+        path: node.path,
+        next,
+        instruments,
+        tracer,
+      });
+    },
     async onResolveMutation({ ctx, entry, next }) {
       return withResolverSpan({
         pluginContext: ctx.plugin as OtelPluginContext,
@@ -178,7 +188,7 @@ const configureRootSpan = (pluginContext: OtelPluginContext, options: { kind: 'q
 
 const withResolverSpan = async <T>(options: {
   pluginContext: OtelPluginContext;
-  kind: 'query' | 'mutation';
+  kind: 'query' | 'mutation' | 'externalField';
   path: string;
   next: () => Promise<T>;
   instruments: Instruments;

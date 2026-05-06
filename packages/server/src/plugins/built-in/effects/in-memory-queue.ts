@@ -23,7 +23,9 @@ export class InMemoryEffectQueue implements EffectQueue {
     this.queue = new PQueue({
       concurrency: options.concurrency ?? Number.POSITIVE_INFINITY,
     });
+
     this.onError = options.onError;
+
     this.logger = options.logger;
   }
 

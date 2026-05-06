@@ -141,25 +141,69 @@ comments: includeMany('ticketComment', {
 
 Omitted resolver metadata is charged `defaultCost`, which defaults to `1`. Query requests charge the selected root query plus selected includes recursively; mutation requests charge each mutation entry. Rate-limit costs are independent from security complexity costs.
 
-## Cache Plugin Sketch
+## Cache
 
-A future cache plugin can use resolver wrappers to short-circuit:
+`cachePlugin()` provides opt-in TTL caching for root queries and includes. It ships with an in-memory store and a pluggable `CacheStore` interface for custom backends.
 
 ```ts
-export const cachePlugin = (store: CacheStore) =>
-  definePlugin({
-    name: 'cache',
-    async onResolveQueryNode({ node, next }) {
-      const cache = node.extensions?.cache;
-      if (!cache) return next();
+import { cachePlugin, memoryCacheStore } from '@tql/server/plugins/built-in/cache';
 
-      const key = cache.key ?? `${node.path}:${JSON.stringify(node.query)}`;
-      const hit = await store.get(key);
-      if (hit) return hit;
+plugins: [
+  cachePlugin({
+    store: memoryCacheStore({ maxEntries: 50_000 }),
+    defaultTtlMs: 30_000,
+    defaultScope: ({ context }) => [`user:${context.user.id}`],
+  }),
+];
+```
 
-      const value = await next();
-      await store.set(key, value, cache.ttlMs);
-      return value;
+Resolvers opt in with `cache`. Scope values are part of the cache key and should identify the current user or tenant. The plugin-level `defaultScope` is applied to every cached entry and can be extended per resolver.
+
+```ts
+ticketById: querySingle({
+  query: z.object({ id: z.string() }),
+  cache: {
+    ttlMs: 60_000,
+    tags: ({ query }) => [`ticket:${query.id}`],
+  },
+  resolve: async ({ context, query }) => context.ticketsService.getById(context.user, query),
+});
+```
+
+Includes are cached per parent. TQL resolves includes in batches, but the cache plugin stores one entry per parent id so later requests can reuse partial hits and only resolve missing parents.
+
+```ts
+comments: includeMany('ticketComment', {
+  matchKey: 'ticketId',
+  query: z.object({ order: z.enum(['asc', 'desc']) }),
+  cache: {
+    ttlMs: 30_000,
+    tags: ({ parent }) => [`ticket:${parent.id}:comments`],
+  },
+  resolve: async ({ context, parents, query }) =>
+    context.ticketCommentsService.queryByTicketIds(context.user, {
+      ticketIds: parents.map((parent) => parent.id),
+      order: query.order,
+    }),
+});
+```
+
+Mutations own invalidation through an imperative `cache.onSuccess` hook. It runs synchronously after the mutation resolver succeeds and before the mutation response is returned.
+
+```ts
+createTicket: schema.mutation('createTicket', {
+  input: z.object({ workspaceId: z.string(), ticketListId: z.string(), title: z.string() }),
+  output: z.object({ ticket: z.any() }),
+  allow: ({ context, input }) => context.user.workspaceIds.includes(input.workspaceId),
+  cache: {
+    onSuccess: async ({ cache, input, output }) => {
+      await cache.invalidateTag(`workspace:${input.workspaceId}:tickets`);
+      await cache.invalidatePath('tickets');
+      await cache.invalidateQuery({ path: 'ticketById', query: { id: output.ticket.id } });
     },
-  });
+  },
+  resolve: async ({ context, input }) => ({
+    ticket: await context.ticketsService.create(context.user, input),
+  }),
+});
 ```

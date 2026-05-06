@@ -18,6 +18,10 @@
       "types": "./dist/src/plugins/index.d.ts",
       "default": "./dist/src/plugins/index.js"
     },
+    "./plugins/built-in/cache": {
+      "types": "./dist/src/plugins/built-in/cache/index.d.ts",
+      "default": "./dist/src/plugins/built-in/cache/index.js"
+    },
     "./plugins/built-in/effects": {
       "types": "./dist/src/plugins/built-in/effects/index.d.ts",
       "default": "./dist/src/plugins/built-in/effects/index.js"
