@@ -96,7 +96,10 @@ export const useInfinitePagedQuery = <QueryType extends AnyPagedQuery>(options: 
 
   const pages = (state?.pages ?? []) as PagedQueryChunk<PagedQueryEntity<QueryType>>[];
   const pagingInfo = state?.pagingInfo ?? null;
-  const data = pages.flatMap((page) => page.data) as PagedQueryEntity<QueryType>[];
+  const data = useMemo(
+    () => pages.flatMap((page) => page.data) as PagedQueryEntity<QueryType>[],
+    [pages],
+  );
 
   return useMemo(
     () => ({

@@ -117,7 +117,10 @@ export const usePagedQuery = <QueryType extends AnyPagedQuery>(options: {
   const pages = (state?.pages ?? []) as PagedQueryChunk<PagedQueryEntity<QueryType>>[];
   const pageIndex = state?.pageIndex ?? 0;
   const pagingInfo = state?.pagingInfo ?? null;
-  const data = (pages[pageIndex]?.data ?? []) as PagedQueryEntity<QueryType>[];
+  const data = useMemo(
+    () => (pages[pageIndex]?.data ?? []) as PagedQueryEntity<QueryType>[],
+    [pages, pageIndex],
+  );
 
   return useMemo(
     () => ({
