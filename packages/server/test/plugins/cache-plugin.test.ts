@@ -1,6 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
-
 import { loggingPlugin } from '../../src/plugins/built-in/logging/index.js';
 import { cachePlugin, memoryCacheStore } from '../../src/plugins/built-in/cache/index.js';
 import { rateLimitPlugin } from '../../src/plugins/built-in/rate-limit/index.js';

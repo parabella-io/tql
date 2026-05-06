@@ -755,12 +755,12 @@ export class QueryResolver<S extends ClientSchema> {
       }
 
       if (!entitiesByParentId.has(parentId)) {
-        entitiesByParentId.set(parentId, parsedEntity.data);
         parsedItems.push({ parentId, entity: parsedEntity.data });
       }
     }
 
     const parsedEntities = parsedItems.map((item) => item.entity);
+
     const externalBatches = (
       await Promise.all(
         this.resolveExternalBatches({
@@ -781,7 +781,7 @@ export class QueryResolver<S extends ClientSchema> {
     for (const [index, entity] of enrichedEntities.entries()) {
       const parentId = parsedItems[index]?.parentId;
 
-      if (typeof parentId === 'string' && !entitiesByParentId.has(parentId)) {
+      if (typeof parentId === 'string') {
         entitiesByParentId.set(parentId, entity);
       }
     }
@@ -839,6 +839,7 @@ export class QueryResolver<S extends ClientSchema> {
     }
 
     const includeOptions = includeMany.getOptions();
+
     const { resolve } = includeOptions;
 
     const { data: parsedQuery, error: parsedError } = HandleIncludeManyInputSchema.safeParse({
@@ -903,6 +904,7 @@ export class QueryResolver<S extends ClientSchema> {
     }
 
     const parsedEntities = parsedItems.map((item) => item.entity);
+
     const externalBatches = (
       await Promise.all(
         this.resolveExternalBatches({

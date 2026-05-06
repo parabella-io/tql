@@ -52,7 +52,6 @@ describe('MutationResolver - Success', () => {
     });
 
     expect(result.createProfile.error).toBeNull();
-
     expect(result.createProfile.data.profile.id).toBeDefined();
     expect(result.createProfile.data.profile.name).toBe(name);
     expect(result.createProfile.data.profile.hobbies).toEqual(hobbies);
@@ -69,7 +68,6 @@ describe('MutationResolver - Success', () => {
     const hobbies = [{ level: 1, name: 'Test Hobby' }];
 
     const postTitle = 'Test Post';
-
     const postId = '1';
     const postContent = 'Test Post';
 
