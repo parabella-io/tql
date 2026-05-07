@@ -1,0 +1,11 @@
+---
+description: Treat tql as unreleased and avoid backwards compatibility shims
+alwaysApply: true
+---
+
+# Unreleased Framework
+
+- `tql` has not been released yet. APIs, generated schema shape, and wire protocol are still allowed to change.
+- Do not preserve backwards compatibility with old in-branch APIs unless the user explicitly asks for it.
+- Prefer replacing obsolete patterns outright over adding compatibility layers, migration shims, or docs for previous shapes.
+- Documentation should describe the current framework only, not historical or deprecated styles.
