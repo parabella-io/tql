@@ -270,7 +270,7 @@ No GraphQL SDL, no OpenAPI spec, no codegen step the developer has to think abou
 
 ### 4. Expose the API directly as an ORM
 
-With the schema generated, the client side opens by pointing a typed `Client` at it. The schema becomes a graph the frontend traverses exactly like an ORM — no hand-written REST endpoints per resource, no `fetch` wrappers, no DTO mapping. The client describes *what* it wants (fields + nested includes + filters) and the server resolves it.
+With the schema generated, the client side opens by pointing a typed `Client` at it. The schema becomes a graph the frontend traverses exactly like an ORM — no hand-written REST endpoints per resource, no `fetch` wrappers, no DTO mapping. The client describes _what_ it wants (fields + nested includes + filters) and the server resolves it.
 
 ```7:18:apps/app/src/shared/lib/tql.ts
 export const tql = new Client<ClientSchema>({
@@ -293,7 +293,7 @@ From this point on, every query and mutation in the app is end-to-end typed agai
 
 ### 5. Create queries
 
-On the client, queries are first-class objects created via `tql.createQuery`. They define *what* to fetch: root query name, params, selected fields and nested includes.
+On the client, queries are first-class objects created via `tql.createQuery`. They define _what_ to fetch: root query name, params, selected fields and nested includes.
 
 ```1:39:apps/app/src/api/tickets/queries/ticket.query.ts
 import { tql } from '@/shared/lib/tql'
@@ -343,7 +343,7 @@ export const createTicketMutation = tql.createMutation('createTicket', {
 })
 ```
 
-A drag-and-drop reorder where you *do* want the UI to feel instant:
+A drag-and-drop reorder where you _do_ want the UI to feel instant:
 
 ```11:44:apps/app/src/api/tickets/mutations/move-ticket.mutation.ts
 export const moveTicketMutation = tql.createMutation('moveTicket', {
