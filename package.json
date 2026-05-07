@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "db:push": "turbo db:push && turbo db:generate",
     "build:package": "turbo build:package",
-    "docs:dev": "turbo dev:docs --filter=@tql/docs",
-    "docs:build": "turbo build:docs --filter=@tql/docs",
+    "build:docs": "turbo build:docs --filter=@tql/docs",
+    "dev:docs": "turbo dev:docs --filter=@tql/docs",
     "dev": "turbo dev",
+    "db:push": "turbo db:push && turbo db:generate",
     "prepare": "husky"
   },
   "keywords": [],
