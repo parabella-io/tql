@@ -1,5 +1,5 @@
 import { ticketQuery } from "@/api/tickets/queries/ticket.query"
-import { useQuery } from "@tql/client"
+import { useQuery } from "@parabella-io/tql-client"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { TicketTitle } from "./ticket-title"
 import { Separator } from "@/shared/components/ui/separator"

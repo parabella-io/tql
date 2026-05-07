@@ -22,7 +22,7 @@ The server defines what is allowed; the client composes ordinary TypeScript obje
 - 🎯 **All-or-nothing responses** — Each root query or mutation resolves to success or failure as a whole. There is no GraphQL-style mix of partial `data` and per-field errors: if the request succeeds, you can treat the returned payload as complete for what you asked for, without field-level nullability driven by resolver errors.
 - 🐎 **Snappy DX** — Plain TypeScript on both sides. No GraphQL schema language and no client-side query DSL. The server emits a **type-only** `ClientSchema` (no generated runtime client you have to run a CLI for).
 - 🍃 **Focused footprint** — The client is a small HTTP-oriented runtime plus local query/mutation state (no GraphQL client or query planner in the browser).
-- 🐻 **New or brownfield** — Add `@tql/server` to an API and `@tql/client` to a UI without adopting a specific meta-framework.
+- 🐻 **New or brownfield** — Add `@parabella-io/tql-server` to an API and `@parabella-io/tql-client` to a UI without adopting a specific meta-framework.
 - 🔋 **HTTP-first, adapter-friendly** — Shipped Fastify integration and an `HttpAdapter` shape so other Node HTTP stacks can wire the same `/query` and `/mutation` contract.
 - ⚡ **Request batching** — One JSON body can carry multiple root queries or mutations (subject to your security and batch limits).
 - 👀 **Learn by example** — Follow the [Concepts](/guide/concepts) walkthrough; the framework repo includes a full-stack reference app you can read alongside the docs.

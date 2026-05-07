@@ -1,7 +1,7 @@
 # OpenTelemetry
 
 ```ts
-import { otelPlugin } from '@tql/server/plugins/built-in/otel';
+import { otelPlugin } from '@parabella-io/tql-server/plugins/built-in/otel';
 
 otelPlugin({ tracerProvider, meterProvider });
 ```

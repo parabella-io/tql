@@ -1,4 +1,4 @@
-import { FormattedTQLServerError } from '@tql/server';
+import { FormattedTQLServerError } from '@parabella-io/tql-server';
 import { ClientSchema } from '../query/query.types';
 import { ClientHandleMutation } from '../client/client';
 import { createOptimisticUpdate } from '../query/query-optimistic-update';

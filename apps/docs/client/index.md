@@ -1,13 +1,13 @@
 # Client
 
-`@tql/client` consumes the generated `ClientSchema` and gives the frontend typed query objects, mutation objects, local stores, transports, and React hooks.
+`@parabella-io/tql-client` consumes the generated `ClientSchema` and gives the frontend typed query objects, mutation objects, local stores, transports, and React hooks.
 
 ## Create a client
 
 The example app creates one shared client in `apps/app/src/shared/lib/tql.ts`:
 
 ```ts
-import { Client, HttpTransport } from '@tql/client';
+import { Client, HttpTransport } from '@parabella-io/tql-client';
 import type { ClientSchema } from '@tql/api';
 
 export const tql = new Client<ClientSchema>({

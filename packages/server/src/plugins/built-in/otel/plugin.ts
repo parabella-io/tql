@@ -58,7 +58,7 @@ type Instruments = {
 };
 
 export const otelPlugin = (options: OtelPluginOptions = {}): ServerPlugin => {
-  const instrumentationName = options.name ?? '@tql/server';
+  const instrumentationName = options.name ?? '@parabella-io/tql-server';
 
   let tracer: Tracer = trace.getTracer(instrumentationName, options.version);
   let meter: Meter | undefined;

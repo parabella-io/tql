@@ -4,7 +4,7 @@ import { db } from './database-client';
 import { schema, SchemaContext, UserContext } from './schema/index';
 import { auth } from './auth';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Server as TQLServer, createFastifyHttpAdapter, type Logger } from '@tql/server';
+import { Server as TQLServer, createFastifyHttpAdapter, type Logger } from '@parabella-io/tql-server';
 import { createTqlPlugins } from './plugins';
 import { storageService } from './services';
 

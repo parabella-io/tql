@@ -3,7 +3,7 @@ import { updateWorkspaceMutation } from "@/api/workspaces/mutations/update-works
 import { ErrorCenter } from "@/shared/components/error/error-center";
 import { useAppForm } from "@/shared/components/form/form.hook";
 import { LoadingCenter } from "@/shared/components/loading/loading-center";
-import { useMutation, useQuery } from "@tql/client";
+import { useMutation, useQuery } from "@parabella-io/tql-client";
 import { toast } from "sonner";
 import z from "zod";
 import React, { useMemo } from "react";

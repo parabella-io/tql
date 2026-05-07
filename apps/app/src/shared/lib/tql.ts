@@ -1,4 +1,4 @@
-import { Client, HttpTransport } from '@tql/client'
+import { Client, HttpTransport } from '@parabella-io/tql-client'
 
 import type { ClientSchema } from '@tql/api'
 

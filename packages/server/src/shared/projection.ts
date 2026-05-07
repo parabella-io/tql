@@ -1,6 +1,6 @@
 /**
  * Schema-agnostic projection helpers shared between codegen-emitted schema
- * modules, the server runtime, and `@tql/client`.
+ * modules, the server runtime, and `@parabella-io/tql-client`.
  *
  * Everything in this file is pure type machinery — no runtime dependencies.
  * Both the codegen output and the client import these helpers directly so

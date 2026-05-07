@@ -1,6 +1,6 @@
 {
-  "name": "@tql",
-  "version": "1.0.0",
+  "name": "@parabella-io/tql",
+  "version": "0.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,6 +9,9 @@
     "dev:docs": "turbo dev:docs --filter=@tql/docs",
     "dev": "turbo dev",
     "db:push": "turbo db:push && turbo db:generate",
+    "test": "turbo test --filter=@parabella-io/tql-server --filter=@parabella-io/tql-client",
+    "release:version": "node scripts/release/set-package-version.mjs",
+    "release:publish": "node scripts/release/publish-packages.mjs",
     "prepare": "husky"
   },
   "keywords": [],
@@ -22,6 +25,13 @@
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
     "@commitlint/config-conventional": "^20.5.3",
-    "husky": "^9.1.7"
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.6",
+    "@semantic-release/release-notes-generator": "^14.1.0",
+    "husky": "^9.1.7",
+    "semantic-release": "^25.0.3"
   }
 }

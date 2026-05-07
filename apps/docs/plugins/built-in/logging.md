@@ -1,7 +1,7 @@
 # Logging
 
 ```ts
-import { loggingPlugin } from '@tql/server/plugins/built-in/logging';
+import { loggingPlugin } from '@parabella-io/tql-server/plugins/built-in/logging';
 
 loggingPlugin({ slowQueryMs: 500 });
 ```

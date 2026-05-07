@@ -2,7 +2,7 @@ import { myWorkspaceInvitesQuery } from "@/api/workspaces/queries/my-workspace-i
 import { ErrorCenter } from "@/shared/components/error/error-center"
 import { LoadingCenter } from "@/shared/components/loading/loading-center"
 import { Card, CardAction, CardFooter, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card"
-import { useMutation, useQuery } from "@tql/client"
+import { useMutation, useQuery } from "@parabella-io/tql-client"
 import { Button } from "@/shared/components/ui/button"
 import { WorkspaceMemberInviteEntity } from "node_modules/@tql/api/src/schema"
 import { WorkspaceEntity } from "@tql/api"

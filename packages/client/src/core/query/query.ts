@@ -1,4 +1,4 @@
-import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@tql/server/shared';
+import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@parabella-io/tql-server/shared';
 import { createQueryHashKey, QueryHashKey, QueryState, QueryStore } from './query-store';
 
 import type {

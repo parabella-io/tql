@@ -29,7 +29,7 @@ const server = new Server({
 
 ## HTTP adapter
 
-`@tql/server` ships a Fastify adapter:
+`@parabella-io/tql-server` ships a Fastify adapter:
 
 ```ts
 tqlServer.attachHttp(createFastifyHttpAdapter(server));

@@ -5,7 +5,7 @@ Use plugins when behavior cuts across many resolvers or belongs to the framework
 ## Start with `definePlugin`
 
 ```ts
-import { definePlugin } from '@tql/server/plugins';
+import { definePlugin } from '@parabella-io/tql-server/plugins';
 
 export const timingPlugin = () =>
   definePlugin({
@@ -82,7 +82,7 @@ Returned fields merge into `ctx.plugin`. Plugins can also copy values into schem
 Plugins can add typed metadata to queries, includes, mutations, and external fields:
 
 ```ts
-declare module '@tql/server' {
+declare module '@parabella-io/tql-server' {
   interface QuerySingleOptionsExtensions<QueryArgs> {
     audit?: {
       action: string;
@@ -109,13 +109,13 @@ Prefer namespaced option keys to avoid collisions between plugins.
 
 ## Error handling
 
-`onError` can transform or redact framework errors before serialization (see the table above). Return a different `TQLServerError` instance to replace the one sent to the client; return nothing to leave it unchanged. Built-in plugins import that class from the same module graph as `@tql/server`; follow their imports if you need to construct replacement errors.
+`onError` can transform or redact framework errors before serialization (see the table above). Return a different `TQLServerError` instance to replace the one sent to the client; return nothing to leave it unchanged. Built-in plugins import that class from the same module graph as `@parabella-io/tql-server`; follow their imports if you need to construct replacement errors.
 
 ```ts
 definePlugin({
   name: 'redact-errors',
   onError({ error }) {
-    // Replace with a new `TQLServerError` when hiding details (see `@tql/server` built-ins for imports).
+    // Replace with a new `TQLServerError` when hiding details (see `@parabella-io/tql-server` built-ins for imports).
     return shouldHideDetails(error) ? redact(error) : error;
   },
 });

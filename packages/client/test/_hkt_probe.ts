@@ -1,5 +1,5 @@
-import type { ClientSchema, HandleQueryResponseFor } from '@tql/server/shared';
-import type { ClientSchema as TestSchema } from '@tql/server/test-schema';
+import type { ClientSchema, HandleQueryResponseFor } from '@parabella-io/tql-server/shared';
+import type { ClientSchema as TestSchema } from '@parabella-io/tql-server/test-schema';
 
 type S = TestSchema;
 

@@ -1,4 +1,4 @@
-import type { FormattedTQLServerError } from '@tql/server/shared';
+import type { FormattedTQLServerError } from '@parabella-io/tql-server/shared';
 import { immer } from 'zustand/middleware/immer';
 import { createStore, StoreApi } from 'zustand/vanilla';
 import { subscribeWithSelector } from 'zustand/middleware';

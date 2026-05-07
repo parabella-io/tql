@@ -1,6 +1,6 @@
 # Codegen
 
-`generateSchema` emits the type-only contract that `@tql/client` consumes.
+`generateSchema` emits the type-only contract that `@parabella-io/tql-client` consumes.
 
 ## Enable generation
 
@@ -41,7 +41,7 @@ The generated module contains:
 
 ## Why type-only
 
-`@tql/client` does not need a generated runtime client. The runtime client is generic:
+`@parabella-io/tql-client` does not need a generated runtime client. The runtime client is generic:
 
 ```ts
 export const tql = new Client<ClientSchema>({

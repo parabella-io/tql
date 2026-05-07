@@ -1,5 +1,5 @@
 import { produce } from 'immer';
-import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@tql/server/shared';
+import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@parabella-io/tql-server/shared';
 import type { ClientHandleQuery } from '../client/client';
 import { deepPartialMatch } from '../utils';
 import { singleQueryInput } from '../query/query';

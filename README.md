@@ -15,7 +15,7 @@ It also takes a deliberately different stance on client-side state management. M
 
 `tql` is built around a single idea: the network shouldn't be in the way. You declare your domain on the server (entities, models, queries, includes, mutations) and consume it on the client with the same shape you'd get from a local ORM. Mutations declare their output shape and own the cache updates that should happen after they succeed.
 
-For production-facing servers, `@tql/server` also includes a plugin system. The built-in security plugin provides dev-authored allowed query shapes, depth/breadth/batch/body limits, per-resolver complexity and timeout overrides, and pluggable rate limiting. See [`packages/server/PLUGINS.md`](./packages/server/PLUGINS.md) and [`packages/server/SECURITY.md`](./packages/server/SECURITY.md).
+For production-facing servers, `@parabella-io/tql-server` also includes a plugin system. The built-in security plugin provides dev-authored allowed query shapes, depth/breadth/batch/body limits, per-resolver complexity and timeout overrides, and pluggable rate limiting. See [`packages/server/PLUGINS.md`](./packages/server/PLUGINS.md) and [`packages/server/SECURITY.md`](./packages/server/SECURITY.md).
 
 ---
 
@@ -26,8 +26,8 @@ apps/
   api/   # example backend: schema, models, mutations, services
   app/   # example React frontend that consumes the schema
 packages/
-  server/   # @tql/server  — Schema, Server, codegen
-  client/   # @tql/client  — Client, Query, Mutation, React hooks
+  server/   # @parabella-io/tql-server  — Schema, Server, codegen
+  client/   # @parabella-io/tql-client  — Client, Query, Mutation, React hooks
   ts-config/
 ```
 
@@ -388,7 +388,7 @@ export const moveTicketMutation = tql.createMutation('moveTicket', {
 
 ### 7. Consume queries and mutations in React
 
-`@tql/client` ships `useQuery` and `useMutation` hooks. They take the query/mutation object you defined above — there are no string keys, no manual cache layer, no manual subscription wiring.
+`@parabella-io/tql-client` ships `useQuery` and `useMutation` hooks. They take the query/mutation object you defined above — there are no string keys, no manual cache layer, no manual subscription wiring.
 
 ```16:23:apps/app/src/features/dashboard/components/workspaces-list.tsx
     const { data, isLoading } = useQuery({

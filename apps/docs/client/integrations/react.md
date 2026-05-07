@@ -1,6 +1,6 @@
 # React
 
-`@tql/client` ships React hooks for queries, mutations, paged queries, and infinite paged queries. They subscribe directly to the stores owned by the query or mutation object, so no provider is required.
+`@parabella-io/tql-client` ships React hooks for queries, mutations, paged queries, and infinite paged queries. They subscribe directly to the stores owned by the query or mutation object, so no provider is required.
 
 ## `useQuery`
 

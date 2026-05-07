@@ -7,17 +7,17 @@
 Install the server and client packages:
 
 ```sh
-pnpm add @tql/server @tql/client zod
+pnpm add @parabella-io/tql-server @parabella-io/tql-client zod
 ```
 
 If your API and web app are separate packages, install only what each package needs:
 
 ```sh
-pnpm add @tql/server zod
+pnpm add @parabella-io/tql-server zod
 ```
 
 ```sh
-pnpm add @tql/client
+pnpm add @parabella-io/tql-client
 ```
 
 Next, read [Concepts](/guide/concepts) for the framework model.

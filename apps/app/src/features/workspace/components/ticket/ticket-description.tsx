@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { useState } from "react"
 import { Button } from "@/shared/components/ui/button"
 import { updateTicketMutation } from "@/api/tickets/mutations/update-ticket.mutation"
-import { useMutation } from "@tql/client"
+import { useMutation } from "@parabella-io/tql-client"
 import { toast } from "sonner"
 import { Spinner } from "@/shared/components/ui/spinner"
 

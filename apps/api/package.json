@@ -28,7 +28,7 @@
     "@fastify/cors": "^11.2.0",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
-    "@tql/server": "workspace:*",
+    "@parabella-io/tql-server": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.0.3",
     "better-auth": "^1.4.17",

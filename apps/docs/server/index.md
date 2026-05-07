@@ -1,15 +1,15 @@
 # Server
 
-`@tql/server` owns the application graph. It defines entities, models, queries, includes, mutations, runtime validation, plugin hooks, HTTP adapters, and the generated `ClientSchema` consumed by `@tql/client`.
+`@parabella-io/tql-server` owns the application graph. It defines entities, models, queries, includes, mutations, runtime validation, plugin hooks, HTTP adapters, and the generated `ClientSchema` consumed by `@parabella-io/tql-client`.
 
 ## Attach the server
 
-The example backend in `apps/api` uses Fastify, Prisma/PostgreSQL, Better Auth, and `@tql/server` for `/query` and `/mutation`, with built-in security, rate limit, logging, effects, and request-id plugins.
+The example backend in `apps/api` uses Fastify, Prisma/PostgreSQL, Better Auth, and `@parabella-io/tql-server` for `/query` and `/mutation`, with built-in security, rate limit, logging, effects, and request-id plugins.
 
 The server is constructed and attached in `apps/api/src/server.ts`:
 
 ```ts
-import { Server } from '@tql/server';
+import { Server } from '@parabella-io/tql-server';
 import type { ClientSchema } from '@tql/api';
 
 const tqlServer = new Server<ClientSchema>({
@@ -29,7 +29,7 @@ The example app sometimes aliases `Server` as `TQLServer` in local imports; it i
 
 ## What the server owns
 
-`@tql/server` performs these jobs:
+`@parabella-io/tql-server` performs these jobs:
 
 - Registers model and mutation definitions through `Schema`.
 - Builds request plans from `/query` and `/mutation` bodies.
@@ -47,7 +47,7 @@ The example app sometimes aliases `Server` as `TQLServer` in local imports; it i
 The registry for every model and mutation; parameterized by request context and your entity map:
 
 ```ts
-import { Schema, type SchemaEntity, type ClientSchema } from '@tql/server';
+import { Schema, type SchemaEntity, type ClientSchema } from '@parabella-io/tql-server';
 
 export type SchemaContext = { user: UserContext };
 export type SchemaEntities = { ticket: TicketEntity; workspace: WorkspaceEntity };
@@ -55,7 +55,7 @@ export type SchemaEntities = { ticket: TicketEntity; workspace: WorkspaceEntity 
 export const schema = new Schema<SchemaContext, SchemaEntities>();
 ```
 
-Additional subpaths cover shared types, logging, plugins, and built-ins (for example `@tql/server/plugins`, `@tql/server/plugins/built-in/security`).
+Additional subpaths cover shared types, logging, plugins, and built-ins (for example `@parabella-io/tql-server/plugins`, `@parabella-io/tql-server/plugins/built-in/security`).
 
 ### Queries and includes
 

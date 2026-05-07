@@ -1,5 +1,5 @@
 import { workspaceMembersPagedQuery } from "@/api/workspaces/queries/workspace-members.query"
-import { useMutation, usePagedQuery } from "@tql/client"
+import { useMutation, usePagedQuery } from "@parabella-io/tql-client"
 import { ErrorCenter } from "@/shared/components/error/error-center"
 import { LoadingCenter } from "@/shared/components/loading/loading-center"
 import { Card, CardAction, CardContent, CardFooter } from "@/shared/components/ui/card"

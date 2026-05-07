@@ -1,6 +1,6 @@
 {
-  "name": "@tql/server",
-  "version": "1.0.0",
+  "name": "@parabella-io/tql-server",
+  "version": "0.0.0",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
@@ -52,6 +52,13 @@
     }
   },
   "type": "module",
+  "files": [
+    "dist/src",
+    "dist/test/test-schema"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "build:package": "tsc",
