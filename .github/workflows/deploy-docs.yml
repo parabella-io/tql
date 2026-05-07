@@ -3,7 +3,7 @@ name: Deploy Docs
 on:
   push:
     branches:
-      - docs
+      - main
     paths:
       - apps/docs/**
       - README.md
