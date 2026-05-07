@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { NotFoundError } from '../../src/errors.js';
 import { Comment, Post, Profile, schema } from './schema.js';
 
@@ -97,7 +98,6 @@ export const profile = schema.model('profile', {
       allow: async ({ context }) => {
         return context.shouldAllow ?? true;
       },
-      rateLimit: { cost: 2 },
       resolve: async ({ context, query }) => {
         const order = query.order && (query.order.toLowerCase() === 'desc' ? 'DESC' : 'ASC');
 
@@ -130,7 +130,6 @@ export const profile = schema.model('profile', {
         limit: z.number(),
         order: z.enum(['asc', 'desc']),
       }),
-      rateLimit: { cost: 3 },
       resolve: async ({ context, parents, query }) => {
         const profileId = parents.map((parent: Profile) => parent.id);
 
@@ -338,7 +337,7 @@ export const post = schema.model('post', {
       query: z.object({
         comment: z.string().nullable(),
       }),
-      resolve: async ({ context, query, parents }) => {
+      resolve: async ({ context, parents }) => {
         const profileIds = parents.map((parent: Post) => parent.profileId);
 
         let profiles: Profile[] = context.database.prepare('SELECT * FROM profiles WHERE id IN (?)').all(profileIds) as any[];

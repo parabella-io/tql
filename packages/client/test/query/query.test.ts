@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ClientSchema } from '@parabella-io/tql-server/test-schema';
+import type { ClientSchema } from '../test-schema';
 import { Query } from '../../src/core/query/query';
 import { QueryDataFor } from '../../src/core/query/query.types';
 import { createQueryStore, QueryStore } from '../../src/core/query/query-store';
-
-type Schema = ClientSchema;
 
 const profileSelect = {
   name: true,
@@ -48,13 +46,13 @@ describe('Query', () => {
       select: typeof profileSelect;
     };
 
-    type ProfileByIdData = QueryDataFor<Schema, 'profileById', ProfileByIdQueryInput>;
+    type ProfileByIdData = QueryDataFor<ClientSchema, 'profileById', ProfileByIdQueryInput>;
 
     const params: ProfileByIdQueryParams = {
       id: '1',
     };
 
-    const query = new Query<Schema, 'profileById', ProfileByIdQueryInput, ProfileByIdQueryParams>({
+    const query = new Query<ClientSchema, 'profileById', ProfileByIdQueryInput, ProfileByIdQueryParams>({
       store: store,
       queryHandler: handleQuery,
       queryName: queryKey,
@@ -107,13 +105,13 @@ describe('Query', () => {
       pagingInfo: { take?: number; before?: string | null; after?: string | null };
     };
 
-    type PostsData = QueryDataFor<Schema, 'posts', PostsQueryInput>;
+    type PostsData = QueryDataFor<ClientSchema, 'posts', PostsQueryInput>;
 
     const params: PostsQueryParams = {
       title: 'test',
     };
 
-    const query = new Query<Schema, 'posts', PostsQueryInput, PostsQueryParams>({
+    const query = new Query<ClientSchema, 'posts', PostsQueryInput, PostsQueryParams>({
       store: store,
       queryHandler: handleQuery,
       queryName: queryKey,
@@ -189,13 +187,13 @@ describe('Query', () => {
       select: typeof postSelect;
     };
 
-    type PostData = QueryDataFor<Schema, 'post', PostQueryInput>;
+    type PostData = QueryDataFor<ClientSchema, 'post', PostQueryInput>;
 
     const params: PostQueryParams = {
       id: '1',
     };
 
-    const query = new Query<Schema, 'post', PostQueryInput, PostQueryParams>({
+    const query = new Query<ClientSchema, 'post', PostQueryInput, PostQueryParams>({
       store: store,
       queryHandler: handleQuery,
       queryName: queryKey,
@@ -240,11 +238,11 @@ describe('Query', () => {
       select: typeof profileSelect;
     };
 
-    type ProfileNullableData = QueryDataFor<Schema, 'profileNullable', ProfileNullableQueryInput>;
+    type ProfileNullableData = QueryDataFor<ClientSchema, 'profileNullable', ProfileNullableQueryInput>;
 
     const params: ProfileNullableQueryParams = {};
 
-    const query = new Query<Schema, 'profileNullable', ProfileNullableQueryInput, ProfileNullableQueryParams>({
+    const query = new Query<ClientSchema, 'profileNullable', ProfileNullableQueryInput, ProfileNullableQueryParams>({
       store: store,
       queryHandler: handleQuery,
       queryName: queryKey,
@@ -315,7 +313,7 @@ describe('Query', () => {
         }),
     );
 
-    const query = new Query<Schema, 'profileById', ProfileByIdQueryInput, ProfileByIdQueryParams>({
+    const query = new Query<ClientSchema, 'profileById', ProfileByIdQueryInput, ProfileByIdQueryParams>({
       store,
       queryHandler: handleQuery,
       queryName: queryKey,
@@ -373,7 +371,7 @@ describe('Query', () => {
 
     const handleQuery = vi.fn(async () => response);
 
-    const query = new Query<Schema, 'profileById', ProfileByIdQueryInput, ProfileByIdQueryParams>({
+    const query = new Query<ClientSchema, 'profileById', ProfileByIdQueryInput, ProfileByIdQueryParams>({
       store: localStore,
       queryHandler: handleQuery,
       queryName: queryKey,

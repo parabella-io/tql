@@ -1,15 +1,13 @@
 import { describe, beforeEach, it, expect, vi } from 'vitest';
-import { queryResolver, Profile, TestSchemaContext, Post, create, Comment } from '@parabella-io/tql-server/test-schema';
-import type { ClientSchema } from '@parabella-io/tql-server/test-schema';
+import { queryResolver, Profile, Post, create, Comment, SchemaContext } from '../test-schema';
+import type { ClientSchema } from '../test-schema';
 import Database from 'better-sqlite3';
 import { Client } from '../../src/core/client/client';
-
-type Schema = ClientSchema;
 
 describe('Client', () => {
   let database: Database.Database;
 
-  let context: TestSchemaContext;
+  let context: SchemaContext;
 
   let profileEntities: Profile[] = [];
 
@@ -46,7 +44,7 @@ describe('Client', () => {
 
     const comments = commentEntities.filter((c) => c.profileId === profile.id);
 
-    const client = new Client<Schema>({
+    const client = new Client<ClientSchema>({
       transports: {
         http: {
           query: async (query) => {
@@ -108,7 +106,7 @@ describe('Client', () => {
       __model: 'post',
     };
 
-    const client = new Client<Schema>({
+    const client = new Client<ClientSchema>({
       transports: {
         http: {
           query: vi.fn(),

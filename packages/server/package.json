@@ -45,16 +45,11 @@
     "./plugins/built-in/security": {
       "types": "./dist/src/plugins/built-in/security/index.d.ts",
       "default": "./dist/src/plugins/built-in/security/index.js"
-    },
-    "./test-schema": {
-      "types": "./dist/test/test-schema/index.d.ts",
-      "default": "./dist/test/test-schema/index.js"
     }
   },
   "type": "module",
   "files": [
-    "dist/src",
-    "dist/test/test-schema"
+    "dist/src"
   ],
   "publishConfig": {
     "access": "public"
@@ -63,7 +58,7 @@
     "build": "tsc",
     "build:package": "tsc",
     "dev": "tsc --watch",
-    "test": "vitest"
+    "test": "vitest --run"
   },
   "keywords": [],
   "author": "",

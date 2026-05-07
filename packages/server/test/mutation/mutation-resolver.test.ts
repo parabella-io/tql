@@ -1,8 +1,9 @@
 import { beforeEach, describe, test, expect } from 'vitest';
 import Database from 'better-sqlite3';
+
 import { create } from '../test-schema/database.js';
 import { mutationResolver } from '../test-schema/resolvers.js';
-import { Comment, Post, TestSchemaContext } from '../test-schema/schema.js';
+import { Comment, Post, SchemaContext } from '../test-schema/index.js';
 import { TQLServerErrorType } from '../../src/errors.js';
 
 describe('MutationResolver - Success', () => {
@@ -10,7 +11,7 @@ describe('MutationResolver - Success', () => {
 
   let database: Database.Database;
 
-  let context: TestSchemaContext = {} as any;
+  let context: SchemaContext = {} as any;
 
   beforeEach(async () => {
     if (database) {
@@ -172,7 +173,7 @@ describe('MutationResolver - Errors', () => {
 
   let database: Database.Database;
 
-  let context: TestSchemaContext = {} as any;
+  let context: SchemaContext = {} as any;
 
   beforeEach(async () => {
     if (database) {

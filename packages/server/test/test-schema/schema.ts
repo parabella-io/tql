@@ -1,8 +1,7 @@
-import { SchemaEntity } from '../../src/schema-entity.js';
-
-import { Schema } from '../../src/schema.js';
-
 import Database from 'better-sqlite3';
+
+import { SchemaEntity } from '../../src/schema-entity.js';
+import { Schema } from '../../src/schema.js';
 
 export type Profile = SchemaEntity<{
   name: string;
@@ -27,17 +26,17 @@ export type Comment = SchemaEntity<{
   profileId: string;
 }>;
 
-export type TestSchemaEntities = {
+export type SchemaEntities = {
   profile: Profile;
   post: Post;
   comment: Comment;
 };
 
-export type TestSchemaContext = {
+export type SchemaContext = {
   userId: string;
   isAuthenticated: boolean;
   database: Database.Database;
   shouldAllow?: boolean;
 };
 
-export const schema = new Schema<TestSchemaContext, TestSchemaEntities>();
+export const schema = new Schema<SchemaContext, SchemaEntities>();

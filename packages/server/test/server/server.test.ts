@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import { create } from '../test-schema/database.js';
-import { schema as testSchema } from '../test-schema/schema.js';
-import type { ClientSchema } from '../test-schema/generated/schema.js';
+import { schema, type ClientSchema } from '../test-schema/index.js';
 import { Server } from '../../src/server/server.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
@@ -95,7 +94,7 @@ describe('Server', () => {
     }));
 
     const server = new Server<ClientSchema>({
-      schema: testSchema,
+      schema,
       createContext,
       generateSchema: { enabled: false },
     });
@@ -140,7 +139,7 @@ describe('Server', () => {
     }));
 
     const server = new Server<ClientSchema>({
-      schema: testSchema,
+      schema,
       createContext,
       generateSchema: { enabled: false },
     });

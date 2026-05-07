@@ -1,6 +1,6 @@
 {
   "extends": "@tql/ts-config/tsconfig.client.json",
-  "include": ["src", "test"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
     "outDir": "dist"

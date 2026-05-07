@@ -15,7 +15,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "vitest",
+    "test": "vitest --run",
     "build": "tsc",
     "build:package": "tsc",
     "dev": "tsc --watch"

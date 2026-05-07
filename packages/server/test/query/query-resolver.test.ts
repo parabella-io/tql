@@ -1,8 +1,7 @@
 import { describe, test, beforeEach, expect } from 'vitest';
 import { create } from '../test-schema/database.js';
 import Database from 'better-sqlite3';
-import { queryResolver } from '../test-schema/resolvers.js';
-import { Comment, Post, Profile } from '../test-schema/schema.js';
+import { queryResolver, Comment, Post, Profile } from '../test-schema/index.js';
 import { IncludedDataMap, mergeIncludeData } from '../../src/query/query-resolver.js';
 import { TQLServerErrorType } from '../../src/errors.js';
 

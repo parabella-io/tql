@@ -56,12 +56,7 @@ function buildFixture(): Fixture {
   return { schema, resolver, resolveEffects };
 }
 
-async function runMutationEffects(options: {
-  fixture: Fixture;
-  context: Context;
-  mutation: Record<string, unknown>;
-  flush?: boolean;
-}) {
+async function runMutationEffects(options: { fixture: Fixture; context: Context; mutation: Record<string, unknown>; flush?: boolean }) {
   const effects = effectsPlugin();
   const runner = new PluginRunner({ plugins: [effects] });
   const ctx = await runner.createContext({

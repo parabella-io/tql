@@ -42,7 +42,10 @@ describe('loggingPlugin', () => {
 
     expect(logger.child).toHaveBeenCalledWith({ requestId: 'req_123' });
     expect(childLogger.info).toHaveBeenCalledWith({ op: 'query', ops: ['profileById'], batch: 1 }, 'tql.request.start');
-    expect(childLogger.info).toHaveBeenCalledWith(expect.objectContaining({ costs: { staticCost: 1, actualCost: 2 } }), 'tql.request.complete');
+    expect(childLogger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ costs: { staticCost: 1, actualCost: 2 } }),
+      'tql.request.complete',
+    );
   });
 
   test('warns when request duration exceeds slowQueryMs', async () => {
@@ -85,4 +88,3 @@ describe('loggingPlugin', () => {
     expect(logger.error).toHaveBeenCalledWith({ err: error, code: TQLServerErrorType.QueryNotAllowedError }, 'tql.request.error');
   });
 });
-

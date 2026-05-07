@@ -1,14 +1,16 @@
 import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
+
 import { TQLServerErrorType } from '../../src/errors.js';
 import { rateLimitPlugin } from '../../src/plugins/built-in/rate-limit/index.js';
 import { buildMutationPlan, buildQueryPlan } from '../../src/request-plan/index.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
-import { schema as testSchema } from '../test-schema/schema.js';
-import '../test-schema/models.js';
 
 type Thing = SchemaEntity<{ name: string }>;
+
+type NestedParent = SchemaEntity<{ name: string }>;
+type NestedChild = SchemaEntity<{ title: string; parentId: string }>;
 
 type RateLimitSchemaEntities = {
   thing: Thing;
@@ -57,9 +59,62 @@ const createRateLimitSchema = () => {
   return schema;
 };
 
+const createNestedIncludeRateLimitSchema = () => {
+  const schema = new Schema<
+    Record<string, never>,
+    {
+      nestParent: NestedParent;
+      nestChild: NestedChild;
+    }
+  >();
+
+  schema.model('nestChild', {
+    schema: z.object({
+      id: z.string(),
+      title: z.string(),
+      parentId: z.string(),
+    }),
+    fields: ({ field }) => ({
+      id: field(),
+      title: field(),
+      parentId: field(),
+    }),
+    queries: () => ({}),
+  });
+
+  schema.model('nestParent', {
+    schema: z.object({
+      id: z.string(),
+      name: z.string(),
+    }),
+    fields: ({ field }) => ({
+      id: field(),
+      name: field(),
+    }),
+    queries: ({ queryMany }) => ({
+      nestParents: queryMany({
+        query: z.object({ limit: z.number() }),
+        rateLimit: { cost: 2 },
+        resolve: async () => [],
+      }),
+    }),
+    includes: ({ includeMany }) => ({
+      nestChildren: includeMany('nestChild', {
+        matchKey: 'parentId',
+        query: z.object({ limit: z.number() }),
+        rateLimit: { cost: 3 },
+        resolve: async () => [],
+      }),
+    }),
+  });
+
+  return schema;
+};
+
 describe('rateLimitPlugin', () => {
   test('consumes resolver-level query and mutation costs per identity', async () => {
     const schema = createRateLimitSchema();
+
     const queryPlan = buildQueryPlan({
       schema,
       query: {
@@ -73,6 +128,7 @@ describe('rateLimitPlugin', () => {
         },
       },
     });
+
     const mutationPlan = buildMutationPlan({
       schema,
       mutation: {
@@ -81,12 +137,15 @@ describe('rateLimitPlugin', () => {
         },
       },
     });
+
     const consume = vi.fn(async () => ({ remainingPoints: 100, msBeforeNext: 0 }));
+
     const plugin = rateLimitPlugin({
       getIdentity: (_request, context) => (context as { userId: string }).userId,
       keyPrefix: 'tql',
       limiter: { consume } as any,
     });
+
     const ctx = { request: {}, schemaContext: { userId: 'u1' } } as any;
 
     await plugin.beforeQuery?.({ ctx, plan: queryPlan });
@@ -97,22 +156,29 @@ describe('rateLimitPlugin', () => {
   });
 
   test('recursively includes selected include costs', async () => {
+    const schema = createNestedIncludeRateLimitSchema();
+
     const plan = buildQueryPlan({
-      schema: testSchema,
+      schema,
       query: {
-        profiles: {
-          query: { cursor: null, limit: 10, order: 'asc' },
+        nestParents: {
+          query: { limit: 10 },
           select: { name: true },
           include: {
-            posts: {
-              query: { limit: 5, order: 'asc' },
+            nestChildren: {
+              query: { limit: 5 },
               select: { title: true },
             },
           },
         },
       },
     });
-    const consume = vi.fn(async () => ({ remainingPoints: 100, msBeforeNext: 0 }));
+
+    const consume = vi.fn(async () => ({
+      remainingPoints: 100,
+      msBeforeNext: 0,
+    }));
+
     const plugin = rateLimitPlugin({
       getIdentity: () => 'u1',
       limiter: { consume } as any,
@@ -125,6 +191,7 @@ describe('rateLimitPlugin', () => {
 
   test('uses default cost for unconfigured operations', async () => {
     const schema = createRateLimitSchema();
+
     const plan = buildQueryPlan({
       schema,
       query: {
@@ -134,13 +201,16 @@ describe('rateLimitPlugin', () => {
         },
       },
     });
+
     const consume = vi.fn(async () => ({ remainingPoints: 100, msBeforeNext: 0 }));
+
     const plugin = rateLimitPlugin({
       getIdentity: () => 'u1',
       limiter: { consume } as any,
     });
 
     plan.nodes[0]!.extensions = {};
+
     await plugin.beforeQuery?.({ ctx: { request: {}, schemaContext: {} } as any, plan });
 
     expect(consume).toHaveBeenCalledWith('u1', 1);
@@ -148,6 +218,7 @@ describe('rateLimitPlugin', () => {
 
   test('ignores complexity static cost', async () => {
     const schema = createRateLimitSchema();
+
     const plan = buildQueryPlan({
       schema,
       query: {
@@ -157,7 +228,9 @@ describe('rateLimitPlugin', () => {
         },
       },
     });
+
     const consume = vi.fn(async () => ({ remainingPoints: 100, msBeforeNext: 0 }));
+
     const plugin = rateLimitPlugin({
       getIdentity: () => 'u1',
       limiter: { consume } as any,
@@ -170,6 +243,7 @@ describe('rateLimitPlugin', () => {
 
   test('maps limiter rejections to security errors', async () => {
     const schema = createRateLimitSchema();
+
     const plan = buildQueryPlan({
       schema,
       query: {
@@ -179,6 +253,7 @@ describe('rateLimitPlugin', () => {
         },
       },
     });
+
     const plugin = rateLimitPlugin({
       getIdentity: () => 'u1',
       limiter: {

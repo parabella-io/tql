@@ -1,10 +1,8 @@
 import Database from 'better-sqlite3';
-
 import { faker } from '@faker-js/faker';
+import { v7 } from 'uuid';
 
 import { Comment, Post, Profile } from './schema.js';
-
-import { v7 } from 'uuid';
 
 type CreateOptions = {
   profileCount?: number;

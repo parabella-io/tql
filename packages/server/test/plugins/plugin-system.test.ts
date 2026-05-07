@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
+
 import { TQLServerError, TQLServerErrorType } from '../../src/errors.js';
 import { requestIdPlugin } from '../../src/plugins/built-in/request-id/index.js';
 import { securityPlugin } from '../../src/plugins/built-in/security/index.js';
@@ -16,6 +17,7 @@ type PluginSchemaEntities = {
 
 type PluginSchemaContext = {
   value: string;
+  requestId?: string;
 };
 
 type PluginClientSchema = {
@@ -127,6 +129,7 @@ describe('plugin system', () => {
     const result = await server.handleQuery({ request: {}, query: thingQuery });
 
     expect(result.thing.error).toBeNull();
+
     expect(events).toEqual([
       'a:setup',
       'b:setup',

@@ -284,11 +284,38 @@ export interface QueryRegistry {
   profileById: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
   profile: { entity: ProfileEntity; kind: 'single'; nullable: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
   profileNullable: { entity: ProfileEntity; kind: 'single'; nullable: true; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
-  profiles: { entity: ProfileEntity; kind: 'many'; nullable: false; paginated: false; includeMap: ProfileIncludeMap; externalFieldKeys: readonly [] };
-  postById: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
-  post: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
-  posts: { entity: PostEntity; kind: 'many'; nullable: false; paginated: true; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
-  postsPagingBadOutput: { entity: PostEntity; kind: 'many'; nullable: false; paginated: true; includeMap: PostIncludeMap; externalFieldKeys: readonly ["commentsCount"] };
+  profiles: {
+    entity: ProfileEntity;
+    kind: 'many';
+    nullable: false;
+    paginated: false;
+    includeMap: ProfileIncludeMap;
+    externalFieldKeys: readonly [];
+  };
+  postById: {
+    entity: PostEntity;
+    kind: 'single';
+    nullable: false;
+    includeMap: PostIncludeMap;
+    externalFieldKeys: readonly ['commentsCount'];
+  };
+  post: { entity: PostEntity; kind: 'single'; nullable: false; includeMap: PostIncludeMap; externalFieldKeys: readonly ['commentsCount'] };
+  posts: {
+    entity: PostEntity;
+    kind: 'many';
+    nullable: false;
+    paginated: true;
+    includeMap: PostIncludeMap;
+    externalFieldKeys: readonly ['commentsCount'];
+  };
+  postsPagingBadOutput: {
+    entity: PostEntity;
+    kind: 'many';
+    nullable: false;
+    paginated: true;
+    includeMap: PostIncludeMap;
+    externalFieldKeys: readonly ['commentsCount'];
+  };
   commentById: { entity: CommentEntity; kind: 'single'; nullable: false; includeMap: CommentIncludeMap; externalFieldKeys: readonly [] };
 }
 
@@ -418,8 +445,7 @@ export interface CreateProfileOutput {
   };
 }
 
-export interface CreateProfileNoChangesOutput {
-}
+export interface CreateProfileNoChangesOutput {}
 
 export interface CreateProfileUnauthorizedOutput {
   profile: {
@@ -509,11 +535,7 @@ export type HandleQueryResponse<Q extends Partial<QueryInputMap>> = HandleQueryR
  */
 export type MutationResponseMap = MutationResponseMapFor<MutationOutputMap, MutationInputMap>;
 
-export type HandleMutationResponse<Q extends Partial<MutationInputMap>> = HandleMutationResponseFor<
-  MutationOutputMap,
-  MutationInputMap,
-  Q
->;
+export type HandleMutationResponse<Q extends Partial<MutationInputMap>> = HandleMutationResponseFor<MutationOutputMap, MutationInputMap, Q>;
 
 // ===========================================================================
 // CLIENT SCHEMA (single aggregate consumed by @parabella-io/tql-client)

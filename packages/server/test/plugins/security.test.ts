@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
+
 import { TQLServerError, TQLServerErrorType } from '../../src/errors.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
