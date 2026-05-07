@@ -26,4 +26,4 @@ Follow these steps to get your project up and running:
    pnpm dev
    ```
 
-All commands should be run from the root of the repository.
+All commands should be run from the root of the repository
