@@ -1,9 +1,8 @@
 import { describe, test, beforeEach, expect } from 'vitest';
-import { create } from '../test-schema/database.js';
-import Database from 'better-sqlite3';
-import { queryResolver, Comment, Post, Profile } from '../test-schema/index.js';
 import { IncludedDataMap, mergeIncludeData } from '../../src/query/query-resolver.js';
+import type { PrismaClient } from '../prisma/database.js';
 import { TQLServerErrorType } from '../../src/errors.js';
+import { createQueryTestData, queryResolver, type Comment, type Post, type Profile } from './query-resolver.fixture.js';
 
 const profileSelect = {
   name: true,
@@ -24,16 +23,16 @@ const commentSelect = {
 } as const;
 
 describe('QueryResolver explicit single-query aliases - Success', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create();
+    const data = await createQueryTestData();
 
     database = data.db;
 
@@ -89,7 +88,7 @@ describe('QueryResolver explicit single-query aliases - Success', () => {
 });
 
 describe('QueryResolver QuerySingle- Success', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
@@ -97,10 +96,10 @@ describe('QueryResolver QuerySingle- Success', () => {
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create();
+    const data = await createQueryTestData();
 
     database = data.db;
 
@@ -134,16 +133,16 @@ describe('QueryResolver QuerySingle- Success', () => {
 });
 
 describe('QueryResolver QueryMany- Success', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 50,
     });
 
@@ -172,7 +171,7 @@ describe('QueryResolver QueryMany- Success', () => {
 });
 
 describe('QueryResolver IncludeSingle - Success', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
@@ -182,10 +181,10 @@ describe('QueryResolver IncludeSingle - Success', () => {
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -329,13 +328,13 @@ describe('QueryResolver IncludeSingle - Success', () => {
   });
 
   test('should return null for unmatched matchKey includeSingle results', async () => {
-    const emptyData = await create({
+    const emptyData = await createQueryTestData({
       profileCount: 2,
       postCount: 2,
       commentCount: 0,
     });
 
-    database.close();
+    await database.$disconnect();
     database = emptyData.db;
 
     const post = emptyData.postEntities[0];
@@ -393,7 +392,7 @@ describe('QueryResolver IncludeSingle - Success', () => {
 });
 
 describe('QueryResolver IncludeMany - Success', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
@@ -403,10 +402,10 @@ describe('QueryResolver IncludeMany - Success', () => {
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -540,13 +539,13 @@ describe('QueryResolver IncludeMany - Success', () => {
   });
 
   test('should return empty arrays for unmatched matchKey includeMany results', async () => {
-    const emptyData = await create({
+    const emptyData = await createQueryTestData({
       profileCount: 2,
       postCount: 0,
       commentCount: 0,
     });
 
-    database.close();
+    await database.$disconnect();
     database = emptyData.db;
 
     const profile = emptyData.profileEntities[0];
@@ -577,7 +576,7 @@ describe('QueryResolver IncludeMany - Success', () => {
 });
 
 describe('QueryResolver Multiple Top Level Queries - Success', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
@@ -587,10 +586,10 @@ describe('QueryResolver Multiple Top Level Queries - Success', () => {
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -670,7 +669,7 @@ describe('QueryResolver Multiple Top Level Queries - Success', () => {
 });
 
 describe('QueryResolver Merge Include Data - Success', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
@@ -680,10 +679,10 @@ describe('QueryResolver Merge Include Data - Success', () => {
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -814,7 +813,7 @@ describe('QueryResolver Merge Include Data - Success', () => {
 });
 
 describe('QueryResolver HandleBatch - Success', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
@@ -824,10 +823,10 @@ describe('QueryResolver HandleBatch - Success', () => {
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -884,16 +883,16 @@ describe('QueryResolver HandleBatch - Success', () => {
 });
 
 describe('QueryResolver explicit single-query aliases - Errors', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 10,
@@ -928,16 +927,16 @@ describe('QueryResolver explicit single-query aliases - Errors', () => {
 });
 
 describe('QueryResolver QuerySingle - Errors', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 10,
@@ -989,16 +988,16 @@ describe('QueryResolver QuerySingle - Errors', () => {
 });
 
 describe('QueryResolver QueryMany - Errors', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let profileEntities: Profile[] = [];
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 10,
@@ -1153,7 +1152,7 @@ describe('QueryResolver QueryMany - Errors', () => {
 });
 
 describe('QueryResolver externalField (commentsCount)', () => {
-  let database: Database.Database;
+  let database: PrismaClient;
 
   let postEntities: Post[] = [];
 
@@ -1161,10 +1160,10 @@ describe('QueryResolver externalField (commentsCount)', () => {
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const data = await create({
+    const data = await createQueryTestData({
       profileCount: 3,
       postCount: 3,
       commentCount: 10,

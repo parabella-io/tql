@@ -17,8 +17,7 @@ import {
   timeoutPolicy,
 } from '../../src/plugins/built-in/security/index.js';
 import { buildQueryPlan } from '../../src/request-plan/index.js';
-import { schema as testSchema } from '../test-schema/schema.js';
-import '../test-schema/models.js';
+import { securityPlanSchema } from './security-plan.fixture.js';
 
 type Thing = SchemaEntity<{ name: string }>;
 
@@ -80,7 +79,7 @@ const createSecuritySchema = (resolve?: (args: { signal?: AbortSignal }) => Prom
 describe('security plan and policies', () => {
   test('builds query plans with include depth and validated inputs', () => {
     const plan = buildQueryPlan({
-      schema: testSchema,
+      schema: securityPlanSchema,
       query: {
         profiles: {
           query: { cursor: null, limit: 10, order: 'asc' },
@@ -108,7 +107,7 @@ describe('security plan and policies', () => {
 
   test('allowed shapes accept subsets and reject terminal nesting', () => {
     const allowedPlan = buildQueryPlan({
-      schema: testSchema,
+      schema: securityPlanSchema,
       query: {
         profiles: {
           query: { cursor: null, limit: 10, order: 'asc' },
@@ -135,7 +134,7 @@ describe('security plan and policies', () => {
     ).not.toThrow();
 
     const deniedPlan = buildQueryPlan({
-      schema: testSchema,
+      schema: securityPlanSchema,
       query: {
         profiles: {
           query: { cursor: null, limit: 10, order: 'asc' },
@@ -170,7 +169,7 @@ describe('security plan and policies', () => {
 
   test('shape policies reject oversized plans before execution', () => {
     const plan = buildQueryPlan({
-      schema: testSchema,
+      schema: securityPlanSchema,
       query: {
         profiles: {
           query: { cursor: null, limit: 10, order: 'asc' },
@@ -193,7 +192,7 @@ describe('security plan and policies', () => {
 
   test('take policy enforces paginated query take ceilings', () => {
     const plan = buildQueryPlan({
-      schema: testSchema,
+      schema: securityPlanSchema,
       query: {
         posts: {
           query: { title: null },

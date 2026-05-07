@@ -1,24 +1,29 @@
 import { beforeEach, describe, test, expect } from 'vitest';
-import Database from 'better-sqlite3';
 
-import { create } from '../test-schema/database.js';
-import { mutationResolver } from '../test-schema/resolvers.js';
-import { Comment, Post, SchemaContext } from '../test-schema/index.js';
+import type { PrismaClient } from '../prisma/database.js';
+
 import { TQLServerErrorType } from '../../src/errors.js';
+import {
+  createMutationTestData,
+  mutationResolver,
+  type Comment,
+  type MutationResolverSchemaContext,
+  type Post,
+} from './mutation-resolver.fixture.js';
 
 describe('MutationResolver - Success', () => {
   const userId = '1';
 
-  let database: Database.Database;
+  let database: PrismaClient;
 
-  let context: SchemaContext = {} as any;
+  let context: MutationResolverSchemaContext = {} as any;
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const { db } = await create();
+    const { db } = await createMutationTestData();
 
     database = db;
 
@@ -58,7 +63,7 @@ describe('MutationResolver - Success', () => {
     expect(result.createProfile.data.profile.hobbies).toEqual(hobbies);
     expect(result.createProfile.data.profile.address).toEqual(address);
 
-    const databaseProfile: any = database.prepare(`SELECT * FROM profiles WHERE id = ?`).get(userId);
+    const databaseProfile = await database.profile.findUniqueOrThrow({ where: { id: userId } });
     expect(databaseProfile.name).toBe(name);
     expect(JSON.parse(databaseProfile.hobbies)).toEqual(hobbies);
     expect(JSON.parse(databaseProfile.address)).toEqual(address);
@@ -129,11 +134,11 @@ describe('MutationResolver - Success', () => {
     expect(result.createComment.data.comment.postId).toBe(userId);
     expect(result.createComment.data.comment.profileId).toBe(userId);
 
-    const databasePost: Post = database.prepare(`SELECT * FROM posts WHERE id = ?`).get(postId) as Post;
+    const databasePost = await database.post.findUniqueOrThrow({ where: { id: postId } });
     expect(databasePost.content).toBe(postContent);
     expect(databasePost.profileId).toBe(userId);
 
-    const databaseComment: Comment = database.prepare(`SELECT * FROM comments WHERE id = ?`).get(commentId) as Comment;
+    const databaseComment = await database.comment.findUniqueOrThrow({ where: { id: commentId } });
     expect(databaseComment.comment).toBe(commentContent);
     expect(databaseComment.postId).toBe(postId);
     expect(databaseComment.profileId).toBe(userId);
@@ -171,16 +176,16 @@ describe('MutationResolver - Success', () => {
 describe('MutationResolver - Errors', () => {
   const userId = '1';
 
-  let database: Database.Database;
+  let database: PrismaClient;
 
-  let context: SchemaContext = {} as any;
+  let context: MutationResolverSchemaContext = {} as any;
 
   beforeEach(async () => {
     if (database) {
-      database.close();
+      await database.$disconnect();
     }
 
-    const { db } = await create();
+    const { db } = await createMutationTestData();
 
     database = db;
 

@@ -5,3 +5,4 @@ dist
 **/dist
 .turbo
 **/.turbo
+packages/server/test/server/prisma/client

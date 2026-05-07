@@ -1,87 +1,22 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
-import { create } from '../test-schema/database.js';
-import { schema, type ClientSchema } from '../test-schema/index.js';
 import { Server } from '../../src/server/server.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
-import type { HttpAdapter, HttpHandler, HttpHandlerHooks } from '../../src/server/adapters/http/http-adapter.js';
 import { effectsPlugin } from '../../src/plugins/built-in/effects/index.js';
-import '../test-schema/models.js';
-import '../test-schema/mutations.js';
-
-type TestRequest = {
-  body: any;
-};
-
-type StoredHandler = HttpHandler<TestRequest>;
-
-type FakeTransport = {
-  adapter: HttpAdapter<TestRequest>;
-  invoke(
-    path: string,
-    request: TestRequest,
-  ): Promise<{
-    response: unknown;
-    flushResponse(): Promise<void>;
-  }>;
-};
-
-function createFakeTransport(): FakeTransport {
-  const routes = new Map<string, StoredHandler>();
-
-  const adapter: HttpAdapter<TestRequest> = {
-    post(path, handler) {
-      routes.set(path, handler);
-    },
-    getBody(request) {
-      return request.body;
-    },
-  };
-
-  return {
-    adapter,
-    async invoke(path, request) {
-      const handler = routes.get(path);
-
-      if (!handler) throw new Error(`no handler for ${path}`);
-
-      const afterResponseCallbacks: Array<() => void | Promise<void>> = [];
-
-      const hooks: HttpHandlerHooks = {
-        afterResponse(cb) {
-          afterResponseCallbacks.push(cb);
-        },
-      };
-
-      const response = await handler(request, hooks);
-
-      return {
-        response,
-        async flushResponse() {
-          for (const cb of afterResponseCallbacks) {
-            try {
-              await cb();
-            } catch {
-              // Post-response errors must never bubble into the transport.
-            }
-          }
-        },
-      };
-    },
-  };
-}
+import { createFakeTransport, type TestRequest } from '../harness/http-fake.js';
+import { createServerSchema, createServerTestData, type ServerClientSchema } from './server.fixture.js';
 
 describe('Server', () => {
-  let database: Awaited<ReturnType<typeof create>>['db'] | undefined;
+  let database: Awaited<ReturnType<typeof createServerTestData>>['db'] | undefined;
 
-  afterEach(() => {
-    database?.close();
+  afterEach(async () => {
+    await database?.$disconnect();
     database = undefined;
   });
 
   test('creates context from the HTTP request and forwards it to query handlers', async () => {
-    const data = await create();
+    const data = await createServerTestData();
 
     database = data.db;
 
@@ -93,8 +28,8 @@ describe('Server', () => {
       database: data.db,
     }));
 
-    const server = new Server<ClientSchema>({
-      schema,
+    const server = new Server<ServerClientSchema>({
+      schema: createServerSchema(),
       createContext,
       generateSchema: { enabled: false },
     });
@@ -126,7 +61,7 @@ describe('Server', () => {
   });
 
   test('creates context from the HTTP request and forwards it to mutation handlers', async () => {
-    const data = await create();
+    const data = await createServerTestData();
 
     database = data.db;
 
@@ -138,8 +73,8 @@ describe('Server', () => {
       database: data.db,
     }));
 
-    const server = new Server<ClientSchema>({
-      schema,
+    const server = new Server<ServerClientSchema>({
+      schema: createServerSchema(),
       createContext,
       generateSchema: { enabled: false },
     });
@@ -232,6 +167,7 @@ describe('Server - effects lifecycle', () => {
     });
 
     const transport = createFakeTransport();
+
     const effects = effectsPlugin();
 
     const server = new Server<EffectSchema>({
