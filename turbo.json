@@ -8,6 +8,15 @@
       "dependsOn": ["^build:package"],
       "outputs": ["dist/**"]
     },
+    "build:docs": {
+      "persistent": false,
+      "cache": true,
+      "outputs": ["apps/docs/.vitepress/dist/**"]
+    },
+    "dev:docs": {
+      "persistent": true,
+      "cache": false
+    },
     "dev": {
       "persistent": true,
       "cache": false
