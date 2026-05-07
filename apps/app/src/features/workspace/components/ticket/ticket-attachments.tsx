@@ -2,7 +2,7 @@ import { createTicketAttachmentMutation } from "@/api/tickets/mutations/create-t
 import { Button } from "@/shared/components/ui/button";
 import { useUpload } from "@/shared/hooks/use-upload-file";
 import { TicketAttachmentEntity, TicketEntity } from "@tql/api"
-import { useMutation } from "@tql/client";
+import { useMutation } from "@parabella-io/tql-client";
 import { Upload, Trash2 } from "lucide-react";
 import { v7 } from "uuid";
 import React, { useRef } from "react";

@@ -8,11 +8,11 @@ import {
   takePolicy,
   timeoutPolicy,
   securityPlugin,
-} from '@tql/server/plugins/built-in/security';
-import { rateLimitPlugin } from '@tql/server/plugins/built-in/rate-limit';
-import { requestIdPlugin } from '@tql/server/plugins/built-in/request-id';
-import { effectsPlugin, InMemoryEffectQueue } from '@tql/server/plugins/built-in/effects';
-import { loggingPlugin } from '@tql/server/plugins/built-in/logging';
+} from '@parabella-io/tql-server/plugins/built-in/security';
+import { rateLimitPlugin } from '@parabella-io/tql-server/plugins/built-in/rate-limit';
+import { requestIdPlugin } from '@parabella-io/tql-server/plugins/built-in/request-id';
+import { effectsPlugin, InMemoryEffectQueue } from '@parabella-io/tql-server/plugins/built-in/effects';
+import { loggingPlugin } from '@parabella-io/tql-server/plugins/built-in/logging';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import type { ClientSchema } from '../__generated__/schema.d.ts';
 

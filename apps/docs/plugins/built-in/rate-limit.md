@@ -4,12 +4,12 @@ The rate limit plugin runs **`beforeQuery`** and **`beforeMutation`**. It sums a
 
 Failures surface as `TQLServerErrorType.SecurityRateLimitedError` with `remaining` and `retryAfterMs` in the error details. This is **separate** from [Security](/plugins/built-in/security) complexity limits.
 
-Import `@tql/server/plugins/built-in/rate-limit` wherever you use `rateLimit` on resolvers so TypeScript picks up the option types.
+Import `@parabella-io/tql-server/plugins/built-in/rate-limit` wherever you use `rateLimit` on resolvers so TypeScript picks up the option types.
 
 ## Plugin setup
 
 ```ts
-import { rateLimitPlugin } from '@tql/server/plugins/built-in/rate-limit';
+import { rateLimitPlugin } from '@parabella-io/tql-server/plugins/built-in/rate-limit';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 rateLimitPlugin({

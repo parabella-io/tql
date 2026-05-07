@@ -1,5 +1,5 @@
 import { deleteTicketListMutation } from "@/api/tickets/mutations/delete-ticket-list.mutation"
-import { useMutation } from "@tql/client"
+import { useMutation } from "@parabella-io/tql-client"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu"

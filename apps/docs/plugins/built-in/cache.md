@@ -1,7 +1,7 @@
 # Cache
 
 ```ts
-import { cachePlugin, memoryCacheStore } from '@tql/server/plugins/built-in/cache';
+import { cachePlugin, memoryCacheStore } from '@parabella-io/tql-server/plugins/built-in/cache';
 
 cachePlugin({
   store: memoryCacheStore({ maxEntries: 50_000 }),

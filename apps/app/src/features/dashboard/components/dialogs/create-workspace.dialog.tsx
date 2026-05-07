@@ -2,7 +2,7 @@ import { createWorkspaceMutation } from "@/api/workspaces/mutations/create-works
 import { useAppForm } from "@/shared/components/form/form.hook"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { FieldGroup } from "@/shared/components/ui/field"
-import { useMutation } from "@tql/client"
+import { useMutation } from "@parabella-io/tql-client"
 import z from "zod"
 
 const CreateWorkspaceFormSchema = z.object({

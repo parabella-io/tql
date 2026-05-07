@@ -1,5 +1,6 @@
 {
-  "name": "app",
+  "name": "@tql/app",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -26,7 +27,7 @@
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
     "@tql/api": "workspace:*",
-    "@tql/client": "workspace:*",
+    "@parabella-io/tql-client": "workspace:*",
     "axios": "^1.13.2",
     "better-auth": "^1.4.17",
     "class-variance-authority": "^0.7.1",

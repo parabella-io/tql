@@ -1,6 +1,6 @@
 import { myWorkspacesQuery } from "@/api/workspaces/queries/my-workspaces.query"
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from "@/shared/components/ui/card"
-import { useQuery } from "@tql/client"
+import { useQuery } from "@parabella-io/tql-client"
 import { Button } from "@/shared/components/ui/button"
 import { useNavigate } from "@tanstack/react-router"
 import { CreateWorkspaceDialog } from "./dialogs/create-workspace.dialog"

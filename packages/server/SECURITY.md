@@ -1,6 +1,6 @@
-# @tql/server Security
+# @parabella-io/tql-server Security
 
-`@tql/server` protects the two framework endpoints, `/query` and `/mutation`, through `securityPlugin(...)`. The plugin runs after `createContext` and before any resolver executes, so rejected requests do not reach application services.
+`@parabella-io/tql-server` protects the two framework endpoints, `/query` and `/mutation`, through `securityPlugin(...)`. The plugin runs after `createContext` and before any resolver executes, so rejected requests do not reach application services.
 
 ## Recommended Stack
 
@@ -18,7 +18,7 @@ import {
   securityPlugin,
   takePolicy,
   timeoutPolicy,
-} from '@tql/server';
+} from '@parabella-io/tql-server';
 
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 

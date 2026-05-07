@@ -2,7 +2,7 @@
  * Client-side aggregate contract.
  *
  * The client is parameterized by a single `ClientSchema` (emitted by codegen
- * in `@tql/server`). Every shape the client needs — query inputs, query
+ * in `@parabella-io/tql-server`). Every shape the client needs — query inputs, query
  * responses, mutation inputs, mutation responses, entity shapes, and the
  * per-query / per-mutation registries that drive response projection — is
  * read by indexing into one of its seven maps. Consumers never need to drag
@@ -14,15 +14,15 @@
  * sync with what the query actually fetches.
  *
  * All projection helpers (`Selected`, `IncludeProjection`, `Remove__Model`,
- * `QueryDataFor`, …) are imported from `@tql/server/shared` so the client
+ * `QueryDataFor`, …) are imported from `@parabella-io/tql-server/shared` so the client
  * and the codegen output share a single source of truth.
  */
-import type { ClientSchema, QueryDataFor } from '@tql/server/shared';
+import type { ClientSchema, QueryDataFor } from '@parabella-io/tql-server/shared';
 import type { TransportKey } from '../transports';
 
 export type { ClientSchema, QueryDataFor };
 
-export type { IncludeKind, QueryRegistryEntry } from '@tql/server/shared';
+export type { IncludeKind, QueryRegistryEntry } from '@parabella-io/tql-server/shared';
 
 // =============================================================================
 // PUBLIC TYPES

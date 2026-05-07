@@ -1,8 +1,5 @@
 ### Roadmap for v1 release
 
-- **V1 Documentation**
-  - Implement production ready documentation.
-
 - **Comprehensive Testing**
   - Implement full integration and end-to-end tests, integration tests, unit tests and strict type-checking.
 

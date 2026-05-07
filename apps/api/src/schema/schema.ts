@@ -1,4 +1,4 @@
-import { Schema, type SchemaEntity } from '@tql/server';
+import { Schema, type SchemaEntity } from '@parabella-io/tql-server';
 
 export type UserEntity = SchemaEntity<{
   id: string;

@@ -1,4 +1,4 @@
-import type { ClientSchema } from '@tql/server/shared';
+import type { ClientSchema } from '@parabella-io/tql-server/shared';
 
 import { OptimisticQueryStore } from '../query/query-optimistic-update';
 import type { TransportKey } from '../transports';

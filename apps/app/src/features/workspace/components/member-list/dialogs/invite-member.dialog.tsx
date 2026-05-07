@@ -3,7 +3,7 @@ import { useAppForm } from "@/shared/components/form/form.hook"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/components/ui/dialog"
 import { FieldGroup } from "@/shared/components/ui/field"
 import { useDisclosure } from "@/shared/hooks/use-dialog"
-import { useMutation } from "@tql/client"
+import { useMutation } from "@parabella-io/tql-client"
 import { toast } from "sonner"
 import z from "zod"
 

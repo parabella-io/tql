@@ -1,6 +1,6 @@
 /**
  * Aggregate constraint type that resolvers, the {@link Server}, and the
- * `@tql/client` runtime are parameterized by. Codegen (`generateSchema`)
+ * `@parabella-io/tql-client` runtime are parameterized by. Codegen (`generateSchema`)
  * emits a concrete `ClientSchema` interface in the user's project that
  * satisfies this shape; passing it as the single generic to
  * `QueryResolver`, `MutationResolver`, `Server`, or `Client` is enough to

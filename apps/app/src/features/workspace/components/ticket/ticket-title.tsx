@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import { useDisclosure } from "@/shared/hooks/use-dialog"
 import { IconPencil } from "@tabler/icons-react"
 import { TicketEntity } from "@tql/api"
-import { useMutation } from "@tql/client"
+import { useMutation } from "@parabella-io/tql-client"
 import { toast } from "sonner"
 import z from "zod"
 

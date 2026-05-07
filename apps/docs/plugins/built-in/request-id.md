@@ -1,7 +1,7 @@
 # Request ID
 
 ```ts
-import { requestIdPlugin } from '@tql/server/plugins/built-in/request-id';
+import { requestIdPlugin } from '@parabella-io/tql-server/plugins/built-in/request-id';
 
 requestIdPlugin({ header: 'x-request-id' });
 ```

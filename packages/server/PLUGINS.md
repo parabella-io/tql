@@ -1,15 +1,15 @@
-# @tql/server Plugins
+# @parabella-io/tql-server Plugins
 
 Plugins are the extension point for cross-cutting server behaviour: security, caching, observability, request IDs, idempotency, and error redaction.
 
 ## Registering Plugins
 
 ```ts
-import { Server } from '@tql/server';
-import { loggingPlugin } from '@tql/server/plugins/built-in/logging';
-import { rateLimitPlugin } from '@tql/server/plugins/built-in/rate-limit';
-import { requestIdPlugin } from '@tql/server/plugins/built-in/request-id';
-import { securityPlugin } from '@tql/server/plugins/built-in/security';
+import { Server } from '@parabella-io/tql-server';
+import { loggingPlugin } from '@parabella-io/tql-server/plugins/built-in/logging';
+import { rateLimitPlugin } from '@parabella-io/tql-server/plugins/built-in/rate-limit';
+import { requestIdPlugin } from '@parabella-io/tql-server/plugins/built-in/request-id';
+import { securityPlugin } from '@parabella-io/tql-server/plugins/built-in/security';
 
 const server = new Server({
   schema,
@@ -37,7 +37,7 @@ Plugins run in array order. Resolver wrappers compose outside-in, so the first p
 ## Authoring A Plugin
 
 ```ts
-import { definePlugin } from '@tql/server';
+import { definePlugin } from '@parabella-io/tql-server';
 
 export const timingPlugin = () =>
   definePlugin({
@@ -68,7 +68,7 @@ Available lifecycle hooks:
 Plugins can add typed resolver options and context fields through declaration merging.
 
 ```ts
-declare module '@tql/server' {
+declare module '@parabella-io/tql-server' {
   interface QuerySingleOptionsExtensions<QueryArgs> {
     cache?: { ttlMs: number; key?: (query: QueryArgs) => string };
   }
@@ -110,7 +110,7 @@ plugins: [requestIdPlugin(), loggingPlugin({ slowQueryMs: 500 })];
 `otelPlugin()` is opt-in and isolated to its own subpath. Pass providers from your app's OpenTelemetry setup; TQL creates root request spans and child resolver spans, but does not configure exporters.
 
 ```ts
-import { otelPlugin } from '@tql/server/plugins/built-in/otel';
+import { otelPlugin } from '@parabella-io/tql-server/plugins/built-in/otel';
 
 plugins: [requestIdPlugin(), loggingPlugin(), otelPlugin({ tracerProvider, meterProvider })];
 ```
@@ -146,7 +146,7 @@ Omitted resolver metadata is charged `defaultCost`, which defaults to `1`. Query
 `cachePlugin()` provides opt-in TTL caching for root queries and includes. It ships with an in-memory store and a pluggable `CacheStore` interface for custom backends.
 
 ```ts
-import { cachePlugin, memoryCacheStore } from '@tql/server/plugins/built-in/cache';
+import { cachePlugin, memoryCacheStore } from '@parabella-io/tql-server/plugins/built-in/cache';
 
 plugins: [
   cachePlugin({

@@ -4,7 +4,7 @@
 // Schema/Model). It should only export types (erased at runtime) plus
 // lightweight shared values like error enums.
 //
-// Both the codegen output (in user projects) and the `@tql/client` runtime
+// Both the codegen output (in user projects) and the `@parabella-io/tql-client` runtime
 // import from this module so the projection rules and aggregate
 // `ClientSchema` constraint live in exactly one place.
 

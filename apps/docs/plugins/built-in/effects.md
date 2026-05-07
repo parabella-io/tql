@@ -1,7 +1,7 @@
 # Effects
 
 ```ts
-import { effectsPlugin, InMemoryEffectQueue } from '@tql/server/plugins/built-in/effects';
+import { effectsPlugin, InMemoryEffectQueue } from '@parabella-io/tql-server/plugins/built-in/effects';
 
 const effects = effectsPlugin({
   queue: new InMemoryEffectQueue(),
@@ -59,7 +59,7 @@ export const createTicket = schema.mutation('createTicket', {
 });
 ```
 
-Types for `input` and `output` come from your mutation’s Zod `input` / `output` schemas once the effects plugin’s module augmentation is loaded (import from `@tql/server/plugins/built-in/effects` in the file that defines the mutation, or ensure that import is part of your server bundle).
+Types for `input` and `output` come from your mutation’s Zod `input` / `output` schemas once the effects plugin’s module augmentation is loaded (import from `@parabella-io/tql-server/plugins/built-in/effects` in the file that defines the mutation, or ensure that import is part of your server bundle).
 
 ## Behaviour notes
 

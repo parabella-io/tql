@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ClientSchema } from '@tql/server/test-schema';
+import type { ClientSchema } from '@parabella-io/tql-server/test-schema';
 import { Query } from '../../src/core/query/query';
 import { QueryDataFor } from '../../src/core/query/query.types';
 import { createQueryStore, QueryStore } from '../../src/core/query/query-store';

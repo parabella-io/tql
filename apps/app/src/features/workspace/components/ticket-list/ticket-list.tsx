@@ -1,5 +1,5 @@
 import { useParams } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tql/client";
+import { useMutation, useQuery } from "@parabella-io/tql-client";
 import { LoadingCenter } from "@/shared/components/loading/loading-center";
 import { ticketListsQuery } from "@/api/tickets";
 import { CreateTicketListDialog } from "./dialogs/create-ticket-list.dialog";

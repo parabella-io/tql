@@ -1,6 +1,6 @@
 import { describe, beforeEach, it, expect, vi } from 'vitest';
-import { queryResolver, Profile, TestSchemaContext, Post, create, Comment } from '@tql/server/test-schema';
-import type { ClientSchema } from '@tql/server/test-schema';
+import { queryResolver, Profile, TestSchemaContext, Post, create, Comment } from '@parabella-io/tql-server/test-schema';
+import type { ClientSchema } from '@parabella-io/tql-server/test-schema';
 import Database from 'better-sqlite3';
 import { Client } from '../../src/core/client/client';
 

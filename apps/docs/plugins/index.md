@@ -48,7 +48,7 @@ Plugins run in array order. Resolver wrappers compose outside-in, so the first p
 ## Author a plugin
 
 ```ts
-import { definePlugin } from '@tql/server/plugins';
+import { definePlugin } from '@parabella-io/tql-server/plugins';
 
 export const timingPlugin = () =>
   definePlugin({
@@ -72,7 +72,7 @@ Use [Authoring](/plugins/authoring) for a deeper custom plugin guide. Built-in p
 Plugins can add typed resolver options and typed context fields through declaration merging:
 
 ```ts
-declare module '@tql/server' {
+declare module '@parabella-io/tql-server' {
   interface QuerySingleOptionsExtensions<QueryArgs> {
     cache?: { ttlMs: number; key?: (query: QueryArgs) => string };
   }
@@ -87,7 +87,7 @@ Built-in plugin indexes import their own augmentation files, so consumers do not
 
 ## Built-in plugins
 
-`@tql/server` ships built-ins under `@tql/server/plugins/built-in/*`. Each one has a dedicated page:
+`@parabella-io/tql-server` ships built-ins under `@parabella-io/tql-server/plugins/built-in/*`. Each one has a dedicated page:
 
 - [Built-in overview](/plugins/built-in/)
 - [Request ID](/plugins/built-in/request-id)

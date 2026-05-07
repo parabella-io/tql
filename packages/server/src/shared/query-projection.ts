@@ -73,7 +73,7 @@ export type QueryPagingInfoFromRegistry<
 
 /**
  * Client-facing convenience wrapper around {@link QueryDataFromRegistry}
- * that derives per-call response data for `@tql/client`.
+ * that derives per-call response data for `@parabella-io/tql-client`.
  */
 export type QueryDataFor<
   S extends { QueryRegistry: Record<string, any> },

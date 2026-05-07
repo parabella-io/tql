@@ -50,7 +50,7 @@ const HASH_MARKER = '// @schema-hash';
  *   8. QueryRegistry                    queryName -> { entity, kind, nullable, paginated?, includeMap, externalFieldKeys }
  *   9. <Mutation>Input + MutationInputMap per-mutation envelopes and aggregate map
  *  10. <Mutation>Output + MutationOutputMap per-mutation payloads and aggregate map
- *  11. ClientSchema                     aggregate map consumed by @tql/client
+ *  11. ClientSchema                     aggregate map consumed by @parabella-io/tql-client
  *  12. Projection + handle stubs        cheap mapped types + type-only entry points
  *
  * Recursion is by name so deep selections / mutation output projections
@@ -661,8 +661,8 @@ const HEADER_COMMENT = `/**
  * \`FlattenedQueriesInput\` / \`FlattenedMutationsInput\` generic chains.
  *
  * All projection helpers (\`Selected\`, \`IncludeProjection\`, etc.) live in
- * \`@tql/server/shared\` so the codegen output, the server
- * runtime, and \`@tql/client\` all share a single source of truth. The file
+ * \`@parabella-io/tql-server/shared\` so the codegen output, the server
+ * runtime, and \`@parabella-io/tql-client\` all share a single source of truth. The file
  * below only emits schema-specific shapes (entities, selects, includes,
  * inputs, outputs, registries, and the aggregate \`ClientSchema\`).
  *
@@ -678,7 +678,7 @@ const HEADER_COMMENT = `/**
  *   9. <Mutation>Output + MutationOutputMap per-mutation payloads and aggregate map
  *  10. QueryResponseMap / HandleQueryResponse    aliases over shared helpers
  *  11. MutationResponseMap / HandleMutationResponse aliases over shared helpers
- *  12. ClientSchema                     aggregate map consumed by @tql/client
+ *  12. ClientSchema                     aggregate map consumed by @parabella-io/tql-client
  *  13. handleQuery / handleMutation     type-only stubs
  */
 
@@ -689,7 +689,7 @@ import type {
   IncludeNodeMarker,
   MutationResponseMapFor,
   QueryResponseMapFor,
-} from '@tql/server/shared';`;
+} from '@parabella-io/tql-server/shared';`;
 
 const QUERY_PROJECTION_BLOCK = `${bannerComment('QUERY PROJECTION + RESPONSE')}
 
@@ -716,17 +716,17 @@ export type HandleMutationResponse<Q extends Partial<MutationInputMap>> = Handle
   Q
 >;`;
 
-const CLIENT_SCHEMA_BLOCK = `${bannerComment('CLIENT SCHEMA (single aggregate consumed by @tql/client)')}
+const CLIENT_SCHEMA_BLOCK = `${bannerComment('CLIENT SCHEMA (single aggregate consumed by @parabella-io/tql-client)')}
 
 /**
- * Aggregate type consumed by \`@tql/client\`. The client is parameterized by a
+ * Aggregate type consumed by \`@parabella-io/tql-client\`. The client is parameterized by a
  * single \`ClientSchema\` so it can index every shape it needs — query inputs,
  * query responses, mutation inputs, mutation outputs, mutation responses, entity shapes, and
  * the per-query / per-mutation registries used to project response data from
  * the user's actual \`select\` / \`include\` shape — off one generic instead of
  * duck-typing a resolver class.
  *
- * Satisfies the {@link ClientSchemaConstraint} from \`@tql/server/shared\`.
+ * Satisfies the {@link ClientSchemaConstraint} from \`@parabella-io/tql-server/shared\`.
  */
 export interface ClientSchema extends ClientSchemaConstraint {
   QueryInputMap: QueryInputMap;

@@ -10,7 +10,7 @@ import {
 } from "@/shared/components/ui/alert-dialog"
 
 import { deleteWorkspaceMutation } from "@/api/workspaces/mutations/delete-workspace.mutation"
-import { useMutation } from "@tql/client"
+import { useMutation } from "@parabella-io/tql-client"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
 import { useDisclosure } from "@/shared/hooks/use-dialog"

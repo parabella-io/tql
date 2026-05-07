@@ -4,7 +4,7 @@ import { immer } from 'zustand/middleware/immer';
 import { subscribeWithSelector } from 'zustand/middleware';
 import stableStringify from 'fast-json-stable-stringify';
 import md5 from 'md5';
-import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@tql/server/shared';
+import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@parabella-io/tql-server/shared';
 
 export type PagingInfoIn = {
   take?: number;

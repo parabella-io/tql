@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-import { generateSchema } from '@tql/server';
+import { generateSchema } from '@parabella-io/tql-server';
 
 import { schema } from '../src/schema/index';
 

@@ -15,7 +15,7 @@ import {
   securityPlugin,
   takePolicy,
   timeoutPolicy,
-} from '@tql/server/plugins/built-in/security';
+} from '@parabella-io/tql-server/plugins/built-in/security';
 ```
 
 Per-identity request throttling is a separate concern: use [Rate limit](/plugins/built-in/rate-limit).

@@ -1,5 +1,5 @@
 import { useParams } from "@tanstack/react-router";
-import { useQuery } from "@tql/client";
+import { useQuery } from "@parabella-io/tql-client";
 import { SidebarProvider } from "@/shared/components/ui/sidebar"
 import { myWorkspacesQuery } from "@/api/workspaces";
 import { WorkspaceNavbar } from "./navbar"

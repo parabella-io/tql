@@ -1,4 +1,4 @@
-import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@tql/server/shared';
+import type { FormattedTQLServerError, ResolvedPagingInfoShape } from '@parabella-io/tql-server/shared';
 import type { ClientSchema, QueryDataFor, QueryInputFor, QueryNameFor, QueryResponse, SingleQueryRequestFor } from '../query/query.types';
 import type { TransportKey } from '../transports';
 import type { PagingInfoIn, PagedQueryChunk } from './paged-query-store';
