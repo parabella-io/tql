@@ -162,6 +162,7 @@ export const ticket = schema.model('ticket', {
     }),
   }),
 
+
   includes: ({ includeSingle, includeMany }) => ({
     assignee: includeSingle('ticketAssignee', {
       nullable: true,
