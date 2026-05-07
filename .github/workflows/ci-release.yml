@@ -43,8 +43,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    # needs: package-tests
-    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: package-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       id-token: write

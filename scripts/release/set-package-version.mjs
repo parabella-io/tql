@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const version = process.argv[2];
+
 const packages = [
   'apps/api/package.json',
   'apps/app/package.json',
