@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { Schema } from '../../src/schema.js';
 import { createMutationResolver } from '../harness/resolvers.js';
 import type { SchemaEntities } from '../harness/schema-entities.js';
-import { createProfilePostCommentTestData } from '../harness/test-data.js';
 import type { PrismaClient } from '../prisma/database.js';
+import { generateSchema } from '../../src/codegen/generate-schema.js';
+import { ClientSchema } from './mutation-resolver.schema.js';
 
 export type { Comment, Post, Profile } from '../harness/schema-entities.js';
 
@@ -14,8 +15,6 @@ export type MutationResolverSchemaContext = {
   database: PrismaClient;
   shouldAllow?: boolean;
 };
-
-export const createMutationTestData = createProfilePostCommentTestData;
 
 export const registerMutationResolverMutations = (schema: Schema<MutationResolverSchemaContext, SchemaEntities>) => {
   const profileOutput = z.object({
@@ -297,10 +296,11 @@ export const registerMutationResolverMutations = (schema: Schema<MutationResolve
 
 export const createMutationResolverSchema = () => {
   const schema = new Schema<MutationResolverSchemaContext, SchemaEntities>();
+  generateSchema({ schema, outputPath: 'test/mutation/mutation-resolver.schema.d.ts' });
   registerMutationResolverMutations(schema);
   return schema;
 };
 
 export const mutationResolverSchema = createMutationResolverSchema();
 
-export const mutationResolver = createMutationResolver(mutationResolverSchema);
+export const mutationResolver = createMutationResolver<ClientSchema>(mutationResolverSchema);

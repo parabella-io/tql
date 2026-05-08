@@ -3,11 +3,11 @@ import { z } from 'zod';
 import { NotFoundError } from '../../src/errors.js';
 import { Schema } from '../../src/schema.js';
 import { createQueryResolver } from '../harness/resolvers.js';
-import type { Comment, Post, Profile, SchemaEntities } from '../harness/schema-entities.js';
-import { createProfilePostCommentTestData } from '../harness/test-data.js';
+import type { Comment, Post, Profile } from '../harness/schema-entities.js';
 import type { PrismaClient } from '../prisma/database.js';
-
-export type { Comment, Post, Profile } from '../harness/schema-entities.js';
+import { generateSchema } from '../../src/codegen/generate-schema.js';
+import type { SchemaEntities } from '../harness/schema-entities.js';
+import { ClientSchema } from './query-resolver.schema.js';
 
 export type QueryResolverSchemaContext = {
   userId: string;
@@ -15,8 +15,6 @@ export type QueryResolverSchemaContext = {
   database: PrismaClient;
   shouldAllow?: boolean;
 };
-
-export const createQueryTestData = createProfilePostCommentTestData;
 
 export const registerQueryResolverModels = (schema: Schema<QueryResolverSchemaContext, SchemaEntities>) => {
   const profile = schema.model('profile', {
@@ -451,8 +449,10 @@ export const registerQueryResolverModels = (schema: Schema<QueryResolverSchemaCo
 export const createQueryResolverSchema = () => {
   const schema = new Schema<QueryResolverSchemaContext, SchemaEntities>();
   registerQueryResolverModels(schema);
+  generateSchema({ schema, outputPath: 'test/query/query-resolver.schema.d.ts' });
   return schema;
 };
 
 export const queryResolverSchema = createQueryResolverSchema();
-export const queryResolver = createQueryResolver(queryResolverSchema);
+
+export const queryResolver = createQueryResolver<ClientSchema>(queryResolverSchema);

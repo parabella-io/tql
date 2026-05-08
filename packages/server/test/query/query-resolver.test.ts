@@ -2,8 +2,9 @@ import { describe, test, beforeEach, expect } from 'vitest';
 import { IncludedDataMap, mergeIncludeData } from '../../src/query/query-resolver.js';
 import type { PrismaClient } from '../prisma/database.js';
 import { TQLServerErrorType } from '../../src/errors.js';
-import { createQueryTestData, queryResolver, type Comment, type Post, type Profile } from './query-resolver.fixture.js';
-
+import { queryResolver } from './query-resolver.fixture.js';
+import { seedTestData } from '../harness/test-data.js';
+import type { Profile, Post, Comment } from '../harness/schema-entities.js';
 const profileSelect = {
   name: true,
   hobbies: true,
@@ -32,11 +33,11 @@ describe('QueryResolver explicit single-query aliases - Success', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData();
+    const testData = await seedTestData({ profileCount: 1 });
 
-    database = data.db;
+    database = testData.db;
 
-    profileEntities = data.profileEntities;
+    profileEntities = testData.profileEntities;
   });
 
   test('should resolve profileById', async () => {
@@ -99,7 +100,7 @@ describe('QueryResolver QuerySingle- Success', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData();
+    const data = await seedTestData({ profileCount: 1 });
 
     database = data.db;
 
@@ -142,7 +143,7 @@ describe('QueryResolver QueryMany- Success', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 50,
     });
 
@@ -184,7 +185,7 @@ describe('QueryResolver IncludeSingle - Success', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -328,7 +329,7 @@ describe('QueryResolver IncludeSingle - Success', () => {
   });
 
   test('should return null for unmatched matchKey includeSingle results', async () => {
-    const emptyData = await createQueryTestData({
+    const emptyData = await seedTestData({
       profileCount: 2,
       postCount: 2,
       commentCount: 0,
@@ -405,7 +406,7 @@ describe('QueryResolver IncludeMany - Success', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -539,7 +540,7 @@ describe('QueryResolver IncludeMany - Success', () => {
   });
 
   test('should return empty arrays for unmatched matchKey includeMany results', async () => {
-    const emptyData = await createQueryTestData({
+    const emptyData = await seedTestData({
       profileCount: 2,
       postCount: 0,
       commentCount: 0,
@@ -589,7 +590,7 @@ describe('QueryResolver Multiple Top Level Queries - Success', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -682,7 +683,7 @@ describe('QueryResolver Merge Include Data - Success', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -826,7 +827,7 @@ describe('QueryResolver HandleBatch - Success', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 20,
@@ -892,7 +893,7 @@ describe('QueryResolver explicit single-query aliases - Errors', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 10,
@@ -936,7 +937,7 @@ describe('QueryResolver QuerySingle - Errors', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 10,
@@ -997,7 +998,7 @@ describe('QueryResolver QueryMany - Errors', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 10,
       postCount: 10,
       commentCount: 10,
@@ -1163,7 +1164,7 @@ describe('QueryResolver externalField (commentsCount)', () => {
       await database.$disconnect();
     }
 
-    const data = await createQueryTestData({
+    const data = await seedTestData({
       profileCount: 3,
       postCount: 3,
       commentCount: 10,

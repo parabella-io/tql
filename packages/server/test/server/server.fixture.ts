@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntities } from '../harness/schema-entities.js';
 import type { PrismaClient } from '../prisma/database.js';
+import { generateSchema } from '../../src/codegen/generate-schema.js';
+import { ClientSchema } from './server.schema.js';
 
 type ServerSchemaContext = {
   userId: string;
@@ -10,15 +12,7 @@ type ServerSchemaContext = {
   database: PrismaClient;
 };
 
-export type ServerClientSchema = {
-  SchemaEntities: SchemaEntities;
-  QueryInputMap: Record<string, any>;
-  QueryResponseMap: Record<string, any>;
-  QueryRegistry: Record<string, any>;
-  MutationInputMap: Record<string, any>;
-  MutationResponseMap: Record<string, any>;
-  MutationOutputMap: Record<string, any>;
-};
+export type ServerClientSchema = ClientSchema;
 
 const profileOutput = z.object({
   id: z.string(),
@@ -34,6 +28,8 @@ const profileOutput = z.object({
 
 export const createServerSchema = () => {
   const schema = new Schema<ServerSchemaContext, SchemaEntities>();
+
+  generateSchema({ schema, outputPath: 'test/server/server.schema.d.ts' });
 
   schema.model('profile', {
     schema: profileOutput,

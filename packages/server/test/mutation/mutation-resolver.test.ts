@@ -1,15 +1,9 @@
 import { beforeEach, describe, test, expect } from 'vitest';
 
 import type { PrismaClient } from '../prisma/database.js';
-
 import { TQLServerErrorType } from '../../src/errors.js';
-import {
-  createMutationTestData,
-  mutationResolver,
-  type Comment,
-  type MutationResolverSchemaContext,
-  type Post,
-} from './mutation-resolver.fixture.js';
+import { mutationResolver, type MutationResolverSchemaContext } from './mutation-resolver.fixture.js';
+import { seedTestData } from '../harness/test-data.js';
 
 describe('MutationResolver - Success', () => {
   const userId = '1';
@@ -23,7 +17,7 @@ describe('MutationResolver - Success', () => {
       await database.$disconnect();
     }
 
-    const { db } = await createMutationTestData();
+    const { db } = await seedTestData({ profileCount: 1 });
 
     database = db;
 
@@ -185,7 +179,7 @@ describe('MutationResolver - Errors', () => {
       await database.$disconnect();
     }
 
-    const { db } = await createMutationTestData();
+    const { db } = await seedTestData({ profileCount: 1 });
 
     database = db;
 
