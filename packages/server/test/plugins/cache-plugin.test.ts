@@ -425,7 +425,6 @@ describe('cachePlugin', () => {
     const server = createServer(state);
 
     const first = await server.handleQuery({ request: { userId: 'u1' }, query: profilesWithExternalQuery(2) });
-
     const second = await server.handleQuery({ request: { userId: 'u1' }, query: profilesWithExternalQuery(3) });
 
     expect((first.profiles.data as any)?.map((profile: any) => profile.nameLength)).toEqual([3, 3]);

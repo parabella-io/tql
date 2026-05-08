@@ -1,31 +1,23 @@
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import { Server } from '../../src/server/server.js';
 import { Schema } from '../../src/schema.js';
 import type { SchemaEntity } from '../../src/schema-entity.js';
 import { effectsPlugin } from '../../src/plugins/built-in/effects/index.js';
 import { createFakeTransport, type TestRequest } from '../harness/http-fake.js';
-import { createServerSchema, createServerTestData, type ServerClientSchema } from './server.fixture.js';
+import { createServerSchema, type ServerClientSchema } from './server.fixture.js';
+import { seedTestData } from '../harness/test-data.js';
 
 describe('Server', () => {
-  let database: Awaited<ReturnType<typeof createServerTestData>>['db'] | undefined;
-
-  afterEach(async () => {
-    await database?.$disconnect();
-    database = undefined;
-  });
-
   test('creates context from the HTTP request and forwards it to query handlers', async () => {
-    const data = await createServerTestData();
-
-    database = data.db;
+    const { db, profileEntities } = await seedTestData();
 
     const transport = createFakeTransport();
 
     const createContext = vi.fn(async ({ request }: { request: unknown }) => ({
       userId: 'request-user',
       isAuthenticated: true,
-      database: data.db,
+      database: db,
     }));
 
     const server = new Server<ServerClientSchema>({
@@ -39,7 +31,7 @@ describe('Server', () => {
     const request: TestRequest = {
       body: {
         profileById: {
-          query: { id: data.profileEntities[0].id },
+          query: { id: profileEntities[0].id },
           select: { name: true },
         },
       },
@@ -52,8 +44,8 @@ describe('Server', () => {
     expect(response).toMatchObject({
       profileById: {
         data: {
-          id: data.profileEntities[0].id,
-          name: data.profileEntities[0].name,
+          id: profileEntities[0].id,
+          name: profileEntities[0].name,
         },
         error: null,
       },
@@ -61,16 +53,14 @@ describe('Server', () => {
   });
 
   test('creates context from the HTTP request and forwards it to mutation handlers', async () => {
-    const data = await createServerTestData();
-
-    database = data.db;
+    const { db, profileEntities } = await seedTestData();
 
     const transport = createFakeTransport();
 
     const createContext = vi.fn(async ({ request }: { request: unknown }) => ({
       userId: 'request-derived-id',
       isAuthenticated: true,
-      database: data.db,
+      database: db,
     }));
 
     const server = new Server<ServerClientSchema>({
@@ -115,7 +105,6 @@ describe('Server', () => {
     });
   });
 });
-
 type EffectThing = SchemaEntity<{ name: string }>;
 
 type EffectSchemaEntities = {
