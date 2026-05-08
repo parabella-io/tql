@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Profile {
+  id       String    @id
+  name     String
+  hobbies  String
+  address  String
+  posts    Post[]
+  comments Comment[]
+}
+
+model Post {
+  id        String    @id
+  title     String
+  content   String
+  profileId String
+  profile   Profile   @relation(fields: [profileId], references: [id])
+  comments  Comment[]
+}
+
+model Comment {
+  id        String  @id
+  comment   String
+  postId    String
+  profileId String
+  post      Post    @relation(fields: [postId], references: [id])
+  profile   Profile @relation(fields: [profileId], references: [id])
+}
